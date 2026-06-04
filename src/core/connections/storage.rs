@@ -69,6 +69,7 @@ impl Storage {
     }
 
     pub fn save(&self, c: &Connection) -> SqliteResult<()> {
+        tracing::debug!(conn_id = %c.id, name = %c.name, "storage: save connection");
         let ssh_json = c.ssh.as_ref()
             .and_then(|s| serde_json::to_string(s).ok());
         self.conn.execute(
@@ -88,6 +89,7 @@ impl Storage {
     }
 
     pub fn delete(&self, id: &str) -> SqliteResult<()> {
+        tracing::debug!(conn_id = %id, "storage: delete connection");
         self.conn.execute("DELETE FROM connections WHERE id = ?1", params![id])?;
         Ok(())
     }

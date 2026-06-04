@@ -1,17 +1,7 @@
 pub mod state;
 pub use state::ConnectionsPageState;
 
-pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
-    // Use egui panels to avoid simultaneous mutable borrow in two closures
-    egui::SidePanel::left("conn_list_panel")
-        .exact_width(280.0)
-        .resizable(false)
-        .show_inside(ui, |ui| render_list(ui, app, ctx));
-    egui::CentralPanel::default()
-        .show_inside(ui, |ui| render_detail(ui, app, ctx));
-}
-
-fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Context) {
+pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Context) {
     use crate::ui::{atoms::button::small_primary_button, molecules::conn_item::conn_item};
     use egui::RichText;
 
@@ -80,7 +70,7 @@ fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Co
     });
 }
 
-fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
     use crate::pages::connections::state::TestStatus;
     use crate::ui::{
         atoms::{button::primary_button, input::{password_input, text_input}},

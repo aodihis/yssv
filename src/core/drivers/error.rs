@@ -19,6 +19,7 @@ impl DbError {
     pub fn new(message: impl Into<String>) -> Self {
         let message = message.into();
         let kind = classify(&message);
+        tracing::warn!(error = %message, kind = ?kind, "database error");
         Self { message, kind }
     }
 

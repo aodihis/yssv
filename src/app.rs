@@ -71,16 +71,18 @@ impl YssvApp {
         theme::apply_theme(&cc.egui_ctx, settings.theme);
 
         let storage_path = data_dir_path();
-        // Ensure parent directory exists
+        tracing::info!(path = %storage_path, "opening connection storage");
         if let Some(parent) = std::path::Path::new(&storage_path).parent() {
             let _ = std::fs::create_dir_all(parent);
         }
 
-        let storage = Storage::open(&storage_path).unwrap_or_else(|_| {
+        let storage = Storage::open(&storage_path).unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "storage open failed, falling back to in-memory");
             Storage::open_in_memory().expect("fallback in-memory storage failed")
         });
 
         let connections = storage.load_all().unwrap_or_default();
+        tracing::info!(count = connections.len(), "loaded saved connections");
         let conn_page = ConnectionsPageState::new(connections);
 
         let (tx, rx) = mpsc::sync_channel(32);
@@ -108,27 +110,32 @@ impl YssvApp {
     fn apply_event(&mut self, event: AppEvent, _ctx: &egui::Context) {
         match event {
             AppEvent::Connected { conn_id, conn_name, databases } => {
+                tracing::info!(conn_id = %conn_id, conn = %conn_name, databases = databases.len(), "connected");
                 self.explorer = Some(ExplorerState::new(conn_id, conn_name, databases));
                 self.screen = Screen::Explorer;
             }
-            AppEvent::ConnectError { message, .. } => {
+            AppEvent::ConnectError { conn_id, message } => {
+                tracing::warn!(conn_id = %conn_id, error = %message, "connection failed");
                 self.error_modal = Some(message);
                 self.conn_page.test_status =
                     crate::pages::connections::state::TestStatus::Idle;
             }
             AppEvent::TestOk { conn_id } => {
+                tracing::debug!(conn_id = %conn_id, "test connection ok");
                 if self.conn_page.selected_id.as_deref() == Some(&conn_id) {
                     self.conn_page.test_status =
                         crate::pages::connections::state::TestStatus::Ok;
                 }
             }
             AppEvent::TestError { conn_id, message } => {
+                tracing::warn!(conn_id = %conn_id, error = %message, "test connection failed");
                 if self.conn_page.selected_id.as_deref() == Some(&conn_id) {
                     self.conn_page.test_status =
                         crate::pages::connections::state::TestStatus::Failed(message);
                 }
             }
             AppEvent::RowsLoaded { tab_id, result } => {
+                tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
                 if let Some(explorer) = &mut self.explorer {
                     if let Some(tab) =
                         explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
@@ -139,6 +146,7 @@ impl YssvApp {
                 }
             }
             AppEvent::RowLoadError { tab_id, message } => {
+                tracing::warn!(tab_id = %tab_id, error = %message, "row load failed");
                 if let Some(explorer) = &mut self.explorer {
                     if let Some(tab) =
                         explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
@@ -150,6 +158,7 @@ impl YssvApp {
                 self.error_modal = Some(message);
             }
             AppEvent::SchemasLoaded { db, schemas } => {
+                tracing::debug!(db = %db, schemas = schemas.len(), "schemas loaded");
                 if let Some(explorer) = &mut self.explorer {
                     if let Some(db_info) =
                         explorer.databases.iter_mut().find(|d| d.name == db)
@@ -163,6 +172,11 @@ impl YssvApp {
 
     pub fn connect(&self, ctx: egui::Context) {
         let conn = self.conn_page.form.to_connection();
+        tracing::debug!(
+            conn_id = %conn.id, name = %conn.name,
+            host = %conn.host, port = conn.port,
+            engine = ?conn.engine, "initiating connection"
+        );
         let tx = self.event_tx.clone();
         self.rt.spawn(async move {
             let conn_id = conn.id.clone();
@@ -209,6 +223,7 @@ impl YssvApp {
         use crate::pages::connections::state::TestStatus;
         self.conn_page.test_status = TestStatus::Testing;
         let conn = self.conn_page.form.to_connection();
+        tracing::debug!(conn_id = %conn.id, host = %conn.host, "testing connection");
         let conn_id = conn.id.clone();
         let tx = self.event_tx.clone();
         self.rt.spawn(async move {
@@ -235,12 +250,19 @@ impl YssvApp {
         offset: u32,
     ) {
         if let Some(conn) = &self.active_conn {
+            tracing::debug!(
+                tab_id = %tab_id, db = %db, schema = %schema,
+                table = %table, limit, offset, "fetching rows"
+            );
             let conn = conn.clone();
             let tx = self.event_tx.clone();
             self.rt.spawn(async move {
                 match conn.fetch_rows(&db, &schema, &table, limit, offset).await {
                     Ok(result) => { let _ = tx.send(AppEvent::RowsLoaded { tab_id, result }); }
-                    Err(e) => { let _ = tx.send(AppEvent::RowLoadError { tab_id, message: e.message }); }
+                    Err(e) => {
+                        tracing::warn!(error = %e.message, "fetch rows failed");
+                        let _ = tx.send(AppEvent::RowLoadError { tab_id, message: e.message });
+                    }
                 }
                 ctx.request_repaint();
             });
@@ -249,11 +271,13 @@ impl YssvApp {
 
     pub fn save_connection(&mut self) {
         let c = self.conn_page.form.to_connection();
+        tracing::debug!(conn_id = %c.id, name = %c.name, "saving connection");
         let _ = self.storage.save(&c);
         self.conn_page.apply_saved(c);
     }
 
     pub fn delete_connection(&mut self, id: &str) {
+        tracing::debug!(conn_id = %id, "deleting connection");
         let _ = self.storage.delete(id);
         self.conn_page.remove(id);
     }
@@ -313,15 +337,23 @@ impl eframe::App for YssvApp {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            match &self.screen {
-                Screen::Connections => {
-                    crate::pages::connections::render(ui, self, ctx);
-                }
-                Screen::Explorer => {
-                    crate::pages::explorer::render(ui, self, ctx);
-                }
-            }
-        });
+        // Top-level panels per screen — no nested CentralPanel
+        let is_connections = matches!(self.screen, Screen::Connections);
+        if is_connections {
+            egui::SidePanel::left("conn_list_panel")
+                .exact_width(280.0)
+                .resizable(false)
+                .show(ctx, |ui| crate::pages::connections::render_list(ui, self, ctx));
+            egui::CentralPanel::default()
+                .show(ctx, |ui| crate::pages::connections::render_detail(ui, self, ctx));
+        } else {
+            let sidebar_width = self.settings.sidebar_width;
+            egui::SidePanel::left("explorer_sidebar")
+                .default_width(sidebar_width)
+                .width_range(160.0..=400.0)
+                .show(ctx, |ui| crate::pages::explorer::render_sidebar(ui, self, ctx));
+            egui::CentralPanel::default()
+                .show(ctx, |ui| crate::pages::explorer::render_main(ui, self, ctx));
+        }
     }
 }

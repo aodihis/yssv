@@ -11,16 +11,7 @@ struct LoadRequest {
     offset: u32,
 }
 
-pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
-    egui::SidePanel::left("explorer_sidebar")
-        .exact_width(app.settings.sidebar_width)
-        .resizable(true)
-        .show_inside(ui, |ui| render_sidebar(ui, app, ctx));
-    egui::CentralPanel::default()
-        .show_inside(ui, |ui| render_main(ui, app, ctx));
-}
-
-fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
     use crate::ui::molecules::tree_row::{tree_row, TreeRowConfig};
     use crate::core::schema::model::TableKind;
     use crate::theme::colors;
@@ -30,7 +21,7 @@ fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::
     let accent_color = ui.visuals().selection.stroke.color;
 
     // Header - extract data first to avoid long borrows
-    let (conn_name, filter) = {
+    let (conn_name, _filter) = {
         let e = app.explorer.as_ref().unwrap();
         (e.conn_name.clone(), e.filter.clone())
     };
@@ -183,7 +174,7 @@ fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::
     });
 }
 
-fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
     use crate::ui::molecules::{tab_bar::tab_bar, status_bar::status_bar, data_cell::render_cell};
     use crate::pages::explorer::state::TabView;
     use egui::RichText;

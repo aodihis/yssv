@@ -13,6 +13,7 @@ pub struct PgConnection {
 }
 
 pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
+    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "postgres: connecting");
     let url = format!(
         "postgres://{}:{}@{}:{}/{}",
         conn.username, conn.password, conn.host, conn.port, conn.database
@@ -22,6 +23,7 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
         .connect(&url)
         .await
         .map_err(DbError::from)?;
+    tracing::info!(host = %conn.host, port = conn.port, "postgres: connection pool established");
     Ok(Box::new(PgConnection { pool }))
 }
 
@@ -82,6 +84,7 @@ impl ActiveConnection for PgConnection {
         limit: u32,
         offset: u32,
     ) -> Result<QueryResult, DbError> {
+        tracing::debug!(schema, table, limit, offset, "postgres: fetch_rows");
         let query = format!(
             "SELECT * FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
         );
