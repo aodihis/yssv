@@ -1,5 +1,4 @@
-use std::sync::mpsc;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 
 use crate::core::{
     connections::storage::Storage,
@@ -60,14 +59,14 @@ pub struct YssvApp {
     pub error_modal: Option<String>,
 
     storage: Storage,
-    rt: tokio::runtime::Runtime,
+    rt: Arc<tokio::runtime::Runtime>,
     event_tx: mpsc::SyncSender<AppEvent>,
     event_rx: mpsc::Receiver<AppEvent>,
 }
 
 impl YssvApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, rt: tokio::runtime::Runtime) -> Self {
-        let settings = SettingsState::default();
+    pub fn new(cc: &eframe::CreationContext<'_>, rt: Arc<tokio::runtime::Runtime>) -> Self {
+        let settings = SettingsState::load();
         theme::apply_theme(&cc.egui_ctx, settings.theme);
 
         let storage_path = data_dir_path();
@@ -318,31 +317,67 @@ impl eframe::App for YssvApp {
                 });
         }
 
-        // Titlebar (theme toggle)
-        egui::TopBottomPanel::top("titlebar").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new("YSSV").size(13.0).strong());
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let icon = if self.settings.theme == crate::theme::Theme::Dark { "☀" } else { "🌙" };
-                    if ui.button(icon).clicked() {
-                        self.settings.toggle_theme();
-                    }
-                    if matches!(self.screen, Screen::Explorer) {
-                        if ui.button("◀ Connections").clicked() {
-                            self.screen = Screen::Connections;
+        // Titlebar — 40px, bg-titlebar, border-bottom
+        egui::TopBottomPanel::top("titlebar")
+            .exact_height(40.0)
+            .frame(egui::Frame::new()
+                .fill(if self.settings.theme == crate::theme::Theme::Dark {
+                    crate::theme::colors::dark::TITLEBAR
+                } else {
+                    crate::theme::colors::light::TITLEBAR
+                })
+                .inner_margin(egui::Margin::symmetric(12, 0))
+            )
+            .show(ctx, |ui| {
+                let tc = crate::theme::ThemeColors::from_ui(ui);
+                ui.horizontal_centered(|ui| {
+                    // Brand
+                    ui.label(egui::RichText::new("YSSV").size(13.0).strong().color(tc.text));
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Theme toggle
+                        let icon = if self.settings.theme == crate::theme::Theme::Dark { "☀" } else { "🌙" };
+                        let theme_btn = egui::Button::new(egui::RichText::new(icon).size(14.0).color(tc.text_muted))
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE)
+                            .min_size(egui::vec2(30.0, 28.0));
+                        if ui.add(theme_btn).clicked() {
+                            self.settings.toggle_theme();
                         }
-                    }
+
+                        // Back button in explorer
+                        if matches!(self.screen, Screen::Explorer) {
+                            ui.add_space(4.0);
+                            let back_btn = egui::Button::new(
+                                egui::RichText::new("◀  Connections").size(12.0).color(tc.text_muted)
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                            .min_size(egui::vec2(0.0, 26.0));
+                            if ui.add(back_btn).clicked() {
+                                self.screen = Screen::Connections;
+                            }
+                        }
+                    });
                 });
+                // Bottom border
+                let r = ui.max_rect();
+                ui.painter().hline(r.x_range(), r.bottom(), egui::Stroke::new(1.0, tc.border));
             });
-        });
 
         // Top-level panels per screen — no nested CentralPanel
         let is_connections = matches!(self.screen, Screen::Connections);
         if is_connections {
             egui::SidePanel::left("conn_list_panel")
-                .exact_width(280.0)
+                .exact_width(256.0)
                 .resizable(false)
+                .frame(egui::Frame::new().fill(
+                    if self.settings.theme == crate::theme::Theme::Dark {
+                        crate::theme::colors::dark::BG_PANEL
+                    } else {
+                        crate::theme::colors::light::BG_PANEL
+                    }
+                ))
                 .show(ctx, |ui| crate::pages::connections::render_list(ui, self, ctx));
             egui::CentralPanel::default()
                 .show(ctx, |ui| crate::pages::connections::render_detail(ui, self, ctx));

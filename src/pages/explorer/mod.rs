@@ -17,30 +17,30 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     use crate::theme::colors;
     use egui::RichText;
 
+    use crate::theme::ThemeColors;
     if app.explorer.is_none() { return; }
     let accent_color = ui.visuals().selection.stroke.color;
+    let tc = ThemeColors::from_ui(ui);
 
-    // Header - extract data first to avoid long borrows
-    let (conn_name, _filter) = {
-        let e = app.explorer.as_ref().unwrap();
-        (e.conn_name.clone(), e.filter.clone())
-    };
+    // Header — 10px 10px 8px padding, border-bottom-faint (design spec)
+    let conn_name = app.explorer.as_ref().unwrap().conn_name.clone();
 
-    ui.add_space(8.0);
-    ui.horizontal(|ui| {
-        ui.add_space(8.0);
-        ui.label(RichText::new(&conn_name).size(13.0).strong());
-    });
-    ui.add_space(4.0);
-    ui.horizontal(|ui| {
-        ui.add_space(8.0);
-        let e = app.explorer.as_mut().unwrap();
-        egui::TextEdit::singleline(&mut e.filter)
-            .hint_text("Filter tables…")
-            .desired_width(ui.available_width() - 16.0)
-            .show(ui);
-    });
-    ui.add_space(4.0);
+    egui::Frame::new()
+        .inner_margin(egui::Margin { left: 10, right: 10, top: 10, bottom: 8 })
+        .show(ui, |ui| {
+            ui.label(RichText::new(&conn_name).size(13.0).strong().color(tc.text));
+            ui.add_space(7.0);
+            let e = app.explorer.as_mut().unwrap();
+            egui::TextEdit::singleline(&mut e.filter)
+                .hint_text("Filter tables…")
+                .desired_width(ui.available_width())
+                .show(ui);
+        });
+
+    // Border below sidebar head
+    let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
+    ui.painter().rect_filled(sep, egui::CornerRadius::ZERO, tc.border_faint);
+    ui.add_space(1.0);
 
     // Collect what to render from explorer (immutable snapshot)
     let tree_data: Vec<(String, bool, bool, Vec<(String, bool, Vec<(String, TableKind, Option<u64>, bool)>)>)> = {
@@ -81,6 +81,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     let mut open_table: Option<(String, String, String)> = None; // (table, schema, db)
 
     egui::ScrollArea::vertical().show(ui, |ui| {
+        ui.add_space(6.0);
         for (db_name, db_open, is_active, schemas) in &tree_data {
             let db_key = format!("db:{}", db_name);
             let resp = tree_row(ui, TreeRowConfig {
@@ -175,8 +176,9 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
 }
 
 pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
-    use crate::ui::molecules::{tab_bar::tab_bar, status_bar::status_bar, data_cell::render_cell};
+    use crate::ui::molecules::{tab_bar::tab_bar, status_bar::{status_bar, STATUS_H}, data_cell::render_cell};
     use crate::pages::explorer::state::TabView;
+    use crate::theme::ThemeColors;
     use egui::RichText;
 
     if app.explorer.is_none() {
@@ -204,20 +206,45 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         if let Some(i) = close   { explorer.tabs.close(i); }
     }
 
-    ui.separator();
-
-    // Sub-view toggle
+    // Sub-view toggle toolbar — 32px height, border-bottom
     {
+        let tc = ThemeColors::from_ui(ui);
+        let toolbar_rect = egui::Rect::from_min_size(
+            ui.cursor().min,
+            egui::vec2(ui.available_width(), 32.0),
+        );
+        ui.painter().rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+
         let explorer = app.explorer.as_mut().unwrap();
         if let Some(tab) = explorer.tabs.active_tab() {
             let is_data = tab.view == TabView::Data;
             let mut new_view: Option<TabView> = None;
-            ui.horizontal(|ui| {
-                ui.add_space(8.0);
-                if ui.selectable_label(is_data, "Data").clicked()      { new_view = Some(TabView::Data); }
-                if ui.selectable_label(!is_data, "Structure").clicked() { new_view = Some(TabView::Structure); }
+            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
+                ui.horizontal_centered(|ui| {
+                    ui.add_space(12.0);
+                    for (label, view, active) in [("Data", TabView::Data, is_data), ("Structure", TabView::Structure, !is_data)] {
+                        let color = if active { tc.text } else { tc.text_muted };
+                        let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE)
+                            .min_size(egui::vec2(0.0, 28.0));
+                        let resp = ui.add(btn);
+                        if active {
+                            // Accent underline
+                            ui.painter().rect_filled(
+                                egui::Rect::from_min_size(egui::pos2(resp.rect.left(), resp.rect.bottom()), egui::vec2(resp.rect.width(), 2.0)),
+                                egui::CornerRadius::ZERO, tc.accent,
+                            );
+                        }
+                        if resp.clicked() { new_view = Some(view); }
+                        ui.add_space(4.0);
+                    }
+                });
             });
-            ui.separator();
+
+            // Border below toolbar
+            ui.painter().hline(toolbar_rect.x_range(), toolbar_rect.bottom(), egui::Stroke::new(1.0, tc.border));
+
             if let Some(v) = new_view {
                 if let Some(t) = explorer.tabs.active_tab_mut() { t.view = v; }
             }
@@ -227,7 +254,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
     // Data grid
     let row_height = app.settings.density.row_height();
     let available = ui.available_rect_before_wrap();
-    let status_height = 36.0;
+    let status_height = STATUS_H;
     let grid_height = (available.height() - status_height).max(10.0);
     let grid_rect   = egui::Rect::from_min_size(available.min, egui::vec2(available.width(), grid_height));
     let status_rect = egui::Rect::from_min_size(

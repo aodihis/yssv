@@ -1,41 +1,90 @@
-use egui::{Color32, Response, RichText, Ui, Vec2};
+use egui::{Color32, FontId, Response, Ui, Vec2};
 use crate::core::connections::model::Connection;
-use crate::ui::atoms::{badge::engine_badge, label_dot::colored_dot};
+use crate::theme::ThemeColors;
 
 pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
-    let desired_size = Vec2::new(ui.available_width(), 44.0);
-    let (rect, resp) = ui.allocate_exact_size(desired_size, egui::Sense::click());
+    let tc = ThemeColors::from_ui(ui);
+    let item_h = 48.0;
+    let (rect, resp) = ui.allocate_exact_size(
+        Vec2::new(ui.available_width(), item_h),
+        egui::Sense::click(),
+    );
+    if !ui.is_rect_visible(rect) { return resp; }
 
-    if ui.is_rect_visible(rect) {
-        let bg = if selected {
-            ui.visuals().selection.bg_fill
-        } else if resp.hovered() {
-            ui.visuals().faint_bg_color
-        } else {
-            Color32::TRANSPARENT
-        };
-        ui.painter().rect_filled(rect, egui::CornerRadius::same(6u8), bg);
+    let painter = ui.painter();
 
-        let mut inner_ui = ui.new_child(egui::UiBuilder::new().max_rect(rect));
-        inner_ui.horizontal_centered(|ui| {
-            ui.add_space(10.0);
-            colored_dot(ui, conn.color.to_color32(), 8.0);
-            ui.add_space(8.0);
-            ui.vertical(|ui| {
-                ui.add_space(6.0);
-                ui.label(RichText::new(&conn.name).size(13.0).strong());
-                ui.label(
-                    RichText::new(conn.display_host())
-                        .size(11.0)
-                        .color(ui.visuals().weak_text_color()),
-                );
-            });
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_space(10.0);
-                engine_badge(ui, conn.engine);
-            });
-        });
+    // Background
+    let bg = if selected {
+        tc.bg_selected
+    } else if resp.hovered() {
+        tc.bg_hover
+    } else {
+        Color32::TRANSPARENT
+    };
+    painter.rect_filled(rect, egui::CornerRadius::same(5u8), bg);
+
+    // Active left bar
+    if selected {
+        let bar = egui::Rect::from_min_size(
+            egui::pos2(rect.left(), rect.top() + 6.0),
+            egui::vec2(3.0, rect.height() - 12.0),
+        );
+        painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.accent);
     }
+
+    // Layout: left-pad 12 (accounts for the bar), dot, gap, meta block, engine badge right
+    let left_x = rect.left() + 14.0;
+    let center_y = rect.center().y;
+
+    // Color dot — 9px + glow ring
+    let dot_c = conn.color.to_color32();
+    let dot_pos = egui::pos2(left_x + 4.5, center_y);
+    // Glow ring (larger, semi-transparent circle)
+    painter.circle_filled(
+        dot_pos,
+        7.0,
+        Color32::from_rgba_unmultiplied(dot_c.r(), dot_c.g(), dot_c.b(), 30),
+    );
+    painter.circle_filled(dot_pos, 4.5, dot_c);
+
+    // Name + host text block
+    let text_x = left_x + 18.0;
+    let name_y  = center_y - 9.0;
+    let host_y  = center_y + 5.5;
+
+    painter.text(
+        egui::pos2(text_x, name_y),
+        egui::Align2::LEFT_CENTER,
+        &conn.name,
+        FontId::proportional(13.0),
+        tc.text,
+    );
+    painter.text(
+        egui::pos2(text_x, host_y),
+        egui::Align2::LEFT_CENTER,
+        conn.display_host(),
+        FontId::monospace(10.5),
+        tc.text_faint,
+    );
+
+    // Engine badge — right side, 9.5px mono uppercase in a small rounded pill
+    let badge_text = conn.engine.label().to_uppercase();
+    let badge_font = FontId::monospace(9.5);
+    let badge_galley = painter.layout_no_wrap(badge_text.clone(), badge_font.clone(), tc.text_muted);
+    let badge_w = badge_galley.size().x + 10.0; // 5px padding each side
+    let badge_h = 18.0;
+    let badge_rect = egui::Rect::from_min_size(
+        egui::pos2(rect.right() - badge_w - 10.0, center_y - badge_h / 2.0),
+        egui::vec2(badge_w, badge_h),
+    );
+    painter.rect_filled(badge_rect, egui::CornerRadius::same(4u8), tc.bg_active);
+    painter.text(
+        badge_rect.center(),
+        egui::Align2::CENTER_CENTER,
+        &badge_text,
+        badge_font,
+        tc.text_muted,
+    );
 
     resp
 }

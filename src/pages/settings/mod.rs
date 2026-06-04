@@ -1,2 +1,2 @@
 pub mod state;
-pub use state::{RowDensity, SettingsState};
+pub use state::{RendererPreference, RowDensity, SettingsState};

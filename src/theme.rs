@@ -165,6 +165,72 @@ fn build_light() -> Visuals {
 
 pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
     ctx.set_visuals(build_visuals(theme));
+    ctx.style_mut(|style| {
+        style.spacing.button_padding = egui::vec2(10.0, 6.0);
+    });
+}
+
+/// Resolved color set for the current theme — use this in render code instead
+/// of checking dark_mode manually everywhere.
+pub struct ThemeColors {
+    pub bg_base:      egui::Color32,
+    pub bg_panel:     egui::Color32,
+    pub bg_elevated:  egui::Color32,
+    pub bg_hover:     egui::Color32,
+    pub bg_active:    egui::Color32,
+    pub bg_selected:  egui::Color32,
+    pub border:       egui::Color32,
+    pub border_strong:egui::Color32,
+    pub border_faint: egui::Color32,
+    pub text:         egui::Color32,
+    pub text_muted:   egui::Color32,
+    pub text_faint:   egui::Color32,
+    pub accent:       egui::Color32,
+    pub accent_soft:  egui::Color32,
+    pub grid_header:  egui::Color32,
+    pub grid_line:    egui::Color32,
+    pub zebra:        egui::Color32,
+    pub ok:           egui::Color32,
+    pub err:          egui::Color32,
+}
+
+impl ThemeColors {
+    pub fn dark() -> Self {
+        use colors::dark::*;
+        Self {
+            bg_base: BG_BASE, bg_panel: BG_PANEL, bg_elevated: BG_ELEVATED,
+            bg_hover: BG_HOVER, bg_active: BG_ACTIVE, bg_selected: BG_SELECTED,
+            border: BORDER, border_strong: BORDER_STRONG, border_faint: BORDER_FAINT,
+            text: TEXT, text_muted: TEXT_MUTED, text_faint: TEXT_FAINT,
+            accent: ACCENT, accent_soft: ACCENT_SOFT,
+            grid_header: GRID_HEADER,
+            grid_line:   egui::Color32::from_rgb(0x1c, 0x23, 0x2d),
+            zebra:       ZEBRA,
+            ok:          egui::Color32::from_rgb(0x3b, 0xb2, 0x7c),
+            err:         egui::Color32::from_rgb(0xf0, 0x59, 0x5e),
+        }
+    }
+
+    pub fn light() -> Self {
+        use colors::light::*;
+        Self {
+            bg_base: BG_BASE, bg_panel: BG_PANEL, bg_elevated: BG_ELEVATED,
+            bg_hover: BG_HOVER, bg_active: BG_ACTIVE, bg_selected: BG_SELECTED,
+            border: BORDER, border_strong: BORDER_STRONG, border_faint: BORDER_FAINT,
+            text: TEXT, text_muted: TEXT_MUTED, text_faint: TEXT_FAINT,
+            accent: ACCENT, accent_soft: ACCENT_SOFT,
+            grid_header: GRID_HEADER,
+            grid_line:   egui::Color32::from_rgb(0xed, 0xef, 0xf2),
+            zebra:       ZEBRA,
+            ok:          egui::Color32::from_rgb(0x2e, 0xa3, 0x6b),
+            err:         egui::Color32::from_rgb(0xe5, 0x48, 0x4d),
+        }
+    }
+
+    /// Derive from the current egui Ui — detects dark vs light by panel fill brightness.
+    pub fn from_ui(ui: &egui::Ui) -> Self {
+        if ui.visuals().panel_fill.r() < 128 { Self::dark() } else { Self::light() }
+    }
 }
 
 #[cfg(test)]
