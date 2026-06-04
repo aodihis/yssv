@@ -10,7 +10,7 @@ else
     RUN_BIN = ./target/release/yssv
 endif
 
-.PHONY: all build release run run-release run-log test test-lib test-integration \
+.PHONY: all build release run run-release run-log watch watch-log test test-lib test-integration \
         lint fmt fmt-check check clean help
 
 # ── Default ────────────────────────────────────────────────────────────────────
@@ -29,6 +29,20 @@ run:
 
 run-release: release
 	$(RUN_BIN)
+
+# ── Watch ──────────────────────────────────────────────────────────────────────
+# Requires: cargo install cargo-watch
+watch:
+	cargo watch -x run
+
+# Watch with a specific log level: make watch-log LEVEL=debug
+ifeq ($(OS),Windows_NT)
+watch-log:
+	cmd /C "set YSSV_LOG=$(LEVEL) && cargo watch -x run"
+else
+watch-log:
+	YSSV_LOG=$(LEVEL) cargo watch -x run
+endif
 
 # Run with a specific log level: make run-log LEVEL=debug
 # Uses cmd /C on Windows so the env var is scoped to that command.
@@ -80,6 +94,8 @@ help:
 	@echo   run                   Run in development mode (debug log to stderr + file)
 	@echo   run-release           Build release then run it
 	@echo   run-log LEVEL=X       Run with YSSV_LOG=X  (e.g. make run-log LEVEL=debug)
+	@echo   watch                 Auto-rebuild and rerun on file changes (requires cargo-watch)
+	@echo   watch-log LEVEL=X     Watch with YSSV_LOG=X  (e.g. make watch-log LEVEL=debug)
 	@echo.
 	@echo   test                  All tests (unit + integration, skips #[ignore])
 	@echo   test-lib              Unit tests only - no database required

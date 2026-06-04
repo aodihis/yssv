@@ -22,15 +22,17 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
         ui.set_height(TAB_H);
         ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
 
+        // "×" is constant — measure once outside the loop
+        let close_font = FontId::proportional(12.0);
+        let close_w = ui.painter().layout_no_wrap("×".into(), close_font.clone(), Color32::WHITE).size().x;
+
         for (i, tab) in tabs.iter().enumerate() {
             let is_active = i == active;
             let label = format!("{}.{}", tab.schema, tab.table);
 
-            // Measure text to allocate exact tab width
+            // Measure label to allocate exact tab width
             let label_font = FontId::proportional(12.5);
-            let close_font = FontId::proportional(12.0);
-            let text_w = ui.fonts(|f| f.layout_no_wrap(label.clone(), label_font.clone(), Color32::WHITE).size().x);
-            let close_w = ui.fonts(|f| f.layout_no_wrap("×".into(), close_font.clone(), Color32::WHITE).size().x);
+            let text_w = ui.painter().layout_no_wrap(label.clone(), label_font.clone(), Color32::WHITE).size().x;
             let tab_w = 12.0 + text_w + 8.0 + close_w + 12.0;
 
             let (tab_rect, tab_resp) = ui.allocate_exact_size(
@@ -94,7 +96,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 close_rect.center(),
                 egui::Align2::CENTER_CENTER,
                 "×",
-                close_font,
+                close_font.clone(),
                 close_color,
             );
 

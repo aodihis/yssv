@@ -296,6 +296,8 @@ fn data_dir_path() -> String {
 }
 
 impl eframe::App for YssvApp {
+    fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {}
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.drain_events(ctx);
 

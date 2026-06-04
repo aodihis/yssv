@@ -30,19 +30,15 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                 let pages = tab.total_pages();
                 let font  = FontId::proportional(11.5);
 
-                // Row count
-                ui.painter().text(
+                // Row count — painter.text returns the bounding Rect; reuse width to advance cursor
+                let text_rect = ui.painter().text(
                     ui.cursor().min + egui::vec2(0.0, STATUS_H / 2.0),
                     egui::Align2::LEFT_CENTER,
                     format!("Rows {from}–{to} of {total}"),
-                    font.clone(),
+                    font,
                     tc.text_muted,
                 );
-                // Advance cursor manually
-                let text_w = ui.fonts(|f| {
-                    f.layout_no_wrap(format!("Rows {from}–{to} of {total}"), font.clone(), Color32::WHITE).size().x
-                });
-                ui.add_space(text_w + 16.0);
+                ui.add_space(text_rect.width() + 16.0);
 
                 // Spacer
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
