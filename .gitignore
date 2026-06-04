@@ -1,0 +1,38 @@
+# Rust build artifacts
+/target/
+/debug/
+
+# Cargo lock for libraries (keep for binaries — we keep Cargo.lock)
+# Cargo.lock  ← intentionally tracked for a binary crate
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env / secrets
+.env
+.env.local
+*.env
+
+# SQLite databases (local dev DBs — not the app's user data)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Test output
+/test-results/
+
+# Claude Code local settings (not for team sharing)
+.claude/settings.local.json
