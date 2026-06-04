@@ -1,6 +1,12 @@
 pub mod state;
 pub use state::{ExplorerState, TabState, TabView, TableTab};
 
+use crate::core::schema::model::TableKind;
+
+type TableRow  = (String, TableKind, Option<u64>, bool);
+type SchemaRow = (String, bool, Vec<TableRow>);
+type DbRow     = (String, bool, bool, Vec<SchemaRow>);
+
 #[derive(Debug)]
 struct LoadRequest {
     tab_id: String,
@@ -13,7 +19,6 @@ struct LoadRequest {
 
 pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
     use crate::ui::molecules::tree_row::{tree_row, TreeRowConfig};
-    use crate::core::schema::model::TableKind;
     use crate::theme::colors;
     use egui::RichText;
 
@@ -43,7 +48,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     ui.add_space(1.0);
 
     // Collect what to render from explorer (immutable snapshot)
-    let tree_data: Vec<(String, bool, bool, Vec<(String, bool, Vec<(String, TableKind, Option<u64>, bool)>)>)> = {
+    let tree_data: Vec<DbRow> = {
         let e = app.explorer.as_ref().unwrap();
         let q = e.filter.to_lowercase();
         e.databases.iter().map(|db| {
@@ -219,7 +224,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         if let Some(tab) = explorer.tabs.active_tab() {
             let is_data = tab.view == TabView::Data;
             let mut new_view: Option<TabView> = None;
-            ui.allocate_new_ui(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
+            ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
                 ui.horizontal_centered(|ui| {
                     ui.add_space(12.0);
                     for (label, view, active) in [("Data", TabView::Data, is_data), ("Structure", TabView::Structure, !is_data)] {

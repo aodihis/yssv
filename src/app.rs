@@ -238,6 +238,7 @@ impl YssvApp {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn load_rows(
         &self,
         ctx: egui::Context,
@@ -298,6 +299,7 @@ fn data_dir_path() -> String {
 impl eframe::App for YssvApp {
     fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {}
 
+    #[allow(deprecated)] // Panel::show / CentralPanel::show — migrating to fn ui requires full arch change
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.drain_events(ctx);
 
@@ -320,8 +322,8 @@ impl eframe::App for YssvApp {
         }
 
         // Titlebar — 40px, bg-titlebar, border-bottom
-        egui::TopBottomPanel::top("titlebar")
-            .exact_height(40.0)
+        egui::Panel::top("titlebar")
+            .exact_size(40.0)
             .frame(egui::Frame::new()
                 .fill(if self.settings.theme == crate::theme::Theme::Dark {
                     crate::theme::colors::dark::TITLEBAR
@@ -370,8 +372,8 @@ impl eframe::App for YssvApp {
         // Top-level panels per screen — no nested CentralPanel
         let is_connections = matches!(self.screen, Screen::Connections);
         if is_connections {
-            egui::SidePanel::left("conn_list_panel")
-                .exact_width(256.0)
+            egui::Panel::left("conn_list_panel")
+                .exact_size(256.0)
                 .resizable(false)
                 .frame(egui::Frame::new().fill(
                     if self.settings.theme == crate::theme::Theme::Dark {
@@ -385,9 +387,9 @@ impl eframe::App for YssvApp {
                 .show(ctx, |ui| crate::pages::connections::render_detail(ui, self, ctx));
         } else {
             let sidebar_width = self.settings.sidebar_width;
-            egui::SidePanel::left("explorer_sidebar")
-                .default_width(sidebar_width)
-                .width_range(160.0..=400.0)
+            egui::Panel::left("explorer_sidebar")
+                .default_size(sidebar_width)
+                .size_range(160.0..=400.0)
                 .show(ctx, |ui| crate::pages::explorer::render_sidebar(ui, self, ctx));
             egui::CentralPanel::default()
                 .show(ctx, |ui| crate::pages::explorer::render_main(ui, self, ctx));

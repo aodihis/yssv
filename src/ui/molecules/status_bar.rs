@@ -19,7 +19,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
     ui.painter().rect_filled(bar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
     ui.painter().hline(bar_rect.x_range(), bar_rect.top(), egui::Stroke::new(1.0, tc.border));
 
-    ui.allocate_new_ui(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
+    ui.scope_builder(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
         ui.horizontal_centered(|ui| {
             ui.add_space(12.0);
 
