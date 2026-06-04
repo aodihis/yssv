@@ -2,18 +2,15 @@ use crate::core::connections::model::{ConnColor, Connection, DbEngine};
 use crate::core::ssh::model::{SshAuth, SshConfig};
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum TestStatus {
+    #[default]
     Idle,
     Testing,
     Ok,
     Failed(String),
 }
 
-impl Default for TestStatus {
-    fn default() -> Self {
-        TestStatus::Idle
-    }
-}
 
 /// Mirrors `Connection` with owned `String` fields for the form.
 #[derive(Debug, Clone)]

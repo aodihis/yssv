@@ -18,17 +18,14 @@ impl RendererPreference {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum RowDensity {
     Compact,
+    #[default]
     Regular,
     Comfy,
 }
 
-impl Default for RowDensity {
-    fn default() -> Self {
-        RowDensity::Regular
-    }
-}
 
 impl RowDensity {
     pub fn row_height(&self) -> f32 {

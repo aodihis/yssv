@@ -1,16 +1,13 @@
 use egui::{Stroke, Visuals};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Default)]
 pub enum Theme {
+    #[default]
     Dark,
     Light,
 }
 
-impl Default for Theme {
-    fn default() -> Self {
-        Theme::Dark
-    }
-}
 
 // Design token colors
 pub mod colors {

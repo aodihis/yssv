@@ -14,7 +14,7 @@ impl QueryResult {
 
     pub fn page_count(&self, page_size: u32) -> u64 {
         match self.total_rows {
-            Some(total) if page_size > 0 => (total + page_size as u64 - 1) / page_size as u64,
+            Some(total) if page_size > 0 => total.div_ceil(page_size as u64),
             _ => 1,
         }
     }

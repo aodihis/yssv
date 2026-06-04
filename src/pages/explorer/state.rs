@@ -2,16 +2,13 @@ use std::collections::HashSet;
 use crate::core::{results::model::QueryResult, schema::model::DbInfo};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TabView {
+    #[default]
     Data,
     Structure,
 }
 
-impl Default for TabView {
-    fn default() -> Self {
-        TabView::Data
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TableTab {
