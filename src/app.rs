@@ -372,18 +372,23 @@ impl eframe::App for YssvApp {
         // Top-level panels per screen — no nested CentralPanel
         let is_connections = matches!(self.screen, Screen::Connections);
         if is_connections {
+            let (panel_bg, bg_base, border_color) = if self.settings.theme == crate::theme::Theme::Dark {
+                (crate::theme::colors::dark::BG_PANEL, crate::theme::colors::dark::BG_BASE, crate::theme::colors::dark::BORDER)
+            } else {
+                (crate::theme::colors::light::BG_PANEL, crate::theme::colors::light::BG_BASE, crate::theme::colors::light::BORDER)
+            };
             egui::Panel::left("conn_list_panel")
-                .exact_size(256.0)
+                .exact_size(307.0)
                 .resizable(false)
-                .frame(egui::Frame::new().fill(
-                    if self.settings.theme == crate::theme::Theme::Dark {
-                        crate::theme::colors::dark::BG_PANEL
-                    } else {
-                        crate::theme::colors::light::BG_PANEL
-                    }
-                ))
-                .show(ctx, |ui| crate::pages::connections::render_list(ui, self, ctx));
+                .show_separator_line(false)
+                .frame(egui::Frame::new().fill(panel_bg))
+                .show(ctx, |ui| {
+                    crate::pages::connections::render_list(ui, self, ctx);
+                    let r = ui.max_rect();
+                    ui.painter().vline(r.right(), r.y_range(), egui::Stroke::new(1.0, border_color));
+                });
             egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(bg_base))
                 .show(ctx, |ui| crate::pages::connections::render_detail(ui, self, ctx));
         } else {
             let sidebar_width = self.settings.sidebar_width;

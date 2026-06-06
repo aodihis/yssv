@@ -85,7 +85,19 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     let mut toggle_node: Option<String> = None;
     let mut open_table: Option<(String, String, String)> = None; // (table, schema, db)
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
+    let footer_h = 28.0;
+    let available = ui.available_rect_before_wrap();
+    let tree_rect = egui::Rect::from_min_size(
+        available.min,
+        egui::vec2(available.width(), (available.height() - footer_h).max(0.0)),
+    );
+    let footer_rect = egui::Rect::from_min_size(
+        egui::pos2(available.min.x, available.max.y - footer_h),
+        egui::vec2(available.width(), footer_h),
+    );
+
+    let mut tree_ui = ui.new_child(egui::UiBuilder::new().max_rect(tree_rect));
+    egui::ScrollArea::vertical().show(&mut tree_ui, |ui| {
         ui.add_space(6.0);
         for (db_name, db_open, is_active, schemas) in &tree_data {
             let db_key = format!("db:{}", db_name);
@@ -170,13 +182,11 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     }
 
     // Footer
-    ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            ui.add_space(8.0);
-            ui.colored_label(colors::OK, "●");
-            ui.label(egui::RichText::new("Connected").size(11.0));
-        });
+    let mut footer_ui = ui.new_child(egui::UiBuilder::new().max_rect(footer_rect));
+    footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.add_space(8.0);
+        ui.colored_label(colors::OK, "●");
+        ui.label(egui::RichText::new("Connected").size(11.0));
     });
 }
 

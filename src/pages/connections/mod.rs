@@ -1,11 +1,11 @@
 pub mod state;
 pub use state::ConnectionsPageState;
 
-use egui::RichText;
+use egui::{Margin, RichText};
 use crate::theme::ThemeColors;
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Context) {
-    use crate::ui::atoms::button::small_primary_button;
+    use crate::ui::atoms::button::primary_button;
     use crate::ui::molecules::conn_item::conn_item;
 
     let tc = ThemeColors::from_ui(ui);
@@ -15,27 +15,37 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
         .inner_margin(egui::Margin { left: 14, right: 14, top: 16, bottom: 10 })
         .show(ui, |ui| {
             ui.label(RichText::new("Connections").size(14.0).strong().color(tc.text));
-            ui.add_space(10.0);
-            // Search row
-            ui.horizontal(|ui| {
-                let available = ui.available_width();
-                egui::TextEdit::singleline(&mut app.conn_page.search_query)
-                    .hint_text("Search…")
-                    .desired_width(available - 52.0)
-                    .show(ui);
-                ui.add_space(4.0);
-                if small_primary_button(ui, "+ New").clicked() {
-                    app.conn_page.start_new();
-                }
+            // ui.add_space(10.0);
+            // // Search row
+            // Search row: constrain height so with_layout doesn't grab remaining frame space
+            ui.allocate_ui(egui::vec2(ui.available_width(), 36.0), |ui| {
+                let te_out = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if primary_button(ui, "+ New").clicked() {
+                        app.conn_page.start_new();
+                    }
+                    egui::TextEdit::singleline(&mut app.conn_page.search_query)
+                        .hint_text("Search…")
+                        .desired_width(f32::INFINITY)
+                        .margin(Margin { left: 30, right: 11, top: 11, bottom: 11 })
+                        .show(ui)
+                });
+                let rect = te_out.inner.response.rect;
+                ui.painter().text(
+                    egui::pos2(rect.left() + 11.0, rect.center().y),
+                    egui::Align2::LEFT_CENTER,
+                    "🔍",
+                    egui::FontId::proportional(12.0),
+                    tc.text_faint,
+                );
             });
         });
 
     // Border below header
-    let sep_rect = egui::Rect::from_min_size(
-        ui.cursor().min,
-        egui::vec2(ui.available_width(), 1.0),
-    );
-    ui.painter().rect_filled(sep_rect, egui::CornerRadius::ZERO, tc.border_faint);
+    // let sep_rect = egui::Rect::from_min_size(
+    //     ui.cursor().min,
+    //     egui::vec2(ui.available_width(), 1.0),
+    // );
+    // ui.painter().rect_filled(sep_rect, egui::CornerRadius::ZERO, tc.border_faint);
     ui.add_space(1.0);
 
     let groups = app.conn_page.grouped_connections();
@@ -45,7 +55,6 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
         .collect();
 
     egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.add_space(6.0);
         for (group_name, conn_ids) in groups_owned {
             let collapsed = app.conn_page.collapsed_groups.contains(&group_name);
 

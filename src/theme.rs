@@ -163,7 +163,7 @@ fn build_light() -> Visuals {
 pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
     ctx.set_visuals(build_visuals(theme));
     ctx.global_style_mut(|style| {
-        style.spacing.button_padding = egui::vec2(10.0, 6.0);
+        style.spacing.button_padding = egui::vec2(12.0, 6.0);
     });
 }
 

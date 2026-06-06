@@ -38,7 +38,7 @@ watch:
 # Watch with a specific log level: make watch-log LEVEL=debug
 ifeq ($(OS),Windows_NT)
 watch-log:
-	cmd /C "set YSSV_LOG=$(LEVEL) && cargo watch -x run"
+	powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('YSSV_LOG','$(LEVEL)','Process'); cargo watch -x run"
 else
 watch-log:
 	YSSV_LOG=$(LEVEL) cargo watch -x run
@@ -48,7 +48,7 @@ endif
 # Uses cmd /C on Windows so the env var is scoped to that command.
 ifeq ($(OS),Windows_NT)
 run-log:
-	cmd /C "set YSSV_LOG=$(LEVEL) && cargo run"
+	powershell -NoProfile -Command "[Environment]::SetEnvironmentVariable('YSSV_LOG','$(LEVEL)','Process'); cargo run"
 else
 run-log:
 	YSSV_LOG=$(LEVEL) cargo run
