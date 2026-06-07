@@ -29,7 +29,7 @@ impl TableKind {
     pub fn label(&self) -> &'static str {
         match self {
             TableKind::Table => "TABLE",
-            TableKind::View  => "VIEW",
+            TableKind::View => "VIEW",
         }
     }
 }

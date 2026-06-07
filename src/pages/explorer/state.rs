@@ -1,14 +1,12 @@
-use std::collections::HashSet;
 use crate::core::{results::model::QueryResult, schema::model::DbInfo};
+use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TabView {
     #[default]
     Data,
     Structure,
 }
-
 
 #[derive(Debug, Clone)]
 pub struct TableTab {
@@ -113,7 +111,10 @@ pub struct ExplorerState {
 
 impl ExplorerState {
     pub fn new(conn_id: String, conn_name: String, databases: Vec<DbInfo>) -> Self {
-        let active_db = databases.first().map(|d| d.name.clone()).unwrap_or_default();
+        let active_db = databases
+            .first()
+            .map(|d| d.name.clone())
+            .unwrap_or_default();
         let mut open_nodes = HashSet::new();
         if let Some(db) = databases.first() {
             open_nodes.insert(format!("db:{}", db.name));
@@ -172,8 +173,16 @@ mod tests {
             schemas: vec![SchemaInfo {
                 name: "public".into(),
                 tables: vec![
-                    TableInfo { name: "users".into(), kind: TableKind::Table, row_count: Some(100) },
-                    TableInfo { name: "orders".into(), kind: TableKind::Table, row_count: Some(500) },
+                    TableInfo {
+                        name: "users".into(),
+                        kind: TableKind::Table,
+                        row_count: Some(100),
+                    },
+                    TableInfo {
+                        name: "orders".into(),
+                        kind: TableKind::Table,
+                        row_count: Some(500),
+                    },
                 ],
             }],
         }]
@@ -205,7 +214,11 @@ mod tests {
     fn tab_pagination_math() {
         let mut tab = TableTab::new("t", "s", "db");
         tab.page_size = 100;
-        tab.result = Some(QueryResult { columns: vec![], rows: vec![], total_rows: Some(250) });
+        tab.result = Some(QueryResult {
+            columns: vec![],
+            rows: vec![],
+            total_rows: Some(250),
+        });
         assert_eq!(tab.total_pages(), 3);
         assert!(tab.can_go_next());
         tab.page = 2;

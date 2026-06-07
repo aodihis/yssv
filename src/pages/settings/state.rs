@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::theme::Theme;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RendererPreference {
@@ -17,8 +17,7 @@ impl RendererPreference {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RowDensity {
     Compact,
     #[default]
@@ -26,13 +25,12 @@ pub enum RowDensity {
     Comfy,
 }
 
-
 impl RowDensity {
     pub fn row_height(&self) -> f32 {
         match self {
             RowDensity::Compact => 26.0,
             RowDensity::Regular => 30.0,
-            RowDensity::Comfy   => 38.0,
+            RowDensity::Comfy => 38.0,
         }
     }
 
@@ -40,7 +38,7 @@ impl RowDensity {
         match self {
             RowDensity::Compact => "Compact",
             RowDensity::Regular => "Regular",
-            RowDensity::Comfy   => "Comfy",
+            RowDensity::Comfy => "Comfy",
         }
     }
 }
@@ -56,7 +54,9 @@ pub struct SettingsState {
     pub log_keep_days: u64,
 }
 
-fn default_log_keep_days() -> u64 { 7 }
+fn default_log_keep_days() -> u64 {
+    7
+}
 
 impl Default for SettingsState {
     fn default() -> Self {
@@ -93,7 +93,7 @@ impl SettingsState {
 
     pub fn toggle_theme(&mut self) {
         self.theme = match self.theme {
-            Theme::Dark  => Theme::Light,
+            Theme::Dark => Theme::Light,
             Theme::Light => Theme::Dark,
         };
         self.save();
@@ -131,7 +131,7 @@ mod tests {
     fn density_row_heights() {
         assert_eq!(RowDensity::Compact.row_height(), 26.0);
         assert_eq!(RowDensity::Regular.row_height(), 30.0);
-        assert_eq!(RowDensity::Comfy.row_height(),   38.0);
+        assert_eq!(RowDensity::Comfy.row_height(), 38.0);
     }
 
     #[test]

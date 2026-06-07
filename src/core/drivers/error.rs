@@ -30,17 +30,17 @@ impl DbError {
                 "Could not reach the database server.\n\
                  Make sure the server is installed and running on the specified host and port.\n\
                  For PostgreSQL: check that `postgres` service is active.\n\
-                 For MySQL/MariaDB: check that `mysqld` / `mariadbd` service is active."
+                 For MySQL/MariaDB: check that `mysqld` / `mariadbd` service is active.",
             ),
-            DbErrorKind::AuthFailed => Some(
-                "Authentication failed. Check your username and password."
-            ),
-            DbErrorKind::DatabaseNotFound => Some(
-                "The specified database was not found. Check the database name."
-            ),
-            DbErrorKind::PermissionDenied => Some(
-                "Permission denied. The user may not have access to this database."
-            ),
+            DbErrorKind::AuthFailed => {
+                Some("Authentication failed. Check your username and password.")
+            }
+            DbErrorKind::DatabaseNotFound => {
+                Some("The specified database was not found. Check the database name.")
+            }
+            DbErrorKind::PermissionDenied => {
+                Some("Permission denied. The user may not have access to this database.")
+            }
             DbErrorKind::Other => None,
         }
     }

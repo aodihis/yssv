@@ -1,6 +1,6 @@
-use egui::{RichText, Ui};
 use crate::core::results::model::ColumnDef;
 use crate::theme::colors;
+use egui::{RichText, Ui};
 
 pub fn render_cell(ui: &mut Ui, col: &ColumnDef, value: &Option<String>) {
     match value {
@@ -21,10 +21,18 @@ pub fn render_cell(ui: &mut Ui, col: &ColumnDef, value: &Option<String>) {
                 } else {
                     ("✗", ui.visuals().weak_text_color())
                 };
-                ui.label(RichText::new(format!("{} {}", icon, v)).size(12.0).color(color));
+                ui.label(
+                    RichText::new(format!("{} {}", icon, v))
+                        .size(12.0)
+                        .color(color),
+                );
             } else if is_numeric(&dtype) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(RichText::new(v).size(12.0).font(egui::FontId::monospace(12.0)));
+                    ui.label(
+                        RichText::new(v)
+                            .size(12.0)
+                            .font(egui::FontId::monospace(12.0)),
+                    );
                 });
             } else if dtype.contains("timestamp") || dtype.contains("date") {
                 ui.label(

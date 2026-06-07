@@ -1,6 +1,6 @@
-use egui::{Color32, FontId, Ui};
 use crate::pages::explorer::state::TableTab;
 use crate::theme::ThemeColors;
+use egui::{Color32, FontId, Ui};
 
 const TAB_H: f32 = 36.0;
 
@@ -11,12 +11,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
     let mut activate_req: Option<usize> = None;
 
     // Reserve full width strip, TAB_H tall
-    let strip_rect = egui::Rect::from_min_size(
-        ui.cursor().min,
-        egui::vec2(ui.available_width(), TAB_H),
-    );
+    let strip_rect =
+        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), TAB_H));
     // Fill strip bg
-    ui.painter().rect_filled(strip_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+    ui.painter()
+        .rect_filled(strip_rect, egui::CornerRadius::ZERO, tc.bg_panel);
 
     ui.horizontal(|ui| {
         ui.set_height(TAB_H);
@@ -24,7 +23,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
 
         // "×" is constant — measure once outside the loop
         let close_font = FontId::proportional(12.0);
-        let close_w = ui.painter().layout_no_wrap("×".into(), close_font.clone(), Color32::WHITE).size().x;
+        let close_w = ui
+            .painter()
+            .layout_no_wrap("×".into(), close_font.clone(), Color32::WHITE)
+            .size()
+            .x;
 
         for (i, tab) in tabs.iter().enumerate() {
             let is_active = i == active;
@@ -32,20 +35,30 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
 
             // Measure label to allocate exact tab width
             let label_font = FontId::proportional(12.5);
-            let text_w = ui.painter().layout_no_wrap(label.clone(), label_font.clone(), Color32::WHITE).size().x;
+            let text_w = ui
+                .painter()
+                .layout_no_wrap(label.clone(), label_font.clone(), Color32::WHITE)
+                .size()
+                .x;
             let tab_w = 12.0 + text_w + 8.0 + close_w + 12.0;
 
-            let (tab_rect, tab_resp) = ui.allocate_exact_size(
-                egui::vec2(tab_w, TAB_H),
-                egui::Sense::click(),
-            );
+            let (tab_rect, tab_resp) =
+                ui.allocate_exact_size(egui::vec2(tab_w, TAB_H), egui::Sense::click());
 
-            if !ui.is_rect_visible(tab_rect) { continue; }
+            if !ui.is_rect_visible(tab_rect) {
+                continue;
+            }
 
             let painter = ui.painter();
 
             // Tab background
-            let bg = if is_active { tc.bg_base } else if tab_resp.hovered() { tc.bg_hover } else { Color32::TRANSPARENT };
+            let bg = if is_active {
+                tc.bg_base
+            } else if tab_resp.hovered() {
+                tc.bg_hover
+            } else {
+                Color32::TRANSPARENT
+            };
             painter.rect_filled(tab_rect, egui::CornerRadius::ZERO, bg);
 
             // Active accent underline (2px at bottom)
@@ -87,8 +100,16 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 egui::pos2(label_x + text_w + 8.0 + close_w / 2.0, center_y),
                 egui::vec2(20.0, 20.0),
             );
-            let close_resp = ui.interact(close_rect, ui.id().with(("tab_close", i)), egui::Sense::click());
-            let close_color = if close_resp.hovered() { tc.text } else { tc.text_faint };
+            let close_resp = ui.interact(
+                close_rect,
+                ui.id().with(("tab_close", i)),
+                egui::Sense::click(),
+            );
+            let close_color = if close_resp.hovered() {
+                tc.text
+            } else {
+                tc.text_faint
+            };
             if close_resp.hovered() {
                 painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.bg_active);
             }
@@ -100,8 +121,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 close_color,
             );
 
-            if close_resp.clicked() { close_req = Some(i); }
-            else if tab_resp.clicked() { activate_req = Some(i); }
+            if close_resp.clicked() {
+                close_req = Some(i);
+            } else if tab_resp.clicked() {
+                activate_req = Some(i);
+            }
         }
     });
 

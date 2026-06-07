@@ -1,12 +1,12 @@
-use async_trait::async_trait;
-use sqlx::MySqlPool;
-use sqlx::mysql::MySqlPoolOptions;
 use crate::core::{
     connections::model::Connection,
     drivers::{ActiveConnection, DbError},
     results::model::{ColumnDef, QueryResult},
     schema::model::{SchemaInfo, TableInfo, TableKind},
 };
+use async_trait::async_trait;
+use sqlx::mysql::MySqlPoolOptions;
+use sqlx::MySqlPool;
 
 pub struct MyConnection {
     pool: MySqlPool,
@@ -39,7 +39,10 @@ impl ActiveConnection for MyConnection {
     async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
         // MySQL has no schemas; the database itself is the schema.
         let tables = self.list_tables(db, db).await?;
-        Ok(vec![SchemaInfo { name: db.to_string(), tables }])
+        Ok(vec![SchemaInfo {
+            name: db.to_string(),
+            tables,
+        }])
     }
 
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
@@ -47,7 +50,7 @@ impl ActiveConnection for MyConnection {
             "SELECT table_name, table_type, table_rows
              FROM information_schema.tables
              WHERE table_schema = ?
-             ORDER BY table_name"
+             ORDER BY table_name",
         )
         .bind(schema)
         .fetch_all(&self.pool)
@@ -56,7 +59,11 @@ impl ActiveConnection for MyConnection {
         Ok(rows
             .into_iter()
             .map(|(name, ttype, row_count)| {
-                let kind = if ttype == "VIEW" { TableKind::View } else { TableKind::Table };
+                let kind = if ttype == "VIEW" {
+                    TableKind::View
+                } else {
+                    TableKind::Table
+                };
                 TableInfo {
                     name,
                     kind,
@@ -75,12 +82,8 @@ impl ActiveConnection for MyConnection {
         offset: u32,
     ) -> Result<QueryResult, DbError> {
         tracing::debug!(schema, table, limit, offset, "mysql: fetch_rows");
-        let query = format!(
-            "SELECT * FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}"
-        );
-        let rows = sqlx::query(&query)
-            .fetch_all(&self.pool)
-            .await?;
+        let query = format!("SELECT * FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}");
+        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
             return Ok(QueryResult::empty());
@@ -106,11 +109,7 @@ impl ActiveConnection for MyConnection {
             .iter()
             .map(|row| {
                 (0..columns.len())
-                    .map(|i| {
-                        row.try_get::<Option<String>, _>(i)
-                            .ok()
-                            .flatten()
-                    })
+                    .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
                     .collect()
             })
             .collect();
@@ -138,7 +137,7 @@ impl ActiveConnection for MyConnection {
             "SELECT column_name, data_type, is_nullable, column_key
              FROM information_schema.columns
              WHERE table_schema = ? AND table_name = ?
-             ORDER BY ordinal_position"
+             ORDER BY ordinal_position",
         )
         .bind(schema)
         .bind(table)

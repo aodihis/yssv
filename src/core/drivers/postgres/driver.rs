@@ -1,12 +1,12 @@
-use async_trait::async_trait;
-use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
 use crate::core::{
     connections::model::Connection,
     drivers::{ActiveConnection, DbError},
     results::model::{ColumnDef, QueryResult},
     schema::model::{SchemaInfo, TableInfo, TableKind},
 };
+use async_trait::async_trait;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::PgPool;
 
 pub struct PgConnection {
     pool: PgPool,
@@ -31,7 +31,7 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
 impl ActiveConnection for PgConnection {
     async fn list_databases(&self) -> Result<Vec<String>, DbError> {
         let rows = sqlx::query_scalar::<_, String>(
-            "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname"
+            "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -42,7 +42,7 @@ impl ActiveConnection for PgConnection {
         let schema_names = sqlx::query_scalar::<_, String>(
             "SELECT schema_name FROM information_schema.schemata
              WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
-             ORDER BY schema_name"
+             ORDER BY schema_name",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -60,7 +60,7 @@ impl ActiveConnection for PgConnection {
             "SELECT table_name, table_type
              FROM information_schema.tables
              WHERE table_schema = $1
-             ORDER BY table_name"
+             ORDER BY table_name",
         )
         .bind(schema)
         .fetch_all(&self.pool)
@@ -69,8 +69,16 @@ impl ActiveConnection for PgConnection {
         let tables = rows
             .into_iter()
             .map(|(name, ttype)| {
-                let kind = if ttype == "VIEW" { TableKind::View } else { TableKind::Table };
-                TableInfo { name, kind, row_count: None }
+                let kind = if ttype == "VIEW" {
+                    TableKind::View
+                } else {
+                    TableKind::Table
+                };
+                TableInfo {
+                    name,
+                    kind,
+                    row_count: None,
+                }
             })
             .collect();
         Ok(tables)
@@ -85,12 +93,8 @@ impl ActiveConnection for PgConnection {
         offset: u32,
     ) -> Result<QueryResult, DbError> {
         tracing::debug!(schema, table, limit, offset, "postgres: fetch_rows");
-        let query = format!(
-            "SELECT * FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
-        );
-        let rows = sqlx::query(&query)
-            .fetch_all(&self.pool)
-            .await?;
+        let query = format!("SELECT * FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}");
+        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
             return Ok(QueryResult::empty());
@@ -116,11 +120,7 @@ impl ActiveConnection for PgConnection {
             .iter()
             .map(|row| {
                 (0..columns.len())
-                    .map(|i| {
-                        row.try_get::<Option<String>, _>(i)
-                            .ok()
-                            .flatten()
-                    })
+                    .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
                     .collect()
             })
             .collect();
@@ -161,7 +161,7 @@ impl ActiveConnection for PgConnection {
                  LIMIT 1) AS pk_flag
              FROM information_schema.columns c
              WHERE c.table_schema = $1 AND c.table_name = $2
-             ORDER BY c.ordinal_position"
+             ORDER BY c.ordinal_position",
         )
         .bind(schema)
         .bind(table)

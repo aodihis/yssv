@@ -1,16 +1,16 @@
-use egui::{Color32, FontId, Response, Ui, Vec2};
 use crate::theme::ThemeColors;
+use egui::{Color32, FontId, Response, Ui, Vec2};
 
 pub struct TreeRowConfig<'a> {
-    pub label:     &'a str,
-    pub level:     u32,
-    pub is_leaf:   bool,
-    pub is_open:   bool,
+    pub label: &'a str,
+    pub level: u32,
+    pub is_leaf: bool,
+    pub is_open: bool,
     pub is_active: bool,
-    pub icon:      &'a str,
+    pub icon: &'a str,
     pub icon_color: Option<Color32>,
-    pub count:     Option<String>,
-    pub pill:      Option<&'a str>,
+    pub count: Option<String>,
+    pub pill: Option<&'a str>,
 }
 
 pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
@@ -18,11 +18,11 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
     let row_h = 26.0;
     // Indent: 6px base + 15px per level (design spec)
     let indent = 6.0 + cfg.level as f32 * 15.0;
-    let (rect, resp) = ui.allocate_exact_size(
-        Vec2::new(ui.available_width(), row_h),
-        egui::Sense::click(),
-    );
-    if !ui.is_rect_visible(rect) { return resp; }
+    let (rect, resp) =
+        ui.allocate_exact_size(Vec2::new(ui.available_width(), row_h), egui::Sense::click());
+    if !ui.is_rect_visible(rect) {
+        return resp;
+    }
 
     let painter = ui.painter();
 
@@ -93,12 +93,25 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
             egui::pos2(right_x - pill_w, center_y - pill_h / 2.0),
             egui::vec2(pill_w, pill_h),
         );
-        let pill_bg = Color32::from_rgba_unmultiplied(
-            pill_color.r(), pill_color.g(), pill_color.b(), 28,
-        );
+        let pill_bg =
+            Color32::from_rgba_unmultiplied(pill_color.r(), pill_color.g(), pill_color.b(), 28);
         painter.rect_filled(pill_rect, egui::CornerRadius::same(4u8), pill_bg);
-        painter.rect_stroke(pill_rect, egui::CornerRadius::same(4u8), egui::Stroke::new(1.0, Color32::from_rgba_unmultiplied(pill_color.r(), pill_color.g(), pill_color.b(), 70)), egui::StrokeKind::Outside);
-        painter.text(pill_rect.center(), egui::Align2::CENTER_CENTER, pill, pill_font, pill_color);
+        painter.rect_stroke(
+            pill_rect,
+            egui::CornerRadius::same(4u8),
+            egui::Stroke::new(
+                1.0,
+                Color32::from_rgba_unmultiplied(pill_color.r(), pill_color.g(), pill_color.b(), 70),
+            ),
+            egui::StrokeKind::Outside,
+        );
+        painter.text(
+            pill_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            pill,
+            pill_font,
+            pill_color,
+        );
     } else if let Some(count) = &cfg.count {
         painter.text(
             egui::pos2(right_x, center_y),
@@ -117,7 +130,11 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
         label_color,
         label_max_x - x,
     );
-    painter.galley(egui::pos2(x, center_y - label_galley.size().y / 2.0), label_galley, label_color);
+    painter.galley(
+        egui::pos2(x, center_y - label_galley.size().y / 2.0),
+        label_galley,
+        label_color,
+    );
 
     resp
 }

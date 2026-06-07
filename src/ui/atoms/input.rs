@@ -5,7 +5,7 @@ pub fn text_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
         TextEdit::singleline(value)
             .hint_text(placeholder)
             .desired_width(f32::INFINITY)
-            .margin(Margin::symmetric(11, 11))
+            .margin(Margin::symmetric(11, 11)),
     )
 }
 

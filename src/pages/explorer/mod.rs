@@ -3,9 +3,9 @@ pub use state::{ExplorerState, TabState, TabView, TableTab};
 
 use crate::core::schema::model::TableKind;
 
-type TableRow  = (String, TableKind, Option<u64>, bool);
+type TableRow = (String, TableKind, Option<u64>, bool);
 type SchemaRow = (String, bool, Vec<TableRow>);
-type DbRow     = (String, bool, bool, Vec<SchemaRow>);
+type DbRow = (String, bool, bool, Vec<SchemaRow>);
 
 #[derive(Debug)]
 struct LoadRequest {
@@ -18,12 +18,14 @@ struct LoadRequest {
 }
 
 pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
-    use crate::ui::molecules::tree_row::{tree_row, TreeRowConfig};
     use crate::theme::colors;
+    use crate::ui::molecules::tree_row::{tree_row, TreeRowConfig};
     use egui::RichText;
 
     use crate::theme::ThemeColors;
-    if app.explorer.is_none() { return; }
+    if app.explorer.is_none() {
+        return;
+    }
     let accent_color = ui.visuals().selection.stroke.color;
     let tc = ThemeColors::from_ui(ui);
 
@@ -31,7 +33,12 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     let conn_name = app.explorer.as_ref().unwrap().conn_name.clone();
 
     egui::Frame::new()
-        .inner_margin(egui::Margin { left: 10, right: 10, top: 10, bottom: 8 })
+        .inner_margin(egui::Margin {
+            left: 10,
+            right: 10,
+            top: 10,
+            bottom: 8,
+        })
         .show(ui, |ui| {
             ui.label(RichText::new(&conn_name).size(13.0).strong().color(tc.text));
             ui.add_space(7.0);
@@ -44,41 +51,55 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
 
     // Border below sidebar head
     let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
-    ui.painter().rect_filled(sep, egui::CornerRadius::ZERO, tc.border_faint);
+    ui.painter()
+        .rect_filled(sep, egui::CornerRadius::ZERO, tc.border_faint);
     ui.add_space(1.0);
 
     // Collect what to render from explorer (immutable snapshot)
     let tree_data: Vec<DbRow> = {
         let e = app.explorer.as_ref().unwrap();
         let q = e.filter.to_lowercase();
-        e.databases.iter().map(|db| {
-            let db_key = format!("db:{}", db.name);
-            let db_open = e.is_open(&db_key);
-            let is_active = e.active_db == db.name;
-            let schemas = if db_open {
-                db.schemas.iter().map(|sc| {
-                    let sc_key = format!("sc:{}:{}", db.name, sc.name);
-                    let sc_open = e.is_open(&sc_key);
-                    let tables = if sc_open {
-                        sc.tables.iter()
-                            .filter(|t| q.is_empty() || t.name.to_lowercase().contains(&q))
-                            .map(|t| {
-                                let active = e.tabs.active_tab()
-                                    .map(|tab| tab.table == t.name && tab.schema == sc.name && tab.database == db.name)
-                                    .unwrap_or(false);
-                                (t.name.clone(), t.kind, t.row_count, active)
-                            })
-                            .collect()
-                    } else {
-                        vec![]
-                    };
-                    (sc.name.clone(), sc_open, tables)
-                }).collect()
-            } else {
-                vec![]
-            };
-            (db.name.clone(), db_open, is_active, schemas)
-        }).collect()
+        e.databases
+            .iter()
+            .map(|db| {
+                let db_key = format!("db:{}", db.name);
+                let db_open = e.is_open(&db_key);
+                let is_active = e.active_db == db.name;
+                let schemas = if db_open {
+                    db.schemas
+                        .iter()
+                        .map(|sc| {
+                            let sc_key = format!("sc:{}:{}", db.name, sc.name);
+                            let sc_open = e.is_open(&sc_key);
+                            let tables = if sc_open {
+                                sc.tables
+                                    .iter()
+                                    .filter(|t| q.is_empty() || t.name.to_lowercase().contains(&q))
+                                    .map(|t| {
+                                        let active = e
+                                            .tabs
+                                            .active_tab()
+                                            .map(|tab| {
+                                                tab.table == t.name
+                                                    && tab.schema == sc.name
+                                                    && tab.database == db.name
+                                            })
+                                            .unwrap_or(false);
+                                        (t.name.clone(), t.kind, t.row_count, active)
+                                    })
+                                    .collect()
+                            } else {
+                                vec![]
+                            };
+                            (sc.name.clone(), sc_open, tables)
+                        })
+                        .collect()
+                } else {
+                    vec![]
+                };
+                (db.name.clone(), db_open, is_active, schemas)
+            })
+            .collect()
     };
 
     // Now render the tree and collect mutations
@@ -101,53 +122,70 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
         ui.add_space(6.0);
         for (db_name, db_open, is_active, schemas) in &tree_data {
             let db_key = format!("db:{}", db_name);
-            let resp = tree_row(ui, TreeRowConfig {
-                label: db_name,
-                level: 0,
-                is_leaf: false,
-                is_open: *db_open,
-                is_active: *is_active,
-                icon: "🗄",
-                icon_color: if *is_active { Some(accent_color) } else { None },
-                count: None,
-                pill: None,
-            });
-            if resp.clicked() { toggle_node = Some(db_key); }
+            let resp = tree_row(
+                ui,
+                TreeRowConfig {
+                    label: db_name,
+                    level: 0,
+                    is_leaf: false,
+                    is_open: *db_open,
+                    is_active: *is_active,
+                    icon: "🗄",
+                    icon_color: if *is_active { Some(accent_color) } else { None },
+                    count: None,
+                    pill: None,
+                },
+            );
+            if resp.clicked() {
+                toggle_node = Some(db_key);
+            }
 
             for (schema_name, sc_open, tables) in schemas {
                 let sc_key = format!("sc:{}:{}", db_name, schema_name);
-                let resp = tree_row(ui, TreeRowConfig {
-                    label: schema_name,
-                    level: 1,
-                    is_leaf: false,
-                    is_open: *sc_open,
-                    is_active: false,
-                    icon: "◫",
-                    icon_color: None,
-                    count: Some(tables.len().to_string()),
-                    pill: None,
-                });
-                if resp.clicked() { toggle_node = Some(sc_key); }
+                let resp = tree_row(
+                    ui,
+                    TreeRowConfig {
+                        label: schema_name,
+                        level: 1,
+                        is_leaf: false,
+                        is_open: *sc_open,
+                        is_active: false,
+                        icon: "◫",
+                        icon_color: None,
+                        count: Some(tables.len().to_string()),
+                        pill: None,
+                    },
+                );
+                if resp.clicked() {
+                    toggle_node = Some(sc_key);
+                }
 
                 for (table_name, kind, row_count, active_table) in tables {
                     let is_view = *kind == TableKind::View;
                     let count_str = row_count.map(|n| {
-                        if n >= 1000 { format!("{:.0}k", n as f64 / 1000.0) }
-                        else { n.to_string() }
+                        if n >= 1000 {
+                            format!("{:.0}k", n as f64 / 1000.0)
+                        } else {
+                            n.to_string()
+                        }
                     });
-                    let resp = tree_row(ui, TreeRowConfig {
-                        label: table_name,
-                        level: 2,
-                        is_leaf: true,
-                        is_open: false,
-                        is_active: *active_table,
-                        icon: if is_view { "⊡" } else { "▦" },
-                        icon_color: if is_view { Some(colors::PURPLE) } else { None },
-                        count: if is_view { None } else { count_str },
-                        pill: if is_view { Some("VIEW") } else { None },
-                    });
+                    let resp = tree_row(
+                        ui,
+                        TreeRowConfig {
+                            label: table_name,
+                            level: 2,
+                            is_leaf: true,
+                            is_open: false,
+                            is_active: *active_table,
+                            icon: if is_view { "⊡" } else { "▦" },
+                            icon_color: if is_view { Some(colors::PURPLE) } else { None },
+                            count: if is_view { None } else { count_str },
+                            pill: if is_view { Some("VIEW") } else { None },
+                        },
+                    );
                     if resp.clicked() {
-                        open_table = Some((table_name.clone(), schema_name.clone(), db_name.clone()));
+                        open_table =
+                            Some((table_name.clone(), schema_name.clone(), db_name.clone()));
                     }
                 }
             }
@@ -156,7 +194,9 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
 
     // Apply mutations after rendering (borrow is released)
     if let Some(key) = toggle_node {
-        if let Some(e) = &mut app.explorer { e.toggle_node(&key); }
+        if let Some(e) = &mut app.explorer {
+            e.toggle_node(&key);
+        }
     }
     if let Some((table, schema, db)) = open_table {
         let load_req = {
@@ -177,7 +217,15 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
             }
         };
         if let Some(req) = load_req {
-            app.load_rows(ctx.clone(), req.tab_id, req.db, req.schema, req.table, req.limit, req.offset);
+            app.load_rows(
+                ctx.clone(),
+                req.tab_id,
+                req.db,
+                req.schema,
+                req.table,
+                req.limit,
+                req.offset,
+            );
         }
     }
 
@@ -191,9 +239,13 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
 }
 
 pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
-    use crate::ui::molecules::{tab_bar::tab_bar, status_bar::{status_bar, STATUS_H}, data_cell::render_cell};
     use crate::pages::explorer::state::TabView;
     use crate::theme::ThemeColors;
+    use crate::ui::molecules::{
+        data_cell::render_cell,
+        status_bar::{status_bar, STATUS_H},
+        tab_bar::tab_bar,
+    };
     use egui::RichText;
 
     if app.explorer.is_none() {
@@ -208,8 +260,11 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         let explorer = app.explorer.as_ref().unwrap();
         if explorer.tabs.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
-                ui.label(RichText::new("Select a table from the sidebar").size(14.0)
-                    .color(ui.visuals().weak_text_color()));
+                ui.label(
+                    RichText::new("Select a table from the sidebar")
+                        .size(14.0)
+                        .color(ui.visuals().weak_text_color()),
+                );
             });
             return;
         }
@@ -217,18 +272,21 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
     };
     {
         let explorer = app.explorer.as_mut().unwrap();
-        if let Some(i) = activate { explorer.tabs.active = i; }
-        if let Some(i) = close   { explorer.tabs.close(i); }
+        if let Some(i) = activate {
+            explorer.tabs.active = i;
+        }
+        if let Some(i) = close {
+            explorer.tabs.close(i);
+        }
     }
 
     // Sub-view toggle toolbar — 32px height, border-bottom
     {
         let tc = ThemeColors::from_ui(ui);
-        let toolbar_rect = egui::Rect::from_min_size(
-            ui.cursor().min,
-            egui::vec2(ui.available_width(), 32.0),
-        );
-        ui.painter().rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+        let toolbar_rect =
+            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
+        ui.painter()
+            .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
 
         let explorer = app.explorer.as_mut().unwrap();
         if let Some(tab) = explorer.tabs.active_tab() {
@@ -237,7 +295,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
             ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
                 ui.horizontal_centered(|ui| {
                     ui.add_space(12.0);
-                    for (label, view, active) in [("Data", TabView::Data, is_data), ("Structure", TabView::Structure, !is_data)] {
+                    for (label, view, active) in [
+                        ("Data", TabView::Data, is_data),
+                        ("Structure", TabView::Structure, !is_data),
+                    ] {
                         let color = if active { tc.text } else { tc.text_muted };
                         let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
                             .fill(egui::Color32::TRANSPARENT)
@@ -247,21 +308,33 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
                         if active {
                             // Accent underline
                             ui.painter().rect_filled(
-                                egui::Rect::from_min_size(egui::pos2(resp.rect.left(), resp.rect.bottom()), egui::vec2(resp.rect.width(), 2.0)),
-                                egui::CornerRadius::ZERO, tc.accent,
+                                egui::Rect::from_min_size(
+                                    egui::pos2(resp.rect.left(), resp.rect.bottom()),
+                                    egui::vec2(resp.rect.width(), 2.0),
+                                ),
+                                egui::CornerRadius::ZERO,
+                                tc.accent,
                             );
                         }
-                        if resp.clicked() { new_view = Some(view); }
+                        if resp.clicked() {
+                            new_view = Some(view);
+                        }
                         ui.add_space(4.0);
                     }
                 });
             });
 
             // Border below toolbar
-            ui.painter().hline(toolbar_rect.x_range(), toolbar_rect.bottom(), egui::Stroke::new(1.0, tc.border));
+            ui.painter().hline(
+                toolbar_rect.x_range(),
+                toolbar_rect.bottom(),
+                egui::Stroke::new(1.0, tc.border),
+            );
 
             if let Some(v) = new_view {
-                if let Some(t) = explorer.tabs.active_tab_mut() { t.view = v; }
+                if let Some(t) = explorer.tabs.active_tab_mut() {
+                    t.view = v;
+                }
             }
         }
     }
@@ -271,7 +344,8 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
     let available = ui.available_rect_before_wrap();
     let status_height = STATUS_H;
     let grid_height = (available.height() - status_height).max(10.0);
-    let grid_rect   = egui::Rect::from_min_size(available.min, egui::vec2(available.width(), grid_height));
+    let grid_rect =
+        egui::Rect::from_min_size(available.min, egui::vec2(available.width(), grid_height));
     let status_rect = egui::Rect::from_min_size(
         available.min + egui::vec2(0.0, grid_height),
         egui::vec2(available.width(), status_height),
@@ -307,13 +381,20 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
                     .resizable(true)
                     .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
                     .column(egui_extras::Column::auto().at_least(36.0))
-                    .columns(egui_extras::Column::auto().at_least(80.0).resizable(true), columns.len())
+                    .columns(
+                        egui_extras::Column::auto().at_least(80.0).resizable(true),
+                        columns.len(),
+                    )
                     .header(row_height, |mut header| {
-                        header.col(|ui| { ui.label(RichText::new("#").size(11.0).weak()); });
+                        header.col(|ui| {
+                            ui.label(RichText::new("#").size(11.0).weak());
+                        });
                         for col in &columns {
                             header.col(|ui| {
                                 ui.horizontal(|ui| {
-                                    if col.is_pk { ui.label(RichText::new("🔑").size(10.0)); }
+                                    if col.is_pk {
+                                        ui.label(RichText::new("🔑").size(10.0));
+                                    }
                                     ui.label(RichText::new(&col.name).size(12.0).strong());
                                     ui.label(RichText::new(&col.data_type).size(10.0).weak());
                                 });
@@ -352,8 +433,11 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
                     schema: tab.schema.clone(),
                     table: tab.table.clone(),
                     limit: tab.page_size,
-                    offset: if prev { (tab.page - 1) * tab.page_size }
-                            else    { (tab.page + 1) * tab.page_size },
+                    offset: if prev {
+                        (tab.page - 1) * tab.page_size
+                    } else {
+                        (tab.page + 1) * tab.page_size
+                    },
                 })
             } else {
                 None
@@ -366,10 +450,22 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         let explorer = app.explorer.as_mut().unwrap();
         if let Some(tab) = explorer.tabs.active_tab_mut() {
             let going_prev = req.offset < tab.offset();
-            if going_prev { tab.page -= 1; } else { tab.page += 1; }
+            if going_prev {
+                tab.page -= 1;
+            } else {
+                tab.page += 1;
+            }
             tab.loading = true;
             tab.result = None;
         }
-        app.load_rows(ctx.clone(), req.tab_id, req.db, req.schema, req.table, req.limit, req.offset);
+        app.load_rows(
+            ctx.clone(),
+            req.tab_id,
+            req.db,
+            req.schema,
+            req.table,
+            req.limit,
+            req.offset,
+        );
     }
 }

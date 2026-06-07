@@ -6,10 +6,8 @@ where
     M: FnOnce(&mut Ui),
 {
     let available = ui.available_rect_before_wrap();
-    let sidebar_rect = egui::Rect::from_min_size(
-        available.min,
-        Vec2::new(sidebar_width, available.height()),
-    );
+    let sidebar_rect =
+        egui::Rect::from_min_size(available.min, Vec2::new(sidebar_width, available.height()));
     let main_rect = egui::Rect::from_min_size(
         available.min + Vec2::new(sidebar_width + 1.0, 0.0),
         Vec2::new(available.width() - sidebar_width - 1.0, available.height()),

@@ -1,8 +1,8 @@
 pub mod state;
 pub use state::ConnectionsPageState;
 
-use egui::{Margin, RichText};
 use crate::theme::ThemeColors;
+use egui::{Margin, RichText};
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Context) {
     use crate::ui::atoms::button::primary_button;
@@ -12,23 +12,39 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
 
     // Header — 16px top, 14px sides
     egui::Frame::new()
-        .inner_margin(egui::Margin { left: 14, right: 14, top: 16, bottom: 10 })
+        .inner_margin(egui::Margin {
+            left: 14,
+            right: 14,
+            top: 16,
+            bottom: 10,
+        })
         .show(ui, |ui| {
-            ui.label(RichText::new("Connections").size(14.0).strong().color(tc.text));
+            ui.label(
+                RichText::new("Connections")
+                    .size(14.0)
+                    .strong()
+                    .color(tc.text),
+            );
             // ui.add_space(10.0);
             // // Search row
             // Search row: constrain height so with_layout doesn't grab remaining frame space
             ui.allocate_ui(egui::vec2(ui.available_width(), 36.0), |ui| {
-                let te_out = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if primary_button(ui, "+ New").clicked() {
-                        app.conn_page.start_new();
-                    }
-                    egui::TextEdit::singleline(&mut app.conn_page.search_query)
-                        .hint_text("Search…")
-                        .desired_width(f32::INFINITY)
-                        .margin(Margin { left: 30, right: 11, top: 11, bottom: 11 })
-                        .show(ui)
-                });
+                let te_out =
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if primary_button(ui, "+ New").clicked() {
+                            app.conn_page.start_new();
+                        }
+                        egui::TextEdit::singleline(&mut app.conn_page.search_query)
+                            .hint_text("Search…")
+                            .desired_width(f32::INFINITY)
+                            .margin(Margin {
+                                left: 30,
+                                right: 11,
+                                top: 11,
+                                bottom: 11,
+                            })
+                            .show(ui)
+                    });
                 let rect = te_out.inner.response.rect;
                 ui.painter().text(
                     egui::pos2(rect.left() + 11.0, rect.center().y),
@@ -86,10 +102,16 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
                 ui.add_space(2.0);
                 // Indent items with side padding
                 egui::Frame::new()
-                    .inner_margin(egui::Margin { left: 6, right: 6, top: 0, bottom: 0 })
+                    .inner_margin(egui::Margin {
+                        left: 6,
+                        right: 6,
+                        top: 0,
+                        bottom: 0,
+                    })
                     .show(ui, |ui| {
                         for id in &conn_ids {
-                            if let Some(c) = app.conn_page.connections.iter().find(|x| &x.id == id) {
+                            if let Some(c) = app.conn_page.connections.iter().find(|x| &x.id == id)
+                            {
                                 let selected = app.conn_page.selected_id.as_deref() == Some(id);
                                 let c_clone = c.clone();
                                 let resp = conn_item(ui, &c_clone, selected);
@@ -107,11 +129,11 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
 }
 
 pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+    use crate::core::connections::model::DbEngine;
     use crate::pages::connections::state::TestStatus;
     use crate::ui::atoms::button::primary_button;
     use crate::ui::atoms::input::{password_input, text_input};
     use crate::ui::molecules::color_picker::color_picker;
-    use crate::core::connections::model::DbEngine;
 
     let tc = ThemeColors::from_ui(ui);
 
@@ -121,7 +143,12 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
         let h_pad = ((available - content_w) / 2.0).max(40.0);
 
         egui::Frame::new()
-            .inner_margin(egui::Margin { left: h_pad as i8, right: h_pad as i8, top: 30, bottom: 28 })
+            .inner_margin(egui::Margin {
+                left: h_pad as i8,
+                right: h_pad as i8,
+                top: 30,
+                bottom: 28,
+            })
             .show(ui, |ui| {
                 ui.set_max_width(content_w);
 
@@ -152,9 +179,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                             (tc.bg_base, tc.border_strong)
                         };
                         let btn = egui::Button::new(
-                            RichText::new(engine.label())
-                                .size(13.0)
-                                .color(if selected { tc.accent } else { tc.text }),
+                            RichText::new(engine.label()).size(13.0).color(if selected {
+                                tc.accent
+                            } else {
+                                tc.text
+                            }),
                         )
                         .fill(bg)
                         .stroke(egui::Stroke::new(1.5, border))
@@ -237,7 +266,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
 
                     if app.conn_page.form.ssh_use_key {
                         field_label(ui, "Key file path", &tc);
-                        text_input(ui, &mut app.conn_page.form.ssh_key_path, "/home/user/.ssh/id_rsa");
+                        text_input(
+                            ui,
+                            &mut app.conn_page.form.ssh_key_path,
+                            "/home/user/.ssh/id_rsa",
+                        );
                     } else {
                         field_label(ui, "SSH Password", &tc);
                         password_input(ui, &mut app.conn_page.form.ssh_password, "");
@@ -253,17 +286,16 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                 ui.horizontal(|ui| {
                     // Test connection
                     let (test_label, test_color) = match &app.conn_page.test_status {
-                        TestStatus::Idle      => ("Test Connection", tc.text_muted),
-                        TestStatus::Testing   => ("Testing…",        tc.text_faint),
-                        TestStatus::Ok        => ("✓ Connected",     tc.ok),
-                        TestStatus::Failed(_) => ("✗ Failed",        tc.err),
+                        TestStatus::Idle => ("Test Connection", tc.text_muted),
+                        TestStatus::Testing => ("Testing…", tc.text_faint),
+                        TestStatus::Ok => ("✓ Connected", tc.ok),
+                        TestStatus::Failed(_) => ("✗ Failed", tc.err),
                     };
-                    let test_btn = egui::Button::new(
-                        RichText::new(test_label).size(13.0).color(test_color)
-                    )
-                    .fill(tc.bg_base)
-                    .stroke(egui::Stroke::new(1.0, tc.border_strong))
-                    .min_size(egui::vec2(0.0, 32.0));
+                    let test_btn =
+                        egui::Button::new(RichText::new(test_label).size(13.0).color(test_color))
+                            .fill(tc.bg_base)
+                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                            .min_size(egui::vec2(0.0, 32.0));
 
                     if ui.add(test_btn).clicked()
                         && app.conn_page.test_status != TestStatus::Testing
@@ -276,10 +308,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
 
                     ui.add_space(8.0);
 
-                    let save_btn = egui::Button::new(RichText::new("Save").size(13.0).color(tc.text))
-                        .fill(tc.bg_base)
-                        .stroke(egui::Stroke::new(1.0, tc.border_strong))
-                        .min_size(egui::vec2(0.0, 32.0));
+                    let save_btn =
+                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.text))
+                            .fill(tc.bg_base)
+                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                            .min_size(egui::vec2(0.0, 32.0));
                     if ui.add(save_btn).clicked() {
                         app.save_connection();
                     }
@@ -296,28 +329,19 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
 }
 
 fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
-    ui.label(
-        RichText::new(text)
-            .size(11.5)
-            .color(tc.text_muted)
-            .strong(),
-    );
+    ui.label(RichText::new(text).size(11.5).color(tc.text_muted).strong());
     ui.add_space(4.0);
 }
 
 fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
     ui.add_space(20.0);
     ui.horizontal(|ui| {
-        ui.label(
-            RichText::new(text)
-                .size(11.0)
-                .color(tc.text_faint)
-                .strong(),
-        );
+        ui.label(RichText::new(text).size(11.0).color(tc.text_faint).strong());
         ui.add_space(8.0);
         let r = ui.available_rect_before_wrap();
         let y = r.center().y;
-        ui.painter().hline(r.x_range(), y, egui::Stroke::new(1.0, tc.border));
+        ui.painter()
+            .hline(r.x_range(), y, egui::Stroke::new(1.0, tc.border));
         ui.allocate_space(r.size());
     });
     ui.add_space(12.0);

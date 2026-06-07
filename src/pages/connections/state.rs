@@ -1,8 +1,7 @@
 use crate::core::connections::model::{ConnColor, Connection, DbEngine};
 use crate::core::ssh::model::{SshAuth, SshConfig};
 
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum TestStatus {
     #[default]
     Idle,
@@ -10,7 +9,6 @@ pub enum TestStatus {
     Ok,
     Failed(String),
 }
-
 
 /// Mirrors `Connection` with owned `String` fields for the form.
 #[derive(Debug, Clone)]
@@ -44,16 +42,39 @@ impl Default for ConnectionForm {
 
 impl ConnectionForm {
     pub fn from_connection(c: &Connection) -> Self {
-        let (ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_use_key, ssh_password, ssh_key_path) =
-            if let Some(ssh) = &c.ssh {
-                let (use_key, pass, key) = match &ssh.auth {
-                    SshAuth::Password(p) => (false, p.clone(), String::new()),
-                    SshAuth::KeyFile(k)  => (true, String::new(), k.clone()),
-                };
-                (true, ssh.host.clone(), ssh.port.to_string(), ssh.username.clone(), use_key, pass, key)
-            } else {
-                (false, String::new(), "22".into(), String::new(), false, String::new(), String::new())
+        let (
+            ssh_enabled,
+            ssh_host,
+            ssh_port,
+            ssh_username,
+            ssh_use_key,
+            ssh_password,
+            ssh_key_path,
+        ) = if let Some(ssh) = &c.ssh {
+            let (use_key, pass, key) = match &ssh.auth {
+                SshAuth::Password(p) => (false, p.clone(), String::new()),
+                SshAuth::KeyFile(k) => (true, String::new(), k.clone()),
             };
+            (
+                true,
+                ssh.host.clone(),
+                ssh.port.to_string(),
+                ssh.username.clone(),
+                use_key,
+                pass,
+                key,
+            )
+        } else {
+            (
+                false,
+                String::new(),
+                "22".into(),
+                String::new(),
+                false,
+                String::new(),
+                String::new(),
+            )
+        };
 
         Self {
             id: c.id.clone(),
@@ -78,9 +99,10 @@ impl ConnectionForm {
     }
 
     pub fn to_connection(&self) -> Connection {
-        let port = self.port.parse::<u16>().unwrap_or(
-            self.engine.default_port()
-        );
+        let port = self
+            .port
+            .parse::<u16>()
+            .unwrap_or(self.engine.default_port());
         let ssh = if self.ssh_enabled {
             let ssh_port = self.ssh_port.parse::<u16>().unwrap_or(22);
             let auth = if self.ssh_use_key {

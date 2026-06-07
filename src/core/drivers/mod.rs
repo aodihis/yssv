@@ -2,12 +2,12 @@ pub mod error;
 pub mod mysql;
 pub mod postgres;
 
-use async_trait::async_trait;
 use crate::core::{
     connections::model::Connection,
     results::model::{ColumnDef, QueryResult},
     schema::model::{SchemaInfo, TableInfo},
 };
+use async_trait::async_trait;
 pub use error::DbError;
 
 #[async_trait]
@@ -35,6 +35,6 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
     use crate::core::connections::model::DbEngine;
     match conn.engine {
         DbEngine::Postgres => postgres::driver::connect(conn).await,
-        DbEngine::MySQL    => mysql::driver::connect(conn).await,
+        DbEngine::MySQL => mysql::driver::connect(conn).await,
     }
 }

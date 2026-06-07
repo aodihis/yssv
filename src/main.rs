@@ -20,7 +20,9 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
         .checked_sub(std::time::Duration::from_secs(keep_days * 86_400))
         .unwrap_or(std::time::UNIX_EPOCH);
 
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         let is_log = path
@@ -28,7 +30,9 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
             .and_then(|n| n.to_str())
             .map(|n| n.starts_with("yssv.log"))
             .unwrap_or(false);
-        if !is_log { continue; }
+        if !is_log {
+            continue;
+        }
         if let Ok(meta) = entry.metadata() {
             if let Ok(modified) = meta.modified() {
                 if modified < cutoff {
@@ -74,9 +78,13 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
     // Default level: DEBUG in debug builds, INFO in release.
-    let default_level = if cfg!(debug_assertions) { "debug" } else { "info" };
-    let env_filter = EnvFilter::try_from_env("YSSV_LOG")
-        .unwrap_or_else(|_| EnvFilter::new(default_level));
+    let default_level = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "info"
+    };
+    let env_filter =
+        EnvFilter::try_from_env("YSSV_LOG").unwrap_or_else(|_| EnvFilter::new(default_level));
 
     // File layer — compact, no color, always on.
     let file_layer = fmt::layer()
@@ -111,16 +119,17 @@ fn pick_renderer(settings: &yssv::pages::settings::SettingsState) -> eframe::Ren
     use yssv::pages::settings::RendererPreference;
 
     // Priority: --renderer CLI flag > YSSV_RENDERER env var > settings file > wgpu default.
-    let from_args = std::env::args()
-        .skip_while(|a| a != "--renderer")
-        .nth(1);
+    let from_args = std::env::args().skip_while(|a| a != "--renderer").nth(1);
     let from_env = std::env::var("YSSV_RENDERER").ok();
 
     match from_args.as_deref().or(from_env.as_deref()) {
         Some("glow") => eframe::Renderer::Glow,
         Some("wgpu") => eframe::Renderer::Wgpu,
         Some(other) => {
-            tracing::warn!(value = other, "unknown --renderer value, falling back to settings");
+            tracing::warn!(
+                value = other,
+                "unknown --renderer value, falling back to settings"
+            );
             match settings.renderer {
                 RendererPreference::Glow => eframe::Renderer::Glow,
                 RendererPreference::Wgpu => eframe::Renderer::Wgpu,
@@ -138,6 +147,7 @@ fn native_options(renderer: eframe::Renderer) -> eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("YSSV")
             .with_inner_size([1320.0, 840.0])
+            .with_decorations(false)
             .with_min_inner_size([900.0, 600.0]),
         renderer,
         ..Default::default()
@@ -149,7 +159,7 @@ fn main() -> eframe::Result<()> {
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "YSSV starting");
 
     let rt = std::sync::Arc::new(
-        tokio::runtime::Runtime::new().expect("failed to create tokio runtime")
+        tokio::runtime::Runtime::new().expect("failed to create tokio runtime"),
     );
 
     let settings = yssv::pages::settings::SettingsState::load();

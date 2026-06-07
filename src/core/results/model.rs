@@ -9,7 +9,11 @@ pub struct QueryResult {
 
 impl QueryResult {
     pub fn empty() -> Self {
-        Self { columns: vec![], rows: vec![], total_rows: Some(0) }
+        Self {
+            columns: vec![],
+            rows: vec![],
+            total_rows: Some(0),
+        }
     }
 
     pub fn page_count(&self, page_size: u32) -> u64 {
@@ -35,19 +39,31 @@ mod tests {
 
     #[test]
     fn page_count_exact_multiple() {
-        let r = QueryResult { columns: vec![], rows: vec![], total_rows: Some(200) };
+        let r = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            total_rows: Some(200),
+        };
         assert_eq!(r.page_count(100), 2);
     }
 
     #[test]
     fn page_count_remainder() {
-        let r = QueryResult { columns: vec![], rows: vec![], total_rows: Some(201) };
+        let r = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            total_rows: Some(201),
+        };
         assert_eq!(r.page_count(100), 3);
     }
 
     #[test]
     fn page_count_unknown_total() {
-        let r = QueryResult { columns: vec![], rows: vec![], total_rows: None };
+        let r = QueryResult {
+            columns: vec![],
+            rows: vec![],
+            total_rows: None,
+        };
         assert_eq!(r.page_count(100), 1);
     }
 }

@@ -1,5 +1,5 @@
-use egui::{Color32, Ui, Vec2};
 use crate::core::connections::model::ConnColor;
+use egui::{Color32, Ui, Vec2};
 
 pub fn color_picker(ui: &mut Ui, current: &mut ConnColor) {
     ui.horizontal(|ui| {

@@ -1,6 +1,6 @@
-use egui::{Color32, FontId, Response, Ui, Vec2};
 use crate::core::connections::model::Connection;
 use crate::theme::ThemeColors;
+use egui::{Color32, FontId, Response, Ui, Vec2};
 
 pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
     let tc = ThemeColors::from_ui(ui);
@@ -9,7 +9,9 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
         Vec2::new(ui.available_width(), item_h),
         egui::Sense::click(),
     );
-    if !ui.is_rect_visible(rect) { return resp; }
+    if !ui.is_rect_visible(rect) {
+        return resp;
+    }
 
     let painter = ui.painter();
 
@@ -49,8 +51,8 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
 
     // Name + host text block
     let text_x = left_x + 18.0;
-    let name_y  = center_y - 9.0;
-    let host_y  = center_y + 5.5;
+    let name_y = center_y - 9.0;
+    let host_y = center_y + 5.5;
 
     painter.text(
         egui::pos2(text_x, name_y),
@@ -70,7 +72,8 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
     // Engine badge — right side, 9.5px mono uppercase in a small rounded pill
     let badge_text = conn.engine.label().to_uppercase();
     let badge_font = FontId::monospace(9.5);
-    let badge_galley = painter.layout_no_wrap(badge_text.clone(), badge_font.clone(), tc.text_muted);
+    let badge_galley =
+        painter.layout_no_wrap(badge_text.clone(), badge_font.clone(), tc.text_muted);
     let badge_w = badge_galley.size().x + 10.0; // 5px padding each side
     let badge_h = 18.0;
     let badge_rect = egui::Rect::from_min_size(

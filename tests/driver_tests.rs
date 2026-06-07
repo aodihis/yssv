@@ -36,7 +36,10 @@ fn mysql_conn() -> Connection {
 async fn pg_can_list_databases() {
     let conn = pg_conn();
     let active = drivers::connect(&conn).await.expect("connect failed");
-    let dbs = active.list_databases().await.expect("list_databases failed");
+    let dbs = active
+        .list_databases()
+        .await
+        .expect("list_databases failed");
     assert!(!dbs.is_empty(), "expected at least one database");
     assert!(dbs.contains(&"postgres".to_string()));
 }
@@ -46,7 +49,10 @@ async fn pg_can_list_databases() {
 async fn pg_can_list_schemas() {
     let conn = pg_conn();
     let active = drivers::connect(&conn).await.expect("connect failed");
-    let schemas = active.list_schemas("postgres").await.expect("list_schemas failed");
+    let schemas = active
+        .list_schemas("postgres")
+        .await
+        .expect("list_schemas failed");
     let schema_names: Vec<&str> = schemas.iter().map(|s| s.name.as_str()).collect();
     assert!(schema_names.contains(&"public"));
 }
@@ -56,7 +62,10 @@ async fn pg_can_list_schemas() {
 async fn mysql_can_list_databases() {
     let conn = mysql_conn();
     let active = drivers::connect(&conn).await.expect("connect failed");
-    let dbs = active.list_databases().await.expect("list_databases failed");
+    let dbs = active
+        .list_databases()
+        .await
+        .expect("list_databases failed");
     assert!(!dbs.is_empty());
     assert!(dbs.contains(&"mysql".to_string()));
 }

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::core::ssh::SshConfig;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Connection {
@@ -111,23 +111,23 @@ impl ConnColor {
     pub fn to_color32(self) -> egui::Color32 {
         use crate::theme::colors;
         match self {
-            ConnColor::Red    => colors::RED,
-            ConnColor::Amber  => colors::AMBER,
-            ConnColor::Green  => colors::GREEN,
-            ConnColor::Blue   => colors::BLUE,
+            ConnColor::Red => colors::RED,
+            ConnColor::Amber => colors::AMBER,
+            ConnColor::Green => colors::GREEN,
+            ConnColor::Blue => colors::BLUE,
             ConnColor::Purple => colors::PURPLE,
-            ConnColor::Gray   => colors::GRAY,
+            ConnColor::Gray => colors::GRAY,
         }
     }
 
     pub fn label(&self) -> &'static str {
         match self {
-            ConnColor::Red    => "Red",
-            ConnColor::Amber  => "Amber",
-            ConnColor::Green  => "Green",
-            ConnColor::Blue   => "Blue",
+            ConnColor::Red => "Red",
+            ConnColor::Amber => "Amber",
+            ConnColor::Green => "Green",
+            ConnColor::Blue => "Blue",
             ConnColor::Purple => "Purple",
-            ConnColor::Gray   => "Gray",
+            ConnColor::Gray => "Gray",
         }
     }
 }
