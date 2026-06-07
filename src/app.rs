@@ -367,14 +367,13 @@ impl eframe::App for YssvApp {
                                 .size(12.0)
                                 .color(tc.text_muted),
                         )
-                            .fill(egui::Color32::TRANSPARENT)
-                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
-                            .min_size(egui::vec2(0.0, 26.0));
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                        .min_size(egui::vec2(0.0, 26.0));
                         if ui.add(back_btn).clicked() {
                             self.screen = Screen::Connections;
                         }
                     }
-
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Close button
@@ -435,8 +434,6 @@ impl eframe::App for YssvApp {
                         if ui.add(theme_btn).clicked() {
                             self.settings.toggle_theme();
                         }
-
-
                     });
                 });
                 // Make title bar draggable

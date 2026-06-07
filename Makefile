@@ -81,6 +81,10 @@ fmt:
 fmt-check:
 	cargo fmt -- --check
 
+fix:
+	cargo fmt && cargo clippy --fix --allow-dirty
+
+
 # ── Clean ──────────────────────────────────────────────────────────────────────
 clean:
 	cargo clean
