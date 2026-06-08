@@ -150,7 +150,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                 bottom: 28,
             })
             .show(ui, |ui| {
-                ui.set_max_width(content_w);
+                // ui.set_max_width(content_w);
 
                 // Name + Group
                 field_label(ui, "Connection name", &tc);
