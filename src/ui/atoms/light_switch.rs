@@ -1,7 +1,7 @@
 use egui::*;
 
 pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
-    let desired_size = vec2(40.0, 20.0);
+    let desired_size = vec2(34.0, 20.0);
 
     let (rect, mut response) = ui.allocate_exact_size(
         desired_size,

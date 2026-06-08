@@ -3,11 +3,19 @@ use egui::{FontData, FontDefinitions, FontFamily, Stroke, Visuals};
 pub fn setup_fonts(ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
 
+    // Plus Jakarta Sans for Proportional
+    fonts.font_data.insert(
+        "PlusJakarta".to_owned(),
+        std::sync::Arc::new(FontData::from_static(include_bytes!(
+            "../assets/fonts/PlusJakartaSans-VariableFont_wght.ttf"
+        ))),
+    );
+
     // IBMPlexSans-Regular for Proportional
     fonts.font_data.insert(
-        "IBMPlexSans-Regular".to_owned(),
+        "IBMPlexSans".to_owned(),
         std::sync::Arc::new(FontData::from_static(include_bytes!(
-            "../assets/fonts/IBMPlexSans-Regular.ttf"
+            "../assets/fonts/IBMPlexSans-VariableFont_wdth,wght.ttf"
         ))),
     );
 
@@ -19,19 +27,24 @@ pub fn setup_fonts(ctx: &egui::Context) {
         ))),
     );
 
-    // Put my font first (highest priority) for proportional:
-    fonts
-        .families
-        .entry(FontFamily::Proportional)
-        .or_default()
-        .insert(0, "IBMPlexSans-Regular".to_owned());
+    {
+        let proportional = fonts
+            .families
+            .entry(FontFamily::Proportional)
+            .or_default();
 
-    // Put my font as last fallback for monospace:
-    fonts
-        .families
-        .entry(FontFamily::Monospace)
-        .or_default()
-        .insert(0, "IBMPlexMono-Regular".to_owned());
+        proportional.insert(0, "PlusJakarta".to_owned());
+        proportional.insert(1, "IBMPlexSans".to_owned());
+    }
+
+    {
+        let monospace = fonts
+            .families
+            .entry(FontFamily::Monospace)
+            .or_default();
+
+        monospace.insert(0, "IBMPlexMono-Regular".to_owned());
+    }
 
     ctx.set_fonts(fonts);
 }

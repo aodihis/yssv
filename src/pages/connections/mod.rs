@@ -237,54 +237,80 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                 // ── SSH TUNNEL ──────────────────────────────────────
                 section_label(ui, "SSH TUNNEL", &tc);
 
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("Enable SSH tunnel").size(13.0).color(tc.text));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        light_switch(ui, &mut app.conn_page.form.ssh_enabled);
-                    });
-                });
+                egui::Frame::default()
+                    .stroke(egui::Stroke::new(0.5, egui::Color32::GRAY))
+                    .inner_margin(20.0)
+                    .corner_radius(5.0)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new("")
+                                    .size(24.0)
+                            );
+                            ui.add_space(10.0);
+                            // Texts
+                            ui.vertical(|ui| {
+                                ui.label(
+                                    egui::RichText::new("Connect through SSH")
+                                        .strong()
+                                );
 
-                if app.conn_page.form.ssh_enabled {
-                    ui.add_space(14.0);
-                    ui.horizontal(|ui| {
-                        ui.vertical(|ui| {
-                            ui.set_width(ui.available_width() - 80.0);
-                            field_label(ui, "SSH Host", &tc);
-                            text_input(ui, &mut app.conn_page.form.ssh_host, "bastion.example.com");
+                                ui.label(
+                                    egui::RichText::new("Traffic is tunneled through SSH to the database server.")
+                                        .small()
+                                        .weak()
+                                );
+                            });
+
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                light_switch(ui, &mut app.conn_page.form.ssh_enabled);
+                            });
                         });
-                        ui.add_space(10.0);
-                        ui.vertical(|ui| {
-                            field_label(ui, "Port", &tc);
-                            text_input(ui, &mut app.conn_page.form.ssh_port, "22");
-                        });
+
+                        if app.conn_page.form.ssh_enabled {
+                            ui.add_space(14.0);
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.set_width(ui.available_width() - 80.0);
+                                    field_label(ui, "SSH Host", &tc);
+                                    text_input(ui, &mut app.conn_page.form.ssh_host, "bastion.example.com");
+                                });
+                                ui.add_space(10.0);
+                                ui.vertical(|ui| {
+                                    field_label(ui, "Port", &tc);
+                                    text_input(ui, &mut app.conn_page.form.ssh_port, "22");
+                                });
+                            });
+                            ui.add_space(14.0);
+
+                            field_label(ui, "SSH Username", &tc);
+                            text_input(ui, &mut app.conn_page.form.ssh_username, "admin");
+                            ui.add_space(14.0);
+
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("Use key file").size(13.0).color(tc.text));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.checkbox(&mut app.conn_page.form.ssh_use_key, "");
+                                });
+                            });
+                            ui.add_space(10.0);
+
+                            if app.conn_page.form.ssh_use_key {
+                                field_label(ui, "Key file path", &tc);
+                                text_input(
+                                    ui,
+                                    &mut app.conn_page.form.ssh_key_path,
+                                    "/home/user/.ssh/id_rsa",
+                                );
+                            } else {
+                                field_label(ui, "SSH Password", &tc);
+                                password_input(ui, &mut app.conn_page.form.ssh_password, "");
+                            }
+                            ui.add_space(4.0);
+                        }
                     });
-                    ui.add_space(14.0);
 
-                    field_label(ui, "SSH Username", &tc);
-                    text_input(ui, &mut app.conn_page.form.ssh_username, "admin");
-                    ui.add_space(14.0);
 
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Use key file").size(13.0).color(tc.text));
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.checkbox(&mut app.conn_page.form.ssh_use_key, "");
-                        });
-                    });
-                    ui.add_space(10.0);
-
-                    if app.conn_page.form.ssh_use_key {
-                        field_label(ui, "Key file path", &tc);
-                        text_input(
-                            ui,
-                            &mut app.conn_page.form.ssh_key_path,
-                            "/home/user/.ssh/id_rsa",
-                        );
-                    } else {
-                        field_label(ui, "SSH Password", &tc);
-                        password_input(ui, &mut app.conn_page.form.ssh_password, "");
-                    }
-                    ui.add_space(4.0);
-                }
 
                 // ── Actions ─────────────────────────────────────────
                 ui.add_space(24.0);
