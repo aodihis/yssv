@@ -3,6 +3,7 @@ pub use state::ConnectionsPageState;
 
 use crate::theme::ThemeColors;
 use egui::{Margin, RichText};
+use crate::ui::atoms::light_switch::light_switch;
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui::Context) {
     use crate::ui::atoms::button::primary_button;
@@ -218,21 +219,28 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                 text_input(ui, &mut app.conn_page.form.database, "postgres");
                 ui.add_space(14.0);
 
-                field_label(ui, "Username", &tc);
-                text_input(ui, &mut app.conn_page.form.username, "postgres");
+                ui.horizontal(|ui| {
+                    let width = (ui.available_width() - 10.0) / 2.0;
+                    ui.vertical(|ui| {
+                       ui.set_width(width);
+                        field_label(ui, "Username", &tc);
+                        text_input(ui, &mut app.conn_page.form.username, "postgres");
+                   }) ;
+                   ui.add_space(10.0);
+                    ui.vertical(|ui| {
+                        field_label(ui, "Password", &tc);
+                        password_input(ui, &mut app.conn_page.form.password, "");
+                    });
+                });
                 ui.add_space(14.0);
-
-                field_label(ui, "Password", &tc);
-                password_input(ui, &mut app.conn_page.form.password, "");
-                ui.add_space(4.0);
-
+                
                 // ── SSH TUNNEL ──────────────────────────────────────
                 section_label(ui, "SSH TUNNEL", &tc);
 
                 ui.horizontal(|ui| {
                     ui.label(RichText::new("Enable SSH tunnel").size(13.0).color(tc.text));
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.checkbox(&mut app.conn_page.form.ssh_enabled, "");
+                        light_switch(ui, &mut app.conn_page.form.ssh_enabled);
                     });
                 });
 
