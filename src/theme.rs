@@ -1,4 +1,40 @@
-use egui::{Stroke, Visuals};
+use egui::{FontData, FontDefinitions, FontFamily, Stroke, Visuals};
+
+pub fn setup_fonts(ctx: &egui::Context) {
+    let mut fonts = FontDefinitions::default();
+
+    // IBMPlexSans-Regular for Proportional
+    fonts.font_data.insert(
+        "IBMPlexSans-Regular".to_owned(),
+        std::sync::Arc::new(FontData::from_static(include_bytes!(
+            "../assets/fonts/IBMPlexSans-Regular.ttf"
+        ))),
+    );
+
+    // IBMPlexMono-Regular for Monospace
+    fonts.font_data.insert(
+        "IBMPlexMono-Regular".to_owned(),
+        std::sync::Arc::new(FontData::from_static(include_bytes!(
+            "../assets/fonts/IBMPlexMono-Regular.ttf"
+        ))),
+    );
+
+    // Put my font first (highest priority) for proportional:
+    fonts
+        .families
+        .entry(FontFamily::Proportional)
+        .or_default()
+        .insert(0, "IBMPlexSans-Regular".to_owned());
+
+    // Put my font as last fallback for monospace:
+    fonts
+        .families
+        .entry(FontFamily::Monospace)
+        .or_default()
+        .insert(0, "IBMPlexMono-Regular".to_owned());
+
+    ctx.set_fonts(fonts);
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
 pub enum Theme {

@@ -64,6 +64,7 @@ pub struct YssvApp {
 impl YssvApp {
     pub fn new(cc: &eframe::CreationContext<'_>, rt: Arc<tokio::runtime::Runtime>) -> Self {
         let settings = SettingsState::load();
+        theme::setup_fonts(&cc.egui_ctx);
         theme::apply_theme(&cc.egui_ctx, settings.theme);
 
         let storage_path = data_dir_path();
@@ -434,6 +435,8 @@ impl eframe::App for YssvApp {
                         if ui.add(theme_btn).clicked() {
                             self.settings.toggle_theme();
                         }
+
+
                     });
                 });
                 // Make title bar draggable
