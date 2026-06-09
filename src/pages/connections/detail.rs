@@ -18,8 +18,8 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
 
         egui::Frame::new()
             .inner_margin(egui::Margin {
-                left: h_pad as i8,
-                right: h_pad as i8,
+                left: h_pad.clamp(0.0, i8::MAX as f32) as i8,
+                right: h_pad.clamp(0.0, i8::MAX as f32) as i8,
                 top: 30,
                 bottom: 28,
             })
@@ -199,8 +199,9 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                     {
                         app.test_connection(ctx.clone());
                     }
-                    if let TestStatus::Failed(msg) = &app.conn_page.test_status.clone() {
-                        app.error_modal = Some(msg.clone());
+                    if let TestStatus::Failed(msg) = &app.conn_page.test_status {
+                        let msg = msg.clone();
+                        app.error_modal = Some(msg);
                     }
 
                     ui.add_space(8.0);

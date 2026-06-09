@@ -266,10 +266,10 @@ impl ThemeColors {
             primary: PRIMARY,
             primary_muted: PRIMARY_MUTED,
             table_header: TABLE_HEADER,
-            table_border: egui::Color32::from_rgb(0x1c, 0x23, 0x2d),
+            table_border: BORDER_MUTED,
             table_row_alt: TABLE_ROW_ALT,
-            success: egui::Color32::from_rgb(0x3b, 0xb2, 0x7c),
-            destructive: egui::Color32::from_rgb(0xf0, 0x59, 0x5e),
+            success: colors::SUCCESS,
+            destructive: colors::DESTRUCTIVE,
         }
     }
 
@@ -291,10 +291,17 @@ impl ThemeColors {
             primary: PRIMARY,
             primary_muted: PRIMARY_MUTED,
             table_header: TABLE_HEADER,
-            table_border: egui::Color32::from_rgb(0xed, 0xef, 0xf2),
+            table_border: BORDER_MUTED,
             table_row_alt: TABLE_ROW_ALT,
-            success: egui::Color32::from_rgb(0x2e, 0xa3, 0x6b),
-            destructive: egui::Color32::from_rgb(0xe5, 0x48, 0x4d),
+            success: colors::SUCCESS,
+            destructive: colors::DESTRUCTIVE,
+        }
+    }
+
+    pub fn for_theme(theme: Theme) -> Self {
+        match theme {
+            Theme::Dark => Self::dark(),
+            Theme::Light => Self::light(),
         }
     }
 

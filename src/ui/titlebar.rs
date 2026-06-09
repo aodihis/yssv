@@ -1,6 +1,13 @@
 use crate::app::{Screen, YssvApp};
 use crate::theme::{self, colors, ThemeColors};
 
+fn icon_btn(icon: &str, size: f32, color: egui::Color32) -> egui::Button<'_> {
+    egui::Button::new(egui::RichText::new(icon).size(size).color(color))
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::NONE)
+        .min_size(egui::vec2(30.0, 28.0))
+}
+
 pub fn render(ctx: &egui::Context, app: &mut YssvApp) {
     let titlebar_bg = if app.settings.theme == theme::Theme::Dark {
         colors::dark::TITLEBAR
@@ -41,55 +48,24 @@ pub fn render(ctx: &egui::Context, app: &mut YssvApp) {
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let close_btn = egui::Button::new(
-                        egui::RichText::new("❌").size(12.0).color(tc.muted_foreground),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::NONE)
-                    .min_size(egui::vec2(30.0, 28.0));
+                    let c = tc.muted_foreground;
 
-                    let is_maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
-                    let maximize_restore_icon = if is_maximized { "🗗" } else { "⬜" };
-                    let maximize_restore_btn = egui::Button::new(
-                        egui::RichText::new(maximize_restore_icon)
-                            .size(12.0)
-                            .color(tc.muted_foreground),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::NONE)
-                    .min_size(egui::vec2(30.0, 28.0));
-
-                    let minimize_btn = egui::Button::new(
-                        egui::RichText::new("—").size(12.0).color(tc.muted_foreground),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::NONE)
-                    .min_size(egui::vec2(30.0, 28.0));
-
-                    let theme_icon = if app.settings.theme == theme::Theme::Dark {
-                        "☀"
-                    } else {
-                        "🌙"
-                    };
-                    let theme_btn = egui::Button::new(
-                        egui::RichText::new(theme_icon)
-                            .size(14.0)
-                            .color(tc.muted_foreground),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::NONE)
-                    .min_size(egui::vec2(30.0, 28.0));
-
-                    if ui.add(close_btn).clicked() {
+                    if ui.add(icon_btn("❌", 12.0, c)).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
-                    if ui.add(maximize_restore_btn).clicked() {
+
+                    let is_maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+                    let max_icon = if is_maximized { "🗗" } else { "⬜" };
+                    if ui.add(icon_btn(max_icon, 12.0, c)).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!is_maximized));
                     }
-                    if ui.add(minimize_btn).clicked() {
+
+                    if ui.add(icon_btn("—", 12.0, c)).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
                     }
-                    if ui.add(theme_btn).clicked() {
+
+                    let theme_icon = if app.settings.theme == theme::Theme::Dark { "☀" } else { "🌙" };
+                    if ui.add(icon_btn(theme_icon, 14.0, c)).clicked() {
                         app.settings.toggle_theme();
                     }
                 });
