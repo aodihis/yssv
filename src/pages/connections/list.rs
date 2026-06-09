@@ -20,9 +20,10 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             ui.label(
                 RichText::new("Connections")
                     .size(14.0)
-                    .strong()
+                    .family(egui::FontFamily::Name("SemiBold".into()))
                     .color(tc.foreground),
             );
+            ui.add_space(4.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
                 if primary_button(ui, "+ New").clicked() {
                     app.conn_page.start_new();
@@ -64,7 +65,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         RichText::new(format!("{} {}", chev, group_name.to_uppercase()))
                             .size(11.0)
                             .color(tc.subtle_foreground)
-                            .strong(),
+                            .family(egui::FontFamily::Name("SemiBold".into())),
                     )
                     .fill(egui::Color32::TRANSPARENT)
                     .stroke(egui::Stroke::NONE),

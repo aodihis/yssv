@@ -112,7 +112,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             ui.label(egui::RichText::new("").size(24.0));
                             ui.add_space(10.0);
                             ui.vertical(|ui| {
-                                ui.label(egui::RichText::new("Connect through SSH").strong());
+                                ui.label(egui::RichText::new("Connect through SSH").family(egui::FontFamily::Name("SemiBold".into())));
                                 ui.label(
                                     egui::RichText::new(
                                         "Traffic is tunneled through SSH to the database server.",
@@ -239,7 +239,7 @@ fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
         RichText::new(text)
             .size(11.5)
             .color(tc.muted_foreground)
-            .strong(),
+            .family(egui::FontFamily::Name("SemiBold".into())),
     );
     ui.add_space(4.0);
 }
@@ -251,7 +251,7 @@ fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
             RichText::new(text)
                 .size(11.0)
                 .color(tc.subtle_foreground)
-                .strong(),
+                .family(egui::FontFamily::Name("SemiBold".into())),
         );
         ui.add_space(8.0);
         let r = ui.available_rect_before_wrap();

@@ -152,7 +152,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                     if col.is_pk {
                                         ui.label(RichText::new("🔑").size(10.0));
                                     }
-                                    ui.label(RichText::new(&col.name).size(12.0).strong());
+                                    ui.label(RichText::new(&col.name).size(12.0).family(egui::FontFamily::Name("SemiBold".into())));
                                     ui.label(RichText::new(&col.data_type).size(10.0).weak());
                                 });
                             });

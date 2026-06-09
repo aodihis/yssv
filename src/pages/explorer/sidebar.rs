@@ -29,7 +29,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             ui.label(
                 RichText::new(&conn_name)
                     .size(13.0)
-                    .strong()
+                    .family(egui::FontFamily::Name("SemiBold".into()))
                     .color(tc.foreground),
             );
             ui.add_space(7.0);

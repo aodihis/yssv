@@ -3,23 +3,18 @@ use egui::{FontData, FontDefinitions, FontFamily, Stroke, Visuals};
 pub fn setup_fonts(ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
 
-    // Plus Jakarta Sans for Proportional
     fonts.font_data.insert(
-        "PlusJakarta".to_owned(),
+        "PlusJakarta-Regular".to_owned(),
         std::sync::Arc::new(FontData::from_static(include_bytes!(
-            "../assets/fonts/PlusJakartaSans-VariableFont_wght.ttf"
+            "../assets/fonts/PlusJakartaSans-Regular.ttf"
         ))),
     );
-
-    // IBMPlexSans-Regular for Proportional
     fonts.font_data.insert(
-        "IBMPlexSans".to_owned(),
+        "PlusJakarta-SemiBold".to_owned(),
         std::sync::Arc::new(FontData::from_static(include_bytes!(
-            "../assets/fonts/IBMPlexSans-VariableFont_wdth,wght.ttf"
+            "../assets/fonts/PlusJakartaSans-SemiBold.ttf"
         ))),
     );
-
-    // IBMPlexMono-Regular for Monospace
     fonts.font_data.insert(
         "IBMPlexMono-Regular".to_owned(),
         std::sync::Arc::new(FontData::from_static(include_bytes!(
@@ -27,18 +22,23 @@ pub fn setup_fonts(ctx: &egui::Context) {
         ))),
     );
 
-    {
-        let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
+    fonts
+        .families
+        .entry(FontFamily::Proportional)
+        .or_default()
+        .insert(0, "PlusJakarta-Regular".to_owned());
 
-        proportional.insert(0, "PlusJakarta".to_owned());
-        proportional.insert(1, "IBMPlexSans".to_owned());
-    }
+    fonts
+        .families
+        .entry(FontFamily::Name("SemiBold".into()))
+        .or_default()
+        .insert(0, "PlusJakarta-SemiBold".to_owned());
 
-    {
-        let monospace = fonts.families.entry(FontFamily::Monospace).or_default();
-
-        monospace.insert(0, "IBMPlexMono-Regular".to_owned());
-    }
+    fonts
+        .families
+        .entry(FontFamily::Monospace)
+        .or_default()
+        .insert(0, "IBMPlexMono-Regular".to_owned());
 
     ctx.set_fonts(fonts);
 }
@@ -145,7 +145,7 @@ fn build_dark() -> Visuals {
     v.extreme_bg_color = TABLE_HEADER;
     v.override_text_color = Some(FOREGROUND);
     v.selection.bg_fill = PRIMARY_SUBTLE;
-    v.selection.stroke = Stroke::NONE;
+    v.selection.stroke = Stroke::new(0.0, FOREGROUND);
     v.hyperlink_color = PRIMARY;
     v.window_corner_radius = egui::CornerRadius::same(12);
 
@@ -184,7 +184,7 @@ fn build_light() -> Visuals {
     v.extreme_bg_color = TABLE_HEADER;
     v.override_text_color = Some(FOREGROUND);
     v.selection.bg_fill = PRIMARY_SUBTLE;
-    v.selection.stroke = Stroke::NONE;
+    v.selection.stroke = Stroke::new(0.0, FOREGROUND);
     v.hyperlink_color = PRIMARY;
     v.window_corner_radius = egui::CornerRadius::same(12);
 
