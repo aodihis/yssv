@@ -8,21 +8,22 @@ fn icon_btn(icon: &str, size: f32, color: egui::Color32) -> egui::Button<'_> {
         .min_size(egui::vec2(30.0, 28.0))
 }
 
-pub fn render(ctx: &egui::Context, app: &mut YssvApp) {
+pub fn render(ui: &mut egui::Ui, app: &mut YssvApp) {
     let titlebar_bg = if app.settings.theme == theme::Theme::Dark {
         colors::dark::TITLEBAR
     } else {
         colors::light::TITLEBAR
     };
 
-    egui::TopBottomPanel::top("title_bar")
+    egui::Panel::top("title_bar")
         .exact_size(30.0)
         .frame(
             egui::Frame::new()
                 .fill(titlebar_bg)
                 .inner_margin(egui::Margin::symmetric(12, 0)),
         )
-        .show(ctx, |ui| {
+        .show_inside(ui, |ui| {
+            let ctx = ui.ctx().clone();
             let tc = ThemeColors::from_ui(ui);
             ui.horizontal_centered(|ui| {
                 ui.label(

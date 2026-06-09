@@ -13,18 +13,18 @@ pub(super) struct LoadRequest {
     pub offset: u32,
 }
 
-pub fn render(ctx: &egui::Context, app: &mut crate::app::YssvApp) {
+pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let sidebar_width = app.settings.sidebar_width;
 
     egui::Panel::left("explorer_sidebar")
         .default_size(sidebar_width)
         .size_range(160.0..=400.0)
-        .show(ctx, |ui| {
-            sidebar::render_sidebar(ui, app, ctx);
+        .show_inside(ui, |ui| {
+            sidebar::render_sidebar(ui, app);
         });
 
     egui::CentralPanel::default()
-        .show(ctx, |ui| {
-            main_view::render_main(ui, app, ctx);
+        .show_inside(ui, |ui| {
+            main_view::render_main(ui, app);
         });
 }

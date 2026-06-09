@@ -7,7 +7,8 @@ use crate::ui::molecules::{
 };
 use egui::RichText;
 
-pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
+    let ctx = ui.ctx().clone();
     if app.explorer.is_none() {
         ui.centered_and_justified(|ui| {
             ui.label(RichText::new("Select a connection to explore").size(14.0));

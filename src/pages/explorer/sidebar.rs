@@ -7,7 +7,8 @@ type TableRow = (String, TableKind, Option<u64>, bool);
 type SchemaRow = (String, bool, Vec<TableRow>);
 type DbRow = (String, bool, bool, Vec<SchemaRow>);
 
-pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
+    let ctx = ui.ctx().clone();
     if app.explorer.is_none() {
         return;
     }

@@ -1,7 +1,7 @@
 use crate::theme::ThemeColors;
 use egui::RichText;
 
-pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     use crate::ui::atoms::button::primary_button;
     use crate::ui::molecules::conn_item::conn_item;
 
@@ -112,5 +112,4 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         ui.add_space(14.0);
     });
 
-    let _ = ctx;
 }

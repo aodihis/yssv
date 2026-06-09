@@ -1,7 +1,8 @@
 use crate::theme::ThemeColors;
 use egui::RichText;
 
-pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
+    let ctx = ui.ctx().clone();
     use crate::core::connections::model::DbEngine;
     use crate::pages::connections::state::TestStatus;
     use crate::ui::atoms::button::primary_button;

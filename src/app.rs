@@ -313,19 +313,17 @@ fn data_dir_path() -> String {
 }
 
 impl eframe::App for YssvApp {
-    fn ui(&mut self, _ui: &mut egui::Ui, _frame: &mut eframe::Frame) {}
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        self.drain_events(&ctx);
+        theme::apply_theme(&ctx, self.settings.theme);
 
-    #[allow(deprecated)]
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.drain_events(ctx);
-        theme::apply_theme(ctx, self.settings.theme);
-
-        crate::ui::titlebar::render(ctx, self);
-        crate::ui::error_modal::render(ctx, self);
+        crate::ui::titlebar::render(ui, self);
+        crate::ui::error_modal::render(ui, self);
 
         match self.screen {
-            Screen::Connections => crate::pages::connections::render(ctx, self),
-            Screen::Explorer => crate::pages::explorer::render(ctx, self),
+            Screen::Connections => crate::pages::connections::render(ui, self),
+            Screen::Explorer => crate::pages::explorer::render(ui, self),
         }
     }
 }
