@@ -47,7 +47,7 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
 ///
 /// | Variable            | Default      | Description                                  |
 /// |---------------------|--------------|----------------------------------------------|
-/// | `YSSV_LOG`          | `info`/`debug` | Log filter. Supports level and per-crate directives (see below). |
+/// | `YSSV_LOG`          | `info`       | Log filter. Supports level and per-crate directives (see below). |
 /// | `YSSV_LOG_KEEP_DAYS`| `7`          | How many days of rolling log files to keep.  |
 ///
 /// ## Log levels (lowest → highest severity)
@@ -75,12 +75,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let file_appender = tracing_appender::rolling::daily(&dir, "yssv.log");
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
-    // Default level: DEBUG in debug builds, INFO in release.
-    let default_level = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "info"
-    };
+    let default_level = "info,wgpu_hal=off,wgpu=warn,naga=warn";
     let env_filter =
         EnvFilter::try_from_env("YSSV_LOG").unwrap_or_else(|_| EnvFilter::new(default_level));
 
