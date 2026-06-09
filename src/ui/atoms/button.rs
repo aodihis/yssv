@@ -1,11 +1,16 @@
 use egui::{Button, Color32, Response, Ui, Vec2};
 
-pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
-    let accent = if ui.visuals().dark_mode {
+fn accent_color(ui: &Ui) -> Color32 {
+    if ui.visuals().dark_mode {
         Color32::from_rgb(0x51, 0x81, 0xff)
     } else {
         Color32::from_rgb(0x2f, 0x5c, 0xe6)
-    };
+    }
+}
+
+/// Full-size primary button (32 px) — for main form CTAs like "Connect" or "Save".
+pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
+    let accent = accent_color(ui);
     ui.add(
         Button::new(egui::RichText::new(label).color(Color32::WHITE))
             .fill(accent)
@@ -13,23 +18,20 @@ pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
     )
 }
 
-pub fn ghost_button(ui: &mut Ui, label: &str) -> Response {
-    ui.add(
-        Button::new(label)
-            .fill(Color32::TRANSPARENT)
-            .min_size(Vec2::new(0.0, 28.0)),
-    )
-}
-
-pub fn small_primary_button(ui: &mut Ui, label: &str) -> Response {
-    let accent = if ui.visuals().dark_mode {
-        Color32::from_rgb(0x51, 0x81, 0xff)
-    } else {
-        Color32::from_rgb(0x2f, 0x5c, 0xe6)
-    };
-    ui.add(
-        Button::new(egui::RichText::new(label).color(Color32::WHITE).size(12.0))
-            .fill(accent)
-            .min_size(Vec2::new(0.0, 27.0)),
-    )
+/// Compact primary button — matches text_input height for inline use next to inputs.
+/// Uses the same vertical rhythm as the input (7 px top/bottom padding, 13 px font).
+pub fn compact_button(ui: &mut Ui, label: &str) -> Response {
+    let accent = accent_color(ui);
+    ui.scope(|ui| {
+        // Mirror the text_input margin (top:7, bottom:7) so heights stay equal.
+        // Also cap interact_size.y so egui doesn't inflate the button beyond our padding.
+        ui.spacing_mut().button_padding = egui::vec2(15.0, 6.0);
+        ui.spacing_mut().interact_size.y = 28.0;
+        ui.spacing_mut().interact_size.x = 69.0;
+        ui.add(
+            Button::new(egui::RichText::new(label).color(Color32::WHITE))
+                .fill(accent),
+        )
+    })
+    .inner
 }

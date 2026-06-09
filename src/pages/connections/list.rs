@@ -1,9 +1,9 @@
 use crate::theme::{self, ThemeColors};
 use egui::RichText;
+use crate::ui::atoms::button::compact_button;
 use crate::ui::atoms::input::text_input;
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
-    use crate::ui::atoms::button::primary_button;
     use crate::ui::molecules::conn_item::conn_item;
 
     let ctx = ui.ctx().clone();
@@ -25,7 +25,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             );
             ui.add_space(4.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                if primary_button(ui, "+ New").clicked() {
+                if compact_button(ui, "+ New").clicked() {
                     app.conn_page.start_new();
                 }
                 text_input(ui, &mut app.conn_page.search_query, "Search…", Some("🔍"));
