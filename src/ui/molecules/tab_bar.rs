@@ -83,7 +83,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
             }
 
             let center_y = tab_rect.center().y;
-            let text_color = if is_active { tc.foreground } else { tc.muted_foreground };
+            let text_color = if is_active {
+                tc.foreground
+            } else {
+                tc.muted_foreground
+            };
             let label_x = tab_rect.left() + 12.0;
 
             // Tab label

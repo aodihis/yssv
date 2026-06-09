@@ -23,8 +23,7 @@ pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             sidebar::render_sidebar(ui, app);
         });
 
-    egui::CentralPanel::default()
-        .show_inside(ui, |ui| {
-            main_view::render_main(ui, app);
-        });
+    egui::CentralPanel::default().show_inside(ui, |ui| {
+        main_view::render_main(ui, app);
+    });
 }

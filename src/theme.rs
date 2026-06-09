@@ -28,20 +28,14 @@ pub fn setup_fonts(ctx: &egui::Context) {
     );
 
     {
-        let proportional = fonts
-            .families
-            .entry(FontFamily::Proportional)
-            .or_default();
+        let proportional = fonts.families.entry(FontFamily::Proportional).or_default();
 
         proportional.insert(0, "PlusJakarta".to_owned());
         proportional.insert(1, "IBMPlexSans".to_owned());
     }
 
     {
-        let monospace = fonts
-            .families
-            .entry(FontFamily::Monospace)
-            .or_default();
+        let monospace = fonts.families.entry(FontFamily::Monospace).or_default();
 
         monospace.insert(0, "IBMPlexMono-Regular".to_owned());
     }
@@ -150,9 +144,10 @@ fn build_dark() -> Visuals {
     v.faint_bg_color = ACCENT;
     v.extreme_bg_color = TABLE_HEADER;
     v.override_text_color = Some(FOREGROUND);
-    v.selection.bg_fill = PRIMARY_MUTED;
-    v.selection.stroke = Stroke::new(1.0, PRIMARY);
+    v.selection.bg_fill = PRIMARY_SUBTLE;
+    v.selection.stroke = Stroke::NONE;
     v.hyperlink_color = PRIMARY;
+    v.window_corner_radius = egui::CornerRadius::same(12);
 
     let border_stroke = Stroke::new(1.0, BORDER);
     v.widgets.noninteractive.bg_fill = BACKGROUND;
@@ -188,9 +183,10 @@ fn build_light() -> Visuals {
     v.faint_bg_color = ACCENT;
     v.extreme_bg_color = TABLE_HEADER;
     v.override_text_color = Some(FOREGROUND);
-    v.selection.bg_fill = PRIMARY_MUTED;
-    v.selection.stroke = Stroke::new(1.0, PRIMARY);
+    v.selection.bg_fill = PRIMARY_SUBTLE;
+    v.selection.stroke = Stroke::NONE;
     v.hyperlink_color = PRIMARY;
+    v.window_corner_radius = egui::CornerRadius::same(12);
 
     let border_stroke = Stroke::new(1.0, BORDER);
     v.widgets.noninteractive.bg_fill = BACKGROUND;
@@ -219,7 +215,35 @@ fn build_light() -> Visuals {
 pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
     ctx.set_visuals(build_visuals(theme));
     ctx.global_style_mut(|style| {
-        style.spacing.button_padding = egui::vec2(12.0, 6.0);
+        use egui::{FontFamily, FontId, TextStyle};
+
+        // Spacing (from spec bootstrap)
+        style.spacing.button_padding = egui::vec2(14.0, 6.5);
+        style.spacing.window_margin = egui::Margin::same(0);
+        style.spacing.indent = 15.0;
+        style.spacing.interact_size.y = 32.0;
+        style.spacing.combo_height = 34.0;
+
+        // TextStyle → FontId mapping
+        style
+            .text_styles
+            .insert(TextStyle::Body, FontId::new(13.0, FontFamily::Proportional));
+        style.text_styles.insert(
+            TextStyle::Small,
+            FontId::new(11.0, FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            TextStyle::Heading,
+            FontId::new(13.0, FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            TextStyle::Monospace,
+            FontId::new(12.5, FontFamily::Monospace),
+        );
+        style.text_styles.insert(
+            TextStyle::Button,
+            FontId::new(13.0, FontFamily::Proportional),
+        );
     });
 }
 
@@ -239,6 +263,7 @@ pub struct ThemeColors {
     pub muted_foreground: egui::Color32,
     pub subtle_foreground: egui::Color32,
     pub primary: egui::Color32,
+    pub primary_hover: egui::Color32,
     pub primary_muted: egui::Color32,
     pub table_header: egui::Color32,
     pub table_border: egui::Color32,
@@ -264,6 +289,7 @@ impl ThemeColors {
             muted_foreground: MUTED_FOREGROUND,
             subtle_foreground: SUBTLE_FOREGROUND,
             primary: PRIMARY,
+            primary_hover: PRIMARY_HOVER,
             primary_muted: PRIMARY_MUTED,
             table_header: TABLE_HEADER,
             table_border: BORDER_MUTED,
@@ -289,6 +315,7 @@ impl ThemeColors {
             muted_foreground: MUTED_FOREGROUND,
             subtle_foreground: SUBTLE_FOREGROUND,
             primary: PRIMARY,
+            primary_hover: PRIMARY_HOVER,
             primary_muted: PRIMARY_MUTED,
             table_header: TABLE_HEADER,
             table_border: BORDER_MUTED,
@@ -320,15 +347,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dark_primary_is_correct() {
+    fn dark_selection_fill_is_correct() {
         let v = build_visuals(Theme::Dark);
-        assert_eq!(v.selection.stroke.color, colors::dark::PRIMARY);
+        assert_eq!(v.selection.bg_fill, colors::dark::PRIMARY_SUBTLE);
+        assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]
-    fn light_primary_is_correct() {
+    fn light_selection_fill_is_correct() {
         let v = build_visuals(Theme::Light);
-        assert_eq!(v.selection.stroke.color, colors::light::PRIMARY);
+        assert_eq!(v.selection.bg_fill, colors::light::PRIMARY_SUBTLE);
+        assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]

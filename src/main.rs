@@ -1,4 +1,4 @@
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 fn log_dir() -> String {
     #[cfg(target_os = "windows")]
@@ -33,13 +33,11 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
         if !is_log {
             continue;
         }
-        if let Ok(meta) = entry.metadata() {
-            if let Ok(modified) = meta.modified() {
-                if modified < cutoff {
+        if let Ok(meta) = entry.metadata()
+            && let Ok(modified) = meta.modified()
+                && modified < cutoff {
                     let _ = std::fs::remove_file(&path);
                 }
-            }
-        }
     }
 }
 

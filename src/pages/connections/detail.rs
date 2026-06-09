@@ -26,11 +26,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             })
             .show(ui, |ui| {
                 field_label(ui, "Connection name", &tc);
-                text_input(ui, &mut app.conn_page.form.name, "My Database");
+                text_input(ui, &mut app.conn_page.form.name, "My Database", None);
                 ui.add_space(14.0);
 
                 field_label(ui, "Group", &tc);
-                text_input(ui, &mut app.conn_page.form.group, "Local");
+                text_input(ui, &mut app.conn_page.form.group, "Local", None);
                 ui.add_space(14.0);
 
                 field_label(ui, "Color label", &tc);
@@ -72,18 +72,18 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     ui.vertical(|ui| {
                         ui.set_width(ui.available_width() - 100.0);
                         field_label(ui, "Host", &tc);
-                        text_input(ui, &mut app.conn_page.form.host, "127.0.0.1");
+                        text_input(ui, &mut app.conn_page.form.host, "127.0.0.1", None);
                     });
                     ui.add_space(10.0);
                     ui.vertical(|ui| {
                         field_label(ui, "Port", &tc);
-                        text_input(ui, &mut app.conn_page.form.port, "5432");
+                        text_input(ui, &mut app.conn_page.form.port, "5432", None);
                     });
                 });
                 ui.add_space(14.0);
 
                 field_label(ui, "Database", &tc);
-                text_input(ui, &mut app.conn_page.form.database, "postgres");
+                text_input(ui, &mut app.conn_page.form.database, "postgres", None);
                 ui.add_space(14.0);
 
                 ui.horizontal(|ui| {
@@ -91,12 +91,12 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     ui.vertical(|ui| {
                         ui.set_width(width);
                         field_label(ui, "Username", &tc);
-                        text_input(ui, &mut app.conn_page.form.username, "postgres");
+                        text_input(ui, &mut app.conn_page.form.username, "postgres", None);
                     });
                     ui.add_space(10.0);
                     ui.vertical(|ui| {
                         field_label(ui, "Password", &tc);
-                        password_input(ui, &mut app.conn_page.form.password, "");
+                        password_input(ui, &mut app.conn_page.form.password, "", None);
                     });
                 });
                 ui.add_space(14.0);
@@ -121,9 +121,12 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                     .weak(),
                                 );
                             });
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                light_switch(ui, &mut app.conn_page.form.ssh_enabled);
-                            });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    light_switch(ui, &mut app.conn_page.form.ssh_enabled);
+                                },
+                            );
                         });
 
                         if app.conn_page.form.ssh_enabled {
@@ -136,23 +139,26 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                         ui,
                                         &mut app.conn_page.form.ssh_host,
                                         "bastion.example.com",
+                                        None,
                                     );
                                 });
                                 ui.add_space(10.0);
                                 ui.vertical(|ui| {
                                     field_label(ui, "Port", &tc);
-                                    text_input(ui, &mut app.conn_page.form.ssh_port, "22");
+                                    text_input(ui, &mut app.conn_page.form.ssh_port, "22", None);
                                 });
                             });
                             ui.add_space(14.0);
 
                             field_label(ui, "SSH Username", &tc);
-                            text_input(ui, &mut app.conn_page.form.ssh_username, "admin");
+                            text_input(ui, &mut app.conn_page.form.ssh_username, "admin", None);
                             ui.add_space(14.0);
 
                             ui.horizontal(|ui| {
                                 ui.label(
-                                    RichText::new("Use key file").size(13.0).color(tc.foreground),
+                                    RichText::new("Use key file")
+                                        .size(13.0)
+                                        .color(tc.foreground),
                                 );
                                 ui.with_layout(
                                     egui::Layout::right_to_left(egui::Align::Center),
@@ -169,10 +175,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                     ui,
                                     &mut app.conn_page.form.ssh_key_path,
                                     "/home/user/.ssh/id_rsa",
+                                    None,
                                 );
                             } else {
                                 field_label(ui, "SSH Password", &tc);
-                                password_input(ui, &mut app.conn_page.form.ssh_password, "");
+                                password_input(ui, &mut app.conn_page.form.ssh_password, "", None);
                             }
                             ui.add_space(4.0);
                         }
@@ -228,14 +235,24 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 }
 
 fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
-    ui.label(RichText::new(text).size(11.5).color(tc.muted_foreground).strong());
+    ui.label(
+        RichText::new(text)
+            .size(11.5)
+            .color(tc.muted_foreground)
+            .strong(),
+    );
     ui.add_space(4.0);
 }
 
 fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
     ui.add_space(20.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new(text).size(11.0).color(tc.subtle_foreground).strong());
+        ui.label(
+            RichText::new(text)
+                .size(11.0)
+                .color(tc.subtle_foreground)
+                .strong(),
+        );
         ui.add_space(8.0);
         let r = ui.available_rect_before_wrap();
         let y = r.center().y;
@@ -245,4 +262,3 @@ fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
     });
     ui.add_space(12.0);
 }
-

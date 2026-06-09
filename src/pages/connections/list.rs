@@ -1,10 +1,12 @@
-use crate::theme::ThemeColors;
+use crate::theme::{self, ThemeColors};
 use egui::RichText;
+use crate::ui::atoms::input::text_input;
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     use crate::ui::atoms::button::primary_button;
     use crate::ui::molecules::conn_item::conn_item;
 
+    let ctx = ui.ctx().clone();
     let tc = ThemeColors::from_ui(ui);
 
     egui::Frame::new()
@@ -21,35 +23,26 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     .strong()
                     .color(tc.foreground),
             );
-            ui.allocate_ui(egui::vec2(ui.available_width(), 36.0), |ui| {
-                let te_out =
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if primary_button(ui, "+ New").clicked() {
-                            app.conn_page.start_new();
-                        }
-                        egui::TextEdit::singleline(&mut app.conn_page.search_query)
-                            .hint_text("Search…")
-                            .desired_width(f32::INFINITY)
-                            .margin(egui::Margin {
-                                left: 30,
-                                right: 11,
-                                top: 11,
-                                bottom: 11,
-                            })
-                            .show(ui)
-                    });
-                let rect = te_out.inner.response.rect;
-                ui.painter().text(
-                    egui::pos2(rect.left() + 11.0, rect.center().y),
-                    egui::Align2::LEFT_CENTER,
-                    "🔍",
-                    egui::FontId::proportional(12.0),
-                    tc.subtle_foreground,
-                );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                if primary_button(ui, "+ New").clicked() {
+                    app.conn_page.start_new();
+                }
+                text_input(ui, &mut app.conn_page.search_query, "Search…", Some("🔍"));
             });
         });
 
     ui.add_space(1.0);
+
+    let footer_h = 28.0;
+    let available = ui.available_rect_before_wrap();
+    let scroll_rect = egui::Rect::from_min_size(
+        available.min,
+        egui::vec2(available.width(), (available.height() - footer_h).max(0.0)),
+    );
+    let footer_rect = egui::Rect::from_min_size(
+        egui::pos2(available.min.x, available.max.y - footer_h),
+        egui::vec2(available.width(), footer_h),
+    );
 
     let groups = app.conn_page.grouped_connections();
     let groups_owned: Vec<(String, Vec<String>)> = groups
@@ -57,7 +50,8 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         .map(|(g, items)| (g.clone(), items.iter().map(|c| c.id.clone()).collect()))
         .collect();
 
-    egui::ScrollArea::vertical().show(ui, |ui| {
+    let mut scroll_ui = ui.new_child(egui::UiBuilder::new().max_rect(scroll_rect));
+    egui::ScrollArea::vertical().show(&mut scroll_ui, |ui| {
         for (group_name, conn_ids) in groups_owned {
             let collapsed = app.conn_page.collapsed_groups.contains(&group_name);
 
@@ -112,4 +106,30 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         ui.add_space(14.0);
     });
 
+    let mut footer_ui = ui.new_child(egui::UiBuilder::new().max_rect(footer_rect));
+    footer_ui.painter().hline(
+        footer_rect.x_range(),
+        footer_rect.top(),
+        egui::Stroke::new(1.0, tc.border_muted),
+    );
+    footer_ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+        ui.add_space(8.0);
+        let theme_icon = if app.settings.theme == theme::Theme::Dark {
+            "☀"
+        } else {
+            "🌙"
+        };
+        let theme_btn = egui::Button::new(
+            egui::RichText::new(theme_icon)
+                .size(14.0)
+                .color(tc.muted_foreground),
+        )
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::NONE)
+        .min_size(egui::vec2(28.0, 24.0));
+        if ui.add(theme_btn).clicked() {
+            app.settings.toggle_theme();
+            theme::apply_theme(&ctx, app.settings.theme);
+        }
+    });
 }

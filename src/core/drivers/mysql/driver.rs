@@ -5,8 +5,8 @@ use crate::core::{
     schema::model::{SchemaInfo, TableInfo, TableKind},
 };
 use async_trait::async_trait;
-use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
+use sqlx::mysql::MySqlPoolOptions;
 
 pub struct MyConnection {
     pool: MySqlPool,

@@ -3,10 +3,7 @@ use egui::*;
 pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
     let desired_size = vec2(34.0, 20.0);
 
-    let (rect, mut response) = ui.allocate_exact_size(
-        desired_size,
-        Sense::click(),
-    );
+    let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click());
 
     if response.clicked() {
         *on = !*on;
@@ -31,16 +28,10 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
         );
 
         let radius = rect.height() * 0.45;
-        let circle_x = lerp(
-            (rect.left() + radius)..=(rect.right() - radius),
-            how_on,
-        );
+        let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
 
-        ui.painter().circle_filled(
-            pos2(circle_x, rect.center().y),
-            radius,
-            Color32::WHITE,
-        );
+        ui.painter()
+            .circle_filled(pos2(circle_x, rect.center().y), radius, Color32::WHITE);
     }
 
     response

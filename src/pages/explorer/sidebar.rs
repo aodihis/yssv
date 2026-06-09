@@ -1,6 +1,7 @@
+use crate::app::Screen;
 use crate::core::schema::model::TableKind;
-use crate::theme::{colors, ThemeColors};
-use crate::ui::molecules::tree_row::{tree_row, TreeRowConfig};
+use crate::theme::{self, ThemeColors, colors};
+use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
 use egui::RichText;
 
 type TableRow = (String, TableKind, Option<u64>, bool);
@@ -25,7 +26,12 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             bottom: 8,
         })
         .show(ui, |ui| {
-            ui.label(RichText::new(&conn_name).size(13.0).strong().color(tc.foreground));
+            ui.label(
+                RichText::new(&conn_name)
+                    .size(13.0)
+                    .strong()
+                    .color(tc.foreground),
+            );
             ui.add_space(7.0);
             let e = app.explorer.as_mut().unwrap();
             egui::TextEdit::singleline(&mut e.filter)
@@ -174,11 +180,10 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         }
     });
 
-    if let Some(key) = toggle_node {
-        if let Some(e) = &mut app.explorer {
+    if let Some(key) = toggle_node
+        && let Some(e) = &mut app.explorer {
             e.toggle_node(&key);
         }
-    }
     if let Some((table, schema, db)) = open_table {
         let load_req = {
             let e = app.explorer.as_mut().unwrap();
@@ -211,9 +216,48 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     }
 
     let mut footer_ui = ui.new_child(egui::UiBuilder::new().max_rect(footer_rect));
+    footer_ui.painter().hline(
+        footer_rect.x_range(),
+        footer_rect.top(),
+        egui::Stroke::new(1.0, tc.border_muted),
+    );
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
         ui.add_space(8.0);
         ui.colored_label(colors::SUCCESS, "●");
         ui.label(egui::RichText::new("Connected").size(11.0));
+
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.add_space(4.0);
+            let theme_icon = if app.settings.theme == theme::Theme::Dark {
+                "☀"
+            } else {
+                "🌙"
+            };
+            let theme_btn = egui::Button::new(
+                egui::RichText::new(theme_icon)
+                    .size(14.0)
+                    .color(tc.muted_foreground),
+            )
+            .fill(egui::Color32::TRANSPARENT)
+            .stroke(egui::Stroke::NONE)
+            .min_size(egui::vec2(28.0, 24.0));
+            if ui.add(theme_btn).clicked() {
+                app.settings.toggle_theme();
+                theme::apply_theme(&ctx, app.settings.theme);
+            }
+
+            ui.add_space(8.0);
+            let back_btn = egui::Button::new(
+                egui::RichText::new("◀  Connections")
+                    .size(11.0)
+                    .color(tc.muted_foreground),
+            )
+            .fill(egui::Color32::TRANSPARENT)
+            .stroke(egui::Stroke::new(1.0, tc.border_muted))
+            .min_size(egui::vec2(0.0, 22.0));
+            if ui.add(back_btn).clicked() {
+                app.screen = Screen::Connections;
+            }
+        });
     });
 }

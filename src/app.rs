@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 use crate::core::{
     connections::storage::Storage, drivers::ActiveConnection, results::model::QueryResult,
@@ -135,30 +135,27 @@ impl YssvApp {
             }
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
-                if let Some(explorer) = &mut self.explorer {
-                    if let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
                         tab.result = Some(result);
                         tab.loading = false;
                     }
-                }
             }
             AppEvent::RowLoadError { tab_id, message } => {
                 tracing::warn!(tab_id = %tab_id, error = %message, "row load failed");
-                if let Some(explorer) = &mut self.explorer {
-                    if let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
                         tab.loading = false;
                         tab.result = None;
                     }
-                }
                 self.error_modal = Some(message);
             }
             AppEvent::SchemasLoaded { db, schemas } => {
                 tracing::debug!(db = %db, schemas = schemas.len(), "schemas loaded");
-                if let Some(explorer) = &mut self.explorer {
-                    if let Some(db_info) = explorer.databases.iter_mut().find(|d| d.name == db) {
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(db_info) = explorer.databases.iter_mut().find(|d| d.name == db) {
                         db_info.schemas = schemas;
                     }
-                }
             }
         }
     }
@@ -316,9 +313,7 @@ impl eframe::App for YssvApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.drain_events(&ctx);
-        theme::apply_theme(&ctx, self.settings.theme);
 
-        crate::ui::titlebar::render(ui, self);
         crate::ui::error_modal::render(ui, self);
 
         match self.screen {

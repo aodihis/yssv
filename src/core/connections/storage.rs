@@ -1,5 +1,5 @@
 use crate::core::connections::model::{ConnColor, Connection, DbEngine};
-use rusqlite::{params, Connection as SqliteConn, Result as SqliteResult};
+use rusqlite::{Connection as SqliteConn, Result as SqliteResult, params};
 
 pub struct Storage {
     conn: SqliteConn,

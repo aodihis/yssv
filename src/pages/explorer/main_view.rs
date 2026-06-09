@@ -2,7 +2,7 @@ use crate::pages::explorer::state::TabView;
 use crate::theme::ThemeColors;
 use crate::ui::molecules::{
     data_cell::render_cell,
-    status_bar::{status_bar, STATUS_H},
+    status_bar::{STATUS_H, status_bar},
     tab_bar::tab_bar,
 };
 use egui::RichText;
@@ -58,7 +58,11 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         ("Data", TabView::Data, is_data),
                         ("Structure", TabView::Structure, !is_data),
                     ] {
-                        let color = if active { tc.foreground } else { tc.muted_foreground };
+                        let color = if active {
+                            tc.foreground
+                        } else {
+                            tc.muted_foreground
+                        };
                         let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
                             .fill(egui::Color32::TRANSPARENT)
                             .stroke(egui::Stroke::NONE)
@@ -88,11 +92,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 egui::Stroke::new(1.0, tc.border),
             );
 
-            if let Some(v) = new_view {
-                if let Some(t) = explorer.tabs.active_tab_mut() {
+            if let Some(v) = new_view
+                && let Some(t) = explorer.tabs.active_tab_mut() {
                     t.view = v;
                 }
-            }
         }
     }
 

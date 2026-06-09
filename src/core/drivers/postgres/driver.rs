@@ -5,8 +5,8 @@ use crate::core::{
     schema::model::{SchemaInfo, TableInfo, TableKind},
 };
 use async_trait::async_trait;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 pub struct PgConnection {
     pool: PgPool,

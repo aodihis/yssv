@@ -190,12 +190,11 @@ impl ConnectionsPageState {
     }
 
     pub fn reset_form(&mut self) {
-        if let Some(id) = &self.selected_id.clone() {
-            if let Some(c) = self.connections.iter().find(|c| &c.id == id) {
+        if let Some(id) = &self.selected_id.clone()
+            && let Some(c) = self.connections.iter().find(|c| &c.id == id) {
                 self.form = ConnectionForm::from_connection(c);
                 self.test_status = TestStatus::Idle;
             }
-        }
     }
 
     /// Apply a saved connection to the list (insert or update).
