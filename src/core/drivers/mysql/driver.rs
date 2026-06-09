@@ -33,11 +33,12 @@ impl ActiveConnection for MyConnection {
         let rows = sqlx::query_scalar::<_, String>("SHOW DATABASES")
             .fetch_all(&self.pool)
             .await?;
+        tracing::debug!(count = rows.len(), "mysql: list_databases");
         Ok(rows)
     }
 
     async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
-        // MySQL has no schemas; the database itself is the schema.
+        tracing::debug!(db, "mysql: list_schemas (db is schema)");
         let tables = self.list_tables(db, db).await?;
         Ok(vec![SchemaInfo {
             name: db.to_string(),
@@ -46,6 +47,7 @@ impl ActiveConnection for MyConnection {
     }
 
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
+        tracing::debug!(schema, "mysql: list_tables");
         let rows = sqlx::query_as::<_, (String, String, Option<i64>)>(
             "SELECT table_name, table_type, table_rows
              FROM information_schema.tables
@@ -56,7 +58,7 @@ impl ActiveConnection for MyConnection {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows
+        let tables: Vec<TableInfo> = rows
             .into_iter()
             .map(|(name, ttype, row_count)| {
                 let kind = if ttype == "VIEW" {
@@ -70,7 +72,9 @@ impl ActiveConnection for MyConnection {
                     row_count: row_count.map(|n| n as u64),
                 }
             })
-            .collect())
+            .collect();
+        tracing::debug!(schema, count = tables.len(), "mysql: list_tables done");
+        Ok(tables)
     }
 
     async fn fetch_rows(
@@ -133,6 +137,7 @@ impl ActiveConnection for MyConnection {
         schema: &str,
         table: &str,
     ) -> Result<Vec<ColumnDef>, DbError> {
+        tracing::debug!(schema, table, "mysql: describe_table");
         let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
             "SELECT column_name, data_type, is_nullable, column_key
              FROM information_schema.columns
@@ -144,7 +149,7 @@ impl ActiveConnection for MyConnection {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows
+        let cols: Vec<ColumnDef> = rows
             .into_iter()
             .map(|(name, data_type, nullable, key)| ColumnDef {
                 name,
@@ -153,7 +158,9 @@ impl ActiveConnection for MyConnection {
                 is_fk: key.as_deref() == Some("MUL"),
                 nullable: nullable == "YES",
             })
-            .collect())
+            .collect();
+        tracing::debug!(schema, table, columns = cols.len(), "mysql: describe_table done");
+        Ok(cols)
     }
 }
 

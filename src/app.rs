@@ -66,6 +66,7 @@ impl YssvApp {
         let settings = SettingsState::load();
         theme::setup_fonts(&cc.egui_ctx);
         theme::apply_theme(&cc.egui_ctx, settings.theme);
+        egui_extras::install_image_loaders(&cc.egui_ctx);
 
         let storage_path = data_dir_path();
         tracing::info!(path = %storage_path, "opening connection storage");

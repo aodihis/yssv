@@ -1,5 +1,6 @@
 use crate::theme::ThemeColors;
 use egui::RichText;
+use crate::ui::atoms::icon::{svg_icon, Icon};
 
 pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let ctx = ui.ctx().clone();
@@ -21,23 +22,35 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             .inner_margin(egui::Margin {
                 left: h_pad.clamp(0.0, i8::MAX as f32) as i8,
                 right: h_pad.clamp(0.0, i8::MAX as f32) as i8,
-                top: 30,
+                top: 50,
                 bottom: 28,
             })
             .show(ui, |ui| {
-                field_label(ui, "Connection name", &tc);
-                text_input(ui, &mut app.conn_page.form.name, "My Database", None);
-                ui.add_space(14.0);
 
-                field_label(ui, "Group", &tc);
-                text_input(ui, &mut app.conn_page.form.group, "Local", None);
-                ui.add_space(14.0);
+                section_label(ui, "GENERAL", &tc);
 
+                ui.horizontal(|ui| {
+                    let width = (ui.available_width() - 10.0) / 2.0;
+                    ui.vertical(|ui| {
+                        ui.set_width(width);
+                        field_label(ui, "Connection name", &tc);
+                        text_input(ui, &mut app.conn_page.form.name, "My Database", None);
+                    });
+
+                    ui.add_space(4.0);
+
+                    ui.vertical(|ui| {
+                        field_label(ui, "Group", &tc);
+                        text_input(ui, &mut app.conn_page.form.group, "Local", None);
+                    });
+
+                });
+                ui.add_space(16.0);
                 field_label(ui, "Color label", &tc);
                 color_picker(ui, &mut app.conn_page.form.color);
                 ui.add_space(14.0);
 
-                field_label(ui, "Database engine", &tc);
+                section_label(ui, "Database Engine", &tc);
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 10.0;
@@ -64,7 +77,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         }
                     }
                 });
-                ui.add_space(4.0);
+                ui.add_space(16.0);
 
                 section_label(ui, "CONNECTION", &tc);
 
@@ -104,12 +117,12 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 section_label(ui, "SSH TUNNEL", &tc);
 
                 egui::Frame::default()
-                    .stroke(egui::Stroke::new(0.5, egui::Color32::GRAY))
+                    .stroke(egui::Stroke::new(0.5, tc.border))
                     .inner_margin(20.0)
                     .corner_radius(5.0)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new("").size(24.0));
+                            svg_icon(ui, Icon::Terminal, 24.0, tc.foreground);
                             ui.add_space(10.0);
                             ui.vertical(|ui| {
                                 ui.label(egui::RichText::new("Connect through SSH").family(egui::FontFamily::Name("SemiBold".into())));
@@ -245,7 +258,6 @@ fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
 }
 
 fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
-    ui.add_space(20.0);
     ui.horizontal(|ui| {
         ui.label(
             RichText::new(text)
@@ -260,5 +272,4 @@ fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
             .hline(r.x_range(), y, egui::Stroke::new(1.0, tc.border));
         ui.allocate_space(r.size());
     });
-    ui.add_space(12.0);
 }

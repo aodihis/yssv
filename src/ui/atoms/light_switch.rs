@@ -1,3 +1,4 @@
+use crate::theme::{colors, ThemeColors};
 use egui::*;
 
 pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
@@ -12,11 +13,12 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
 
     if ui.is_rect_visible(rect) {
         let how_on = ui.ctx().animate_bool(response.id, *on);
+        let tc = ThemeColors::from_ui(ui);
 
         let bg_color = if *on {
-            Color32::from_rgb(0, 200, 0)
+            colors::SUCCESS
         } else {
-            Color32::from_gray(100)
+            tc.border
         };
 
         ui.painter().rect(

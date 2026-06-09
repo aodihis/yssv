@@ -1,7 +1,8 @@
 use crate::theme::{self, ThemeColors};
-use egui::RichText;
+use crate::ui::atoms::icon::{svg_icon, Icon};
 use crate::ui::atoms::button::compact_button;
 use crate::ui::atoms::input::text_input;
+use egui::RichText;
 
 pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     use crate::ui::molecules::conn_item::conn_item;
@@ -13,7 +14,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         .inner_margin(egui::Margin {
             left: 14,
             right: 14,
-            top: 16,
+            top: 20,
             bottom: 10,
         })
         .show(ui, |ui| {
@@ -34,7 +35,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
     ui.add_space(1.0);
 
-    let footer_h = 28.0;
+    let footer_h = 40.0;
     let available = ui.available_rect_before_wrap();
     let scroll_rect = egui::Rect::from_min_size(
         available.min,
@@ -57,27 +58,26 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             let collapsed = app.conn_page.collapsed_groups.contains(&group_name);
 
             ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                ui.add_space(14.0);
-                let chev = if collapsed { "▸" } else { "▾" };
-                let header_resp = ui.add(
-                    egui::Button::new(
-                        RichText::new(format!("{} {}", chev, group_name.to_uppercase()))
+            let header_resp = ui
+                .horizontal(|ui| {
+                    ui.add_space(14.0);
+                    let chev = if collapsed { Icon::ChevronRight } else { Icon::ChevronDown };
+                    svg_icon(ui, chev, 10.0, tc.subtle_foreground);
+                    ui.add_space(3.0);
+                    ui.label(
+                        RichText::new(group_name.to_uppercase())
                             .size(11.0)
                             .color(tc.subtle_foreground)
                             .family(egui::FontFamily::Name("SemiBold".into())),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::NONE),
-                );
-                if header_resp.clicked() {
-                    if collapsed {
-                        app.conn_page.collapsed_groups.remove(&group_name);
-                    } else {
-                        app.conn_page.collapsed_groups.insert(group_name.clone());
-                    }
+                    );
+                })
+                .response
+                .interact(egui::Sense::click());
+            if header_resp.clicked() {
+                if !app.conn_page.collapsed_groups.remove(&group_name) {
+                    app.conn_page.collapsed_groups.insert(group_name);
                 }
-            });
+            }
 
             if !collapsed {
                 ui.add_space(2.0);

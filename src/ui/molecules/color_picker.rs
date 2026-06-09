@@ -1,7 +1,9 @@
 use crate::core::connections::model::ConnColor;
-use egui::{Color32, Ui, Vec2};
+use crate::theme::ThemeColors;
+use egui::{Ui, Vec2};
 
 pub fn color_picker(ui: &mut Ui, current: &mut ConnColor) {
+    let tc = ThemeColors::from_ui(ui);
     ui.horizontal(|ui| {
         for &color in ConnColor::all() {
             let size = Vec2::splat(20.0);
@@ -10,11 +12,10 @@ pub fn color_picker(ui: &mut Ui, current: &mut ConnColor) {
                 let c32 = color.to_color32();
                 ui.painter().circle_filled(rect.center(), 8.0, c32);
                 if *current == color {
-                    // White ring for selected
                     ui.painter().circle_stroke(
                         rect.center(),
                         10.0,
-                        egui::Stroke::new(2.0, Color32::WHITE),
+                        egui::Stroke::new(2.0, tc.foreground),
                     );
                 }
             }

@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 eframe        = { version = "0.34.3", default-features = false, features = ["glow", "wgpu", "default_fonts", "accesskit", "persistence"] }
 egui          = "0.34.3"
-egui_extras   = { version = "0.34.3" }
+egui_extras   = { version = "0.34.3", features = ["svg"] }
 tokio         = { version = "1", features = ["full"] }
 rusqlite      = { version = "0.40.1", features = ["bundled"] }
 sqlx          = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "mysql", "macros"] }

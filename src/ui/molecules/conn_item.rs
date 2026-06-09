@@ -1,5 +1,6 @@
 use crate::core::connections::model::Connection;
 use crate::theme::ThemeColors;
+use crate::ui::atoms::icon::{icon_image, Icon};
 use egui::{Color32, FontId, Response, Ui, Vec2};
 
 pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
@@ -69,6 +70,8 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
         tc.subtle_foreground,
     );
 
+    let has_ssh = conn.ssh.is_some();
+
     // Engine badge — right side, 9.5px mono uppercase in a small rounded pill
     let badge_text = conn.engine.label().to_uppercase();
     let badge_font = FontId::monospace(9.5);
@@ -88,6 +91,15 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
         badge_font,
         tc.muted_foreground,
     );
+
+    if has_ssh {
+        let icon_size = 12.0;
+        let icon_rect = egui::Rect::from_min_size(
+            egui::pos2(badge_rect.left() - 18.0, center_y - icon_size / 2.0),
+            egui::vec2(icon_size, icon_size),
+        );
+        ui.put(icon_rect, icon_image(Icon::Terminal, icon_size, tc.subtle_foreground));
+    }
 
     resp
 }

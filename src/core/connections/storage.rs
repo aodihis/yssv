@@ -21,6 +21,7 @@ impl Storage {
     }
 
     fn migrate(&self) -> SqliteResult<()> {
+        tracing::debug!("storage: applying schema migration");
         self.conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS connections (
@@ -48,6 +49,7 @@ impl Storage {
                     username, password, ssh_json, is_favorite
              FROM connections ORDER BY group_name, name",
         )?;
+        tracing::debug!("storage: loading all connections");
         let rows = stmt.query_map([], |row| {
             let engine_str: String = row.get(3)?;
             let color_str: String = row.get(4)?;

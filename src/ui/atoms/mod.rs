@@ -1,6 +1,7 @@
 pub mod badge;
 pub mod button;
 pub mod divider;
+pub mod icon;
 pub mod input;
 pub mod label_dot;
 pub mod light_switch;

@@ -66,6 +66,10 @@ pub mod colors {
     pub const WARNING: Color32 = Color32::from_rgb(0xd9, 0x83, 0x16);
     pub const DESTRUCTIVE: Color32 = Color32::from_rgb(0xe5, 0x48, 0x4d);
 
+    // DB engine brand colors (theme-independent)
+    pub const POSTGRES: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
+    pub const MYSQL: Color32 = Color32::from_rgb(0xc0, 0x82, 0x0f);
+
     pub mod dark {
         use egui::Color32;
 

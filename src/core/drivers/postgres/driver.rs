@@ -35,10 +35,12 @@ impl ActiveConnection for PgConnection {
         )
         .fetch_all(&self.pool)
         .await?;
+        tracing::debug!(count = rows.len(), "postgres: list_databases");
         Ok(rows)
     }
 
     async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
+        tracing::debug!(db, "postgres: list_schemas");
         let schema_names = sqlx::query_scalar::<_, String>(
             "SELECT schema_name FROM information_schema.schemata
              WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'pg_toast')
@@ -52,10 +54,12 @@ impl ActiveConnection for PgConnection {
             let tables = self.list_tables(db, &name).await?;
             schemas.push(SchemaInfo { name, tables });
         }
+        tracing::debug!(db, count = schemas.len(), "postgres: list_schemas done");
         Ok(schemas)
     }
 
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
+        tracing::debug!(schema, "postgres: list_tables");
         let rows = sqlx::query_as::<_, (String, String)>(
             "SELECT table_name, table_type
              FROM information_schema.tables
@@ -66,7 +70,7 @@ impl ActiveConnection for PgConnection {
         .fetch_all(&self.pool)
         .await?;
 
-        let tables = rows
+        let tables: Vec<TableInfo> = rows
             .into_iter()
             .map(|(name, ttype)| {
                 let kind = if ttype == "VIEW" {
@@ -81,6 +85,7 @@ impl ActiveConnection for PgConnection {
                 }
             })
             .collect();
+        tracing::debug!(schema, count = tables.len(), "postgres: list_tables done");
         Ok(tables)
     }
 
@@ -145,6 +150,7 @@ impl ActiveConnection for PgConnection {
         schema: &str,
         table: &str,
     ) -> Result<Vec<ColumnDef>, DbError> {
+        tracing::debug!(schema, table, "postgres: describe_table");
         let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
             "SELECT
                 c.column_name,
@@ -168,7 +174,7 @@ impl ActiveConnection for PgConnection {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows
+        let cols: Vec<ColumnDef> = rows
             .into_iter()
             .map(|(name, data_type, nullable, pk_flag)| ColumnDef {
                 name,
@@ -177,7 +183,9 @@ impl ActiveConnection for PgConnection {
                 is_fk: false,
                 nullable: nullable == "YES",
             })
-            .collect())
+            .collect();
+        tracing::debug!(schema, table, columns = cols.len(), "postgres: describe_table done");
+        Ok(cols)
     }
 }
 

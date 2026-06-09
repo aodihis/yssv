@@ -25,7 +25,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
         let close_font = FontId::proportional(12.0);
         let close_w = ui
             .painter()
-            .layout_no_wrap("×".into(), close_font.clone(), Color32::WHITE)
+            .layout_no_wrap("×".into(), close_font.clone(), tc.foreground)
             .size()
             .x;
 
@@ -37,7 +37,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
             let label_font = FontId::proportional(12.5);
             let text_w = ui
                 .painter()
-                .layout_no_wrap(label.clone(), label_font.clone(), Color32::WHITE)
+                .layout_no_wrap(label.clone(), label_font.clone(), tc.foreground)
                 .size()
                 .x;
             let tab_w = 12.0 + text_w + 8.0 + close_w + 12.0;
