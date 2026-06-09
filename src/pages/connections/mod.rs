@@ -24,7 +24,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
                 RichText::new("Connections")
                     .size(14.0)
                     .strong()
-                    .color(tc.text),
+                    .color(tc.foreground),
             );
             // ui.add_space(10.0);
             // // Search row
@@ -52,7 +52,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
                     egui::Align2::LEFT_CENTER,
                     "🔍",
                     egui::FontId::proportional(12.0),
-                    tc.text_faint,
+                    tc.subtle_foreground,
                 );
             });
         });
@@ -84,7 +84,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, _ctx: &egui
                     egui::Button::new(
                         RichText::new(format!("{} {}", chev, group_name.to_uppercase()))
                             .size(11.0)
-                            .color(tc.text_faint)
+                            .color(tc.subtle_foreground)
                             .strong(),
                     )
                     .fill(egui::Color32::TRANSPARENT)
@@ -175,15 +175,15 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                     for engine in [DbEngine::Postgres, DbEngine::MySQL] {
                         let selected = app.conn_page.form.engine == engine;
                         let (bg, border) = if selected {
-                            (tc.accent_soft, tc.accent)
+                            (tc.primary_muted, tc.primary)
                         } else {
-                            (tc.bg_base, tc.border_strong)
+                            (tc.background, tc.input)
                         };
                         let btn = egui::Button::new(
                             RichText::new(engine.label()).size(13.0).color(if selected {
-                                tc.accent
+                                tc.primary
                             } else {
-                                tc.text
+                                tc.foreground
                             }),
                         )
                         .fill(bg)
@@ -288,7 +288,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                             ui.add_space(14.0);
 
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new("Use key file").size(13.0).color(tc.text));
+                                ui.label(RichText::new("Use key file").size(13.0).color(tc.foreground));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     ui.checkbox(&mut app.conn_page.form.ssh_use_key, "");
                                 });
@@ -320,15 +320,15 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                 ui.horizontal(|ui| {
                     // Test connection
                     let (test_label, test_color) = match &app.conn_page.test_status {
-                        TestStatus::Idle => ("Test Connection", tc.text_muted),
-                        TestStatus::Testing => ("Testing…", tc.text_faint),
-                        TestStatus::Ok => ("✓ Connected", tc.ok),
-                        TestStatus::Failed(_) => ("✗ Failed", tc.err),
+                        TestStatus::Idle => ("Test Connection", tc.muted_foreground),
+                        TestStatus::Testing => ("Testing…", tc.subtle_foreground),
+                        TestStatus::Ok => ("✓ Connected", tc.success),
+                        TestStatus::Failed(_) => ("✗ Failed", tc.destructive),
                     };
                     let test_btn =
                         egui::Button::new(RichText::new(test_label).size(13.0).color(test_color))
-                            .fill(tc.bg_base)
-                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                            .fill(tc.background)
+                            .stroke(egui::Stroke::new(1.0, tc.input))
                             .min_size(egui::vec2(0.0, 32.0));
 
                     if ui.add(test_btn).clicked()
@@ -343,9 +343,9 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
                     ui.add_space(8.0);
 
                     let save_btn =
-                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.text))
-                            .fill(tc.bg_base)
-                            .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.foreground))
+                            .fill(tc.background)
+                            .stroke(egui::Stroke::new(1.0, tc.input))
                             .min_size(egui::vec2(0.0, 32.0));
                     if ui.add(save_btn).clicked() {
                         app.save_connection();
@@ -363,14 +363,14 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egu
 }
 
 fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
-    ui.label(RichText::new(text).size(11.5).color(tc.text_muted).strong());
+    ui.label(RichText::new(text).size(11.5).color(tc.muted_foreground).strong());
     ui.add_space(4.0);
 }
 
 fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
     ui.add_space(20.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new(text).size(11.0).color(tc.text_faint).strong());
+        ui.label(RichText::new(text).size(11.0).color(tc.subtle_foreground).strong());
         ui.add_space(8.0);
         let r = ui.available_rect_before_wrap();
         let y = r.center().y;

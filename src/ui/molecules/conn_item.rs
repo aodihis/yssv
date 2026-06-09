@@ -17,9 +17,9 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
 
     // Background
     let bg = if selected {
-        tc.bg_selected
+        tc.primary_subtle
     } else if resp.hovered() {
-        tc.bg_hover
+        tc.accent
     } else {
         Color32::TRANSPARENT
     };
@@ -31,7 +31,7 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
             egui::pos2(rect.left(), rect.top() + 6.0),
             egui::vec2(3.0, rect.height() - 12.0),
         );
-        painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.accent);
+        painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.primary);
     }
 
     // Layout: left-pad 12 (accounts for the bar), dot, gap, meta block, engine badge right
@@ -59,34 +59,34 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
         egui::Align2::LEFT_CENTER,
         &conn.name,
         FontId::proportional(13.0),
-        tc.text,
+        tc.foreground,
     );
     painter.text(
         egui::pos2(text_x, host_y),
         egui::Align2::LEFT_CENTER,
         conn.display_host(),
         FontId::monospace(10.5),
-        tc.text_faint,
+        tc.subtle_foreground,
     );
 
     // Engine badge — right side, 9.5px mono uppercase in a small rounded pill
     let badge_text = conn.engine.label().to_uppercase();
     let badge_font = FontId::monospace(9.5);
     let badge_galley =
-        painter.layout_no_wrap(badge_text.clone(), badge_font.clone(), tc.text_muted);
+        painter.layout_no_wrap(badge_text.clone(), badge_font.clone(), tc.muted_foreground);
     let badge_w = badge_galley.size().x + 10.0; // 5px padding each side
     let badge_h = 18.0;
     let badge_rect = egui::Rect::from_min_size(
         egui::pos2(rect.right() - badge_w - 10.0, center_y - badge_h / 2.0),
         egui::vec2(badge_w, badge_h),
     );
-    painter.rect_filled(badge_rect, egui::CornerRadius::same(4u8), tc.bg_active);
+    painter.rect_filled(badge_rect, egui::CornerRadius::same(4u8), tc.accent_active);
     painter.text(
         badge_rect.center(),
         egui::Align2::CENTER_CENTER,
         &badge_text,
         badge_font,
-        tc.text_muted,
+        tc.muted_foreground,
     );
 
     resp

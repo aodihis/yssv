@@ -15,7 +15,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
 
     // Background + top border
     ui.painter()
-        .rect_filled(bar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+        .rect_filled(bar_rect, egui::CornerRadius::ZERO, tc.surface);
     ui.painter().hline(
         bar_rect.x_range(),
         bar_rect.top(),
@@ -39,7 +39,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                     egui::Align2::LEFT_CENTER,
                     format!("Rows {from}–{to} of {total}"),
                     font,
-                    tc.text_muted,
+                    tc.muted_foreground,
                 );
                 ui.add_space(text_rect.width() + 16.0);
 
@@ -58,7 +58,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                     ui.label(
                         egui::RichText::new(format!("{} / {}", tab.page + 1, pages))
                             .size(11.5)
-                            .color(tc.text_muted),
+                            .color(tc.muted_foreground),
                     );
                     ui.add_space(6.0);
 
@@ -72,7 +72,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                 ui.label(
                     egui::RichText::new("Loading…")
                         .size(11.5)
-                        .color(tc.text_faint),
+                        .color(tc.subtle_foreground),
                 );
             }
         });
@@ -87,17 +87,17 @@ fn pg_button(ui: &mut Ui, label: &str, enabled: bool, tc: &ThemeColors) -> egui:
     if ui.is_rect_visible(rect) {
         let color = if !enabled {
             Color32::from_rgba_unmultiplied(
-                tc.text_faint.r(),
-                tc.text_faint.g(),
-                tc.text_faint.b(),
+                tc.subtle_foreground.r(),
+                tc.subtle_foreground.g(),
+                tc.subtle_foreground.b(),
                 80,
             )
         } else if resp.hovered() {
             let painter = ui.painter();
-            painter.rect_filled(rect, egui::CornerRadius::same(5u8), tc.bg_hover);
-            tc.text
+            painter.rect_filled(rect, egui::CornerRadius::same(5u8), tc.accent);
+            tc.foreground
         } else {
-            tc.text_muted
+            tc.muted_foreground
         };
         ui.painter().text(
             rect.center(),

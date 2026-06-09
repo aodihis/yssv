@@ -17,7 +17,7 @@ pub fn render_cell(ui: &mut Ui, col: &ColumnDef, value: &Option<String>) {
             if dtype.contains("bool") {
                 let is_true = v == "true" || v == "1" || v == "t";
                 let (icon, color) = if is_true {
-                    ("✓", colors::OK)
+                    ("✓", colors::SUCCESS)
                 } else {
                     ("✗", ui.visuals().weak_text_color())
                 };

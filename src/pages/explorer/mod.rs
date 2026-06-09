@@ -40,7 +40,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
             bottom: 8,
         })
         .show(ui, |ui| {
-            ui.label(RichText::new(&conn_name).size(13.0).strong().color(tc.text));
+            ui.label(RichText::new(&conn_name).size(13.0).strong().color(tc.foreground));
             ui.add_space(7.0);
             let e = app.explorer.as_mut().unwrap();
             egui::TextEdit::singleline(&mut e.filter)
@@ -52,7 +52,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     // Border below sidebar head
     let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
     ui.painter()
-        .rect_filled(sep, egui::CornerRadius::ZERO, tc.border_faint);
+        .rect_filled(sep, egui::CornerRadius::ZERO, tc.border_muted);
     ui.add_space(1.0);
 
     // Collect what to render from explorer (immutable snapshot)
@@ -233,7 +233,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &eg
     let mut footer_ui = ui.new_child(egui::UiBuilder::new().max_rect(footer_rect));
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
         ui.add_space(8.0);
-        ui.colored_label(colors::OK, "●");
+        ui.colored_label(colors::SUCCESS, "●");
         ui.label(egui::RichText::new("Connected").size(11.0));
     });
 }
@@ -286,7 +286,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
         let toolbar_rect =
             egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
         ui.painter()
-            .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+            .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
 
         let explorer = app.explorer.as_mut().unwrap();
         if let Some(tab) = explorer.tabs.active_tab() {
@@ -299,7 +299,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
                         ("Data", TabView::Data, is_data),
                         ("Structure", TabView::Structure, !is_data),
                     ] {
-                        let color = if active { tc.text } else { tc.text_muted };
+                        let color = if active { tc.foreground } else { tc.muted_foreground };
                         let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
                             .fill(egui::Color32::TRANSPARENT)
                             .stroke(egui::Stroke::NONE)
@@ -313,7 +313,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui:
                                     egui::vec2(resp.rect.width(), 2.0),
                                 ),
                                 egui::CornerRadius::ZERO,
-                                tc.accent,
+                                tc.primary,
                             );
                         }
                         if resp.clicked() {

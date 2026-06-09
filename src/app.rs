@@ -357,7 +357,7 @@ impl eframe::App for YssvApp {
                         egui::RichText::new("YSSV")
                             .size(13.0)
                             .strong()
-                            .color(tc.text),
+                            .color(tc.foreground),
                     );
 
                     // Back button in explorer
@@ -366,10 +366,10 @@ impl eframe::App for YssvApp {
                         let back_btn = egui::Button::new(
                             egui::RichText::new("◀  Connections")
                                 .size(12.0)
-                                .color(tc.text_muted),
+                                .color(tc.muted_foreground),
                         )
                         .fill(egui::Color32::TRANSPARENT)
-                        .stroke(egui::Stroke::new(1.0, tc.border_strong))
+                        .stroke(egui::Stroke::new(1.0, tc.input))
                         .min_size(egui::vec2(0.0, 26.0));
                         if ui.add(back_btn).clicked() {
                             self.screen = Screen::Connections;
@@ -379,7 +379,7 @@ impl eframe::App for YssvApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Close button
                         let close_btn = egui::Button::new(
-                            egui::RichText::new("❌").size(12.0).color(tc.text_muted),
+                            egui::RichText::new("❌").size(12.0).color(tc.muted_foreground),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::NONE)
@@ -391,7 +391,7 @@ impl eframe::App for YssvApp {
                         let maximize_restore_btn = egui::Button::new(
                             egui::RichText::new(maximize_restore_icon)
                                 .size(12.0)
-                                .color(tc.text_muted),
+                                .color(tc.muted_foreground),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::NONE)
@@ -399,7 +399,7 @@ impl eframe::App for YssvApp {
 
                         // minimize button
                         let minimize_btn = egui::Button::new(
-                            egui::RichText::new("—").size(12.0).color(tc.text_muted),
+                            egui::RichText::new("—").size(12.0).color(tc.muted_foreground),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::NONE)
@@ -414,7 +414,7 @@ impl eframe::App for YssvApp {
                         let theme_btn = egui::Button::new(
                             egui::RichText::new(theme_icon)
                                 .size(14.0)
-                                .color(tc.text_muted),
+                                .color(tc.muted_foreground),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::NONE)
@@ -454,14 +454,14 @@ impl eframe::App for YssvApp {
             let (panel_bg, bg_base, border_color) =
                 if self.settings.theme == crate::theme::Theme::Dark {
                     (
-                        crate::theme::colors::dark::BG_PANEL,
-                        crate::theme::colors::dark::BG_BASE,
+                        crate::theme::colors::dark::SURFACE,
+                        crate::theme::colors::dark::BACKGROUND,
                         crate::theme::colors::dark::BORDER,
                     )
                 } else {
                     (
-                        crate::theme::colors::light::BG_PANEL,
-                        crate::theme::colors::light::BG_BASE,
+                        crate::theme::colors::light::SURFACE,
+                        crate::theme::colors::light::BACKGROUND,
                         crate::theme::colors::light::BORDER,
                     )
                 };

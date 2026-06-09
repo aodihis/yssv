@@ -15,7 +15,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
         egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), TAB_H));
     // Fill strip bg
     ui.painter()
-        .rect_filled(strip_rect, egui::CornerRadius::ZERO, tc.bg_panel);
+        .rect_filled(strip_rect, egui::CornerRadius::ZERO, tc.surface);
 
     ui.horizontal(|ui| {
         ui.set_height(TAB_H);
@@ -53,15 +53,15 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
 
             // Tab background
             let bg = if is_active {
-                tc.bg_base
+                tc.background
             } else if tab_resp.hovered() {
-                tc.bg_hover
+                tc.accent
             } else {
                 Color32::TRANSPARENT
             };
             painter.rect_filled(tab_rect, egui::CornerRadius::ZERO, bg);
 
-            // Active accent underline (2px at bottom)
+            // Active primary underline (2px at bottom)
             if is_active {
                 painter.rect_filled(
                     egui::Rect::from_min_size(
@@ -69,7 +69,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                         egui::vec2(tab_rect.width(), 2.0),
                     ),
                     egui::CornerRadius::ZERO,
-                    tc.accent,
+                    tc.primary,
                 );
             }
 
@@ -78,12 +78,12 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 painter.vline(
                     tab_rect.right(),
                     tab_rect.top()..=tab_rect.bottom(),
-                    egui::Stroke::new(1.0, tc.border_faint),
+                    egui::Stroke::new(1.0, tc.border_muted),
                 );
             }
 
             let center_y = tab_rect.center().y;
-            let text_color = if is_active { tc.text } else { tc.text_muted };
+            let text_color = if is_active { tc.foreground } else { tc.muted_foreground };
             let label_x = tab_rect.left() + 12.0;
 
             // Tab label
@@ -106,12 +106,12 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 egui::Sense::click(),
             );
             let close_color = if close_resp.hovered() {
-                tc.text
+                tc.foreground
             } else {
-                tc.text_faint
+                tc.subtle_foreground
             };
             if close_resp.hovered() {
-                painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.bg_active);
+                painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.accent_active);
             }
             painter.text(
                 close_rect.center(),
