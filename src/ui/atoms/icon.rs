@@ -4,6 +4,10 @@ pub enum Icon {
     ChevronRight,
     ChevronDown,
     Terminal,
+    SquareTerminal,
+    Plug2,
+    CornerDownLeft,
+    Trash2,
 }
 
 impl Icon {
@@ -20,6 +24,22 @@ impl Icon {
             Icon::Terminal => (
                 include_bytes!("../../../assets/icons/terminal.svg"),
                 "bytes://icon/terminal.svg",
+            ),
+            Icon::SquareTerminal => (
+                include_bytes!("../../../assets/icons/square-terminal.svg"),
+                "bytes://icon/square-terminal.svg",
+            ),
+            Icon::Plug2 => (
+                include_bytes!("../../../assets/icons/plug-2.svg"),
+                "bytes://icon/plug-2.svg",
+            ),
+            Icon::CornerDownLeft => (
+                include_bytes!("../../../assets/icons/corner-down-left.svg"),
+                "bytes://icon/corner-down-left.svg",
+            ),
+            Icon::Trash2 => (
+                include_bytes!("../../../assets/icons/trash-2.svg"),
+                "bytes://icon/trash-2.svg",
             ),
         }
     }
