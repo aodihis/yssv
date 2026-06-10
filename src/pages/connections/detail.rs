@@ -235,70 +235,71 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 ui.add_space(16.0);
 
                 ui.horizontal(|ui| {
-                    let (test_label, test_color) = match &app.conn_page.test_status {
-                        TestStatus::Idle => ("Test Connection", tc.text_secondary),
-                        TestStatus::Testing => ("Testing…", tc.text_disabled),
-                        TestStatus::Ok => ("✓ Connected", tc.success),
-                        TestStatus::Failed(_) => ("✗ Failed", tc.error),
-                    };
-                    let test_btn = egui::Button::image_and_text(
-                        icon_image(Icon::Plug2, 14.0, test_color),
-                        RichText::new(test_label).size(13.0).color(test_color),
-                    )
-                    .fill(tc.background)
-                    .stroke(egui::Stroke::new(1.0, tc.field_border))
-                    .min_size(egui::vec2(0.0, 32.0));
-                    if ui.add(test_btn).clicked()
-                        && app.conn_page.test_status != TestStatus::Testing
-                    {
-                        app.test_connection(ctx.clone());
-                    }
-                    if let TestStatus::Failed(msg) = &app.conn_page.test_status {
-                        let msg = msg.clone();
-                        app.error_modal = Some(msg);
-                    }
-
-                    ui.add_space(8.0);
-
-                    let save_btn =
-                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.text_primary))
-                            .fill(tc.background)
-                            .stroke(egui::Stroke::new(1.0, tc.field_border))
-                            .min_size(egui::vec2(0.0, 32.0));
-                    if ui.add(save_btn).clicked() {
-                        app.save_connection();
-                    }
-
-                    ui.add_space(8.0);
-
-                    let connect_btn = egui::Button::image_and_text(
-                        icon_image(Icon::CornerDownLeft, 14.0, egui::Color32::WHITE),
-                        RichText::new("Connect").size(13.0).color(egui::Color32::WHITE),
-                    )
-                    .fill(tc.button_primary_bg)
-                    .stroke(egui::Stroke::NONE)
-                    .min_size(egui::vec2(0.0, 32.0));
-                    if ui.add(connect_btn).clicked() {
-                        app.save_connection();
-                        app.connect(ctx.clone());
-                    }
-
-                    // Delete button — only for saved connections
+                    // Delete — left side, saved connections only
                     if !app.conn_page.is_new {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let del_btn = egui::Button::image(
-                                icon_image(Icon::Trash2, 14.0, tc.error),
-                            )
-                            .fill(egui::Color32::TRANSPARENT)
-                            .stroke(egui::Stroke::new(1.0, tc.field_border))
-                            .min_size(egui::vec2(32.0, 32.0));
-                            if ui.add(del_btn).clicked() {
-                                if let Some(id) = app.conn_page.selected_id.clone() {
-                                    app.delete_connection(&id);
-                                }
+                        let del_btn = egui::Button::image(
+                            icon_image(Icon::Trash2, 14.0, tc.error),
+                        )
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::new(1.0, tc.field_border))
+                        .min_size(egui::vec2(32.0, 32.0));
+                        if ui.add(del_btn).clicked() {
+                            if let Some(id) = app.conn_page.selected_id.clone() {
+                                app.delete_connection(&id);
                             }
-                        });
+                        }
                     }
+
+                    // Test / Save / Connect — right side
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let connect_btn = egui::Button::image_and_text(
+                            icon_image(Icon::CornerDownLeft, 14.0, egui::Color32::WHITE),
+                            RichText::new("Connect").size(13.0).color(egui::Color32::WHITE),
+                        )
+                        .fill(tc.button_primary_bg)
+                        .stroke(egui::Stroke::NONE)
+                        .min_size(egui::vec2(0.0, 32.0));
+                        if ui.add(connect_btn).clicked() {
+                            app.save_connection();
+                            app.connect(ctx.clone());
+                        }
+
+                        ui.add_space(8.0);
+
+                        let save_btn =
+                            egui::Button::new(RichText::new("Save").size(13.0).color(tc.text_primary))
+                                .fill(tc.background)
+                                .stroke(egui::Stroke::new(1.0, tc.field_border))
+                                .min_size(egui::vec2(0.0, 32.0));
+                        if ui.add(save_btn).clicked() {
+                            app.save_connection();
+                        }
+
+                        ui.add_space(8.0);
+
+                        let (test_label, test_color) = match &app.conn_page.test_status {
+                            TestStatus::Idle => ("Test Connection", tc.text_secondary),
+                            TestStatus::Testing => ("Testing…", tc.text_disabled),
+                            TestStatus::Ok => ("✓ Connected", tc.success),
+                            TestStatus::Failed(_) => ("✗ Failed", tc.error),
+                        };
+                        let test_btn = egui::Button::image_and_text(
+                            icon_image(Icon::Plug2, 14.0, test_color),
+                            RichText::new(test_label).size(13.0).color(test_color),
+                        )
+                        .fill(tc.background)
+                        .stroke(egui::Stroke::new(1.0, tc.field_border))
+                        .min_size(egui::vec2(0.0, 32.0));
+                        if ui.add(test_btn).clicked()
+                            && app.conn_page.test_status != TestStatus::Testing
+                        {
+                            app.test_connection(ctx.clone());
+                        }
+                        if let TestStatus::Failed(msg) = &app.conn_page.test_status {
+                            let msg = msg.clone();
+                            app.error_modal = Some(msg);
+                        }
+                    });
                 });
             });
     });
