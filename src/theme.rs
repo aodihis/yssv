@@ -75,7 +75,7 @@ pub mod colors {
 
         // Backgrounds
         pub const BACKGROUND: Color32 = Color32::from_rgb(0x11, 0x15, 0x1c);
-        pub const SURFACE: Color32 = Color32::from_rgb(0x0c, 0x10, 0x15);
+        pub const SURFACE: Color32 = Color32::from_rgb(0x36, 0x36, 0x36);
         pub const SURFACE_SECONDARY: Color32 = Color32::from_rgb(0x1a, 0x20, 0x2a);
         pub const SURFACE_ACTIVE: Color32 = Color32::from_rgb(0x22, 0x2a, 0x36);
         pub const SELECTION_BG: Color32 = Color32::from_rgb(0x16, 0x26, 0x3f);
