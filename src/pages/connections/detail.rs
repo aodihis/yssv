@@ -118,11 +118,11 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 section_label(ui, "SSH TUNNEL", &tc);
 
                 egui::Frame::default()
-                    .stroke(egui::Stroke::new(0.5, tc.border))
-                    .corner_radius(5.0)
+                    .stroke(egui::Stroke::new(1.0, tc.field_border))
+                    .corner_radius(6.0)
                     .show(ui, |ui| {
                         egui::Frame::default()
-                            .inner_margin(20.0)
+                            .inner_margin(egui::Margin { left: 16, right: 16, top: 14, bottom: 14 })
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     svg_icon(ui, Icon::SquareTerminal, 24.0, tc.text_primary);
@@ -147,12 +147,15 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             });
 
                         if app.conn_page.form.ssh_enabled {
-                            egui::Frame::default()
-                                .inner_margin(20.0)
-                                .fill(tc.surface)
-                                .show(ui, |ui| {
+                            let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
+                            ui.painter().rect_filled(sep, egui::CornerRadius::ZERO, tc.field_border);
+                            ui.add_space(1.0);
 
-                                    ui.add_space(14.0);
+                            egui::Frame::default()
+                                .inner_margin(egui::Margin { left: 16, right: 16, top: 14, bottom: 14 })
+                                .fill(tc.surface_secondary)
+                                .corner_radius(egui::CornerRadius { nw: 0, ne: 0, sw: 5, se: 5 })
+                                .show(ui, |ui| {
                                     ui.horizontal(|ui| {
                                         ui.vertical(|ui| {
                                             ui.set_width(ui.available_width() - 100.0);
