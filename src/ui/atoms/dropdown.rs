@@ -1,4 +1,5 @@
-use egui::{Response, Ui};
+use crate::theme::ThemeColors;
+use egui::{Response, Stroke, Ui};
 
 /// Generic dropdown (ComboBox).
 ///
@@ -16,17 +17,32 @@ pub fn dropdown<T: PartialEq + Clone>(
         .map(|(_, l)| *l)
         .unwrap_or("—");
 
-    egui::ComboBox::from_id_salt(id)
-        .selected_text(current_label)
-        .width(ui.available_width())
-        .height(100.0)
-        .show_ui(ui, |ui| {
-            for (value, label) in options {
-                let is_selected = value == selected;
-                if ui.selectable_label(is_selected, *label).clicked() && !is_selected {
-                    *selected = value.clone();
+    let tc = ThemeColors::from_ui(ui);
+
+    ui.scope(|ui| {
+        ui.visuals_mut().widgets.inactive.bg_fill = tc.background;
+        ui.visuals_mut().widgets.hovered.bg_fill = tc.accent;
+        ui.visuals_mut().widgets.active.bg_fill = tc.accent_active;
+        ui.visuals_mut().widgets.open.bg_fill = tc.accent_active;
+        ui.visuals_mut().widgets.inactive.weak_bg_fill = tc.background;
+        ui.visuals_mut().widgets.hovered.weak_bg_fill = tc.accent;
+        ui.visuals_mut().widgets.active.weak_bg_fill = tc.accent_active;
+        ui.visuals_mut().widgets.open.weak_bg_fill = tc.background;
+        ui.visuals_mut().widgets.open.bg_stroke = Stroke::new(1.0, tc.input);
+
+        egui::ComboBox::from_id_salt(id)
+            .selected_text(current_label)
+            .width(ui.available_width())
+            .height(100.0)
+            .show_ui(ui, |ui| {
+                for (value, label) in options {
+                    let is_selected = value == selected;
+                    if ui.selectable_label(is_selected, *label).clicked() && !is_selected {
+                        *selected = value.clone();
+                    }
                 }
-            }
-        })
-        .response
+            })
+            .response
+    })
+    .inner
 }

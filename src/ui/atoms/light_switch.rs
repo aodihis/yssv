@@ -1,4 +1,4 @@
-use crate::theme::{colors, ThemeColors};
+use crate::theme::ThemeColors;
 use egui::*;
 
 pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
@@ -16,7 +16,7 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
         let tc = ThemeColors::from_ui(ui);
 
         let bg_color = if *on {
-            colors::SUCCESS
+            tc.primary
         } else {
             tc.border
         };
@@ -29,8 +29,9 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
             StrokeKind::Middle,
         );
 
-        let radius = rect.height() * 0.45;
-        let circle_x = lerp((rect.left() + radius)..=(rect.right() - radius), how_on);
+        let gap = 1.5;
+        let radius = rect.height() * 0.45 - gap;
+        let circle_x = lerp((rect.left() + radius + gap)..=(rect.right() - radius - gap), how_on);
 
         ui.painter()
             .circle_filled(pos2(circle_x, rect.center().y), radius, Color32::WHITE);
