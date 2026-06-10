@@ -70,13 +70,13 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 ### Phase 2 — Live Connections & Data Browsing
 **Goal**: Real end-to-end flow from "Connect" button to viewing live table data.
 
-- [ ] Wire "Connect" → store live `ActiveConnection` in app state
-- [ ] Sidebar tree: load schemas lazily on database node expand
+- [x] Wire "Connect" → store live `ActiveConnection` in app state
+- [x] Sidebar tree: load schemas lazily on database node expand
 - [ ] Table row counts: show real counts in sidebar (use `reltuples` estimate for PG)
-- [ ] Structure view: render `describe_table` output in the data grid
-- [ ] Column type annotations in grid headers (PK / FK markers)
-- [ ] Row selection and highlight
-- [ ] Copy cell value to clipboard
+- [x] Structure view: render `describe_table` output in the data grid
+- [x] Column type annotations in grid headers (PK / FK markers)
+- [x] Row selection and highlight
+- [x] Copy cell value to clipboard
 - [ ] Connection status indicator (latency ping)
 
 ---

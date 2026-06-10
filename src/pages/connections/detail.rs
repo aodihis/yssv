@@ -235,8 +235,8 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 ui.add_space(16.0);
 
                 ui.horizontal(|ui| {
-                    // Delete — left side, saved connections only
-                    if !app.conn_page.is_new {
+                    // Delete — left side, saved connections only (hidden while testing)
+                    if !app.conn_page.is_new && app.conn_page.test_status != TestStatus::Testing {
                         let del_btn = egui::Button::image(
                             icon_image(Icon::Trash2, 14.0, tc.error),
                         )
@@ -260,7 +260,6 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .stroke(egui::Stroke::NONE)
                         .min_size(egui::vec2(0.0, 32.0));
                         if ui.add(connect_btn).clicked() {
-                            app.save_connection();
                             app.connect(ctx.clone());
                         }
 
@@ -278,10 +277,8 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         ui.add_space(8.0);
 
                         let (test_label, test_color) = match &app.conn_page.test_status {
-                            TestStatus::Idle => ("Test Connection", tc.text_secondary),
+                            TestStatus::Idle | TestStatus::Ok | TestStatus::Failed(_) => ("Test Connection", tc.text_secondary),
                             TestStatus::Testing => ("Testing…", tc.text_disabled),
-                            TestStatus::Ok => ("✓ Connected", tc.success),
-                            TestStatus::Failed(_) => ("✗ Failed", tc.error),
                         };
                         let test_btn = egui::Button::image_and_text(
                             icon_image(Icon::Plug2, 14.0, test_color),
@@ -295,12 +292,22 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         {
                             app.test_connection(ctx.clone());
                         }
-                        if let TestStatus::Failed(msg) = &app.conn_page.test_status {
-                            let msg = msg.clone();
-                            app.error_modal = Some(msg);
-                        }
                     });
                 });
+
+                let status_msg = match &app.conn_page.test_status {
+                    TestStatus::Ok => Some(("Connection successful", tc.success)),
+                    TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
+                    _ => None,
+                };
+                if let Some((msg, color)) = status_msg {
+                    ui.add_space(6.0);
+                    ui.horizontal(|ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(RichText::new(msg).size(12.0).color(color));
+                        });
+                    });
+                }
             });
     });
 }

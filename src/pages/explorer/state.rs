@@ -1,4 +1,4 @@
-use crate::core::{results::model::QueryResult, schema::model::DbInfo};
+use crate::core::{results::model::{ColumnDef, QueryResult}, schema::model::DbInfo};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -19,6 +19,9 @@ pub struct TableTab {
     pub loading: bool,
     pub page: u32,
     pub page_size: u32,
+    pub selected_row: Option<usize>,
+    pub structure: Option<Vec<ColumnDef>>,
+    pub structure_loading: bool,
 }
 
 impl TableTab {
@@ -33,6 +36,9 @@ impl TableTab {
             loading: false,
             page: 0,
             page_size: 100,
+            selected_row: None,
+            structure: None,
+            structure_loading: false,
         }
     }
 

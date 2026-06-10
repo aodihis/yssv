@@ -147,6 +147,7 @@ impl ConnectionsPageState {
             .map(ConnectionForm::from_connection)
             .unwrap_or_default();
 
+        let is_new = selected_id.is_none();
         Self {
             connections,
             selected_id,
@@ -154,7 +155,7 @@ impl ConnectionsPageState {
             test_status: TestStatus::Idle,
             search_query: String::new(),
             collapsed_groups: Default::default(),
-            is_new: false,
+            is_new,
         }
     }
 

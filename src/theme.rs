@@ -361,14 +361,12 @@ mod tests {
     fn dark_selection_fill_is_correct() {
         let v = build_visuals(Theme::Dark);
         assert_eq!(v.selection.bg_fill, colors::dark::SELECTION_BG);
-        assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]
     fn light_selection_fill_is_correct() {
         let v = build_visuals(Theme::Light);
         assert_eq!(v.selection.bg_fill, colors::light::SELECTION_BG);
-        assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]

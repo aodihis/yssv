@@ -1,7 +1,9 @@
 use std::sync::{Arc, mpsc};
 
 use crate::core::{
-    connections::storage::Storage, drivers::ActiveConnection, results::model::QueryResult,
+    connections::storage::Storage,
+    drivers::ActiveConnection,
+    results::model::{ColumnDef, QueryResult},
     schema::model::DbInfo,
 };
 use crate::pages::{
@@ -10,12 +12,12 @@ use crate::pages::{
 };
 use crate::theme;
 
-#[derive(Debug)]
 pub enum AppEvent {
     Connected {
         conn_id: String,
         conn_name: String,
         databases: Vec<DbInfo>,
+        connection: Arc<dyn ActiveConnection>,
     },
     ConnectError {
         conn_id: String,
@@ -39,6 +41,10 @@ pub enum AppEvent {
     RowLoadError {
         tab_id: String,
         message: String,
+    },
+    StructureLoaded {
+        tab_id: String,
+        columns: Vec<ColumnDef>,
     },
 }
 
@@ -111,8 +117,10 @@ impl YssvApp {
                 conn_id,
                 conn_name,
                 databases,
+                connection,
             } => {
                 tracing::info!(conn_id = %conn_id, conn = %conn_name, databases = databases.len(), "connected");
+                self.active_conn = Some(connection);
                 self.explorer = Some(ExplorerState::new(conn_id, conn_name, databases));
                 self.screen = Screen::Explorer;
             }
@@ -123,16 +131,12 @@ impl YssvApp {
             }
             AppEvent::TestOk { conn_id } => {
                 tracing::debug!(conn_id = %conn_id, "test connection ok");
-                if self.conn_page.selected_id.as_deref() == Some(&conn_id) {
-                    self.conn_page.test_status = crate::pages::connections::state::TestStatus::Ok;
-                }
+                self.conn_page.test_status = crate::pages::connections::state::TestStatus::Ok;
             }
             AppEvent::TestError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "test connection failed");
-                if self.conn_page.selected_id.as_deref() == Some(&conn_id) {
-                    self.conn_page.test_status =
-                        crate::pages::connections::state::TestStatus::Failed(message);
-                }
+                self.conn_page.test_status =
+                    crate::pages::connections::state::TestStatus::Failed(message);
             }
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
@@ -156,6 +160,14 @@ impl YssvApp {
                 if let Some(explorer) = &mut self.explorer
                     && let Some(db_info) = explorer.databases.iter_mut().find(|d| d.name == db) {
                         db_info.schemas = schemas;
+                    }
+            }
+            AppEvent::StructureLoaded { tab_id, columns } => {
+                tracing::debug!(tab_id = %tab_id, columns = columns.len(), "structure loaded");
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
+                        tab.structure = Some(columns);
+                        tab.structure_loading = false;
                     }
             }
         }
@@ -182,10 +194,12 @@ impl YssvApp {
                                 schemas: vec![],
                             })
                             .collect();
+                        let connection: Arc<dyn ActiveConnection> = Arc::from(active);
                         let _ = tx.send(AppEvent::Connected {
                             conn_id,
                             conn_name,
                             databases,
+                            connection,
                         });
                     }
                     Err(e) => {
@@ -276,6 +290,49 @@ impl YssvApp {
                             tab_id,
                             message: e.message,
                         });
+                    }
+                }
+                ctx.request_repaint();
+            });
+        }
+    }
+
+    pub fn load_schemas(&self, ctx: egui::Context, db: String) {
+        if let Some(conn) = &self.active_conn {
+            let conn = conn.clone();
+            let tx = self.event_tx.clone();
+            self.rt.spawn(async move {
+                match conn.list_schemas(&db).await {
+                    Ok(schemas) => {
+                        let _ = tx.send(AppEvent::SchemasLoaded { db, schemas });
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e.message, "load schemas failed");
+                    }
+                }
+                ctx.request_repaint();
+            });
+        }
+    }
+
+    pub fn load_structure(
+        &self,
+        ctx: egui::Context,
+        tab_id: String,
+        db: String,
+        schema: String,
+        table: String,
+    ) {
+        if let Some(conn) = &self.active_conn {
+            let conn = conn.clone();
+            let tx = self.event_tx.clone();
+            self.rt.spawn(async move {
+                match conn.describe_table(&db, &schema, &table).await {
+                    Ok(columns) => {
+                        let _ = tx.send(AppEvent::StructureLoaded { tab_id, columns });
+                    }
+                    Err(e) => {
+                        tracing::warn!(error = %e.message, "describe table failed");
                     }
                 }
                 ctx.request_repaint();

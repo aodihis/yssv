@@ -180,10 +180,24 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         }
     });
 
-    if let Some(key) = toggle_node
-        && let Some(e) = &mut app.explorer {
-            e.toggle_node(&key);
+    let mut load_schemas_for: Option<String> = None;
+    if let Some(ref key) = toggle_node {
+        if let Some(e) = &mut app.explorer {
+            let was_open = e.is_open(key);
+            e.toggle_node(key);
+            if !was_open && key.starts_with("db:") {
+                let db_name = key["db:".len()..].to_string();
+                if let Some(db) = e.databases.iter().find(|d| d.name == db_name) {
+                    if db.schemas.is_empty() {
+                        load_schemas_for = Some(db_name);
+                    }
+                }
+            }
         }
+    }
+    if let Some(db) = load_schemas_for {
+        app.load_schemas(ctx.clone(), db);
+    }
     if let Some((table, schema, db)) = open_table {
         let load_req = {
             let e = app.explorer.as_mut().unwrap();
@@ -222,10 +236,6 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         egui::Stroke::new(1.0, tc.border_muted),
     );
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        ui.add_space(8.0);
-        ui.colored_label(colors::SUCCESS, "●");
-        ui.label(egui::RichText::new("Connected").size(11.0));
-
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_space(4.0);
             let theme_icon = if app.settings.theme == theme::Theme::Dark {
