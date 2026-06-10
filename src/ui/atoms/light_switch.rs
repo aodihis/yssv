@@ -18,7 +18,7 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
         let bg_color = if *on {
             tc.button_primary_bg
         } else {
-            tc.border
+            tc.control_track
         };
 
         ui.painter().rect(

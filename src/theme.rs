@@ -97,6 +97,9 @@ pub mod colors {
         pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0x99, 0xa3, 0xb2);
         pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x5e, 0x68, 0x77);
 
+        // Controls
+        pub const CONTROL_TRACK: Color32 = Color32::from_rgb(0x3a, 0x42, 0x52);
+
         // Buttons
         pub const BUTTON_PRIMARY_BG: Color32 = Color32::from_rgb(0x51, 0x81, 0xff);
         pub const BUTTON_PRIMARY_HOVER: Color32 = Color32::from_rgb(0x6f, 0x99, 0xff);
@@ -129,6 +132,9 @@ pub mod colors {
         pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0x1b, 0x1f, 0x24);
         pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0x59, 0x62, 0x6f);
         pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x98, 0xa0, 0xac);
+
+        // Controls
+        pub const CONTROL_TRACK: Color32 = Color32::from_rgb(0xc1, 0xc8, 0xd4);
 
         // Buttons
         pub const BUTTON_PRIMARY_BG: Color32 = Color32::from_rgb(0x2f, 0x5c, 0xe6);
@@ -278,6 +284,7 @@ pub struct ThemeColors {
     pub text_primary: egui::Color32,
     pub text_secondary: egui::Color32,
     pub text_disabled: egui::Color32,
+    pub control_track: egui::Color32,
     pub button_primary_bg: egui::Color32,
     pub button_secondary_bg: egui::Color32,
     pub success: egui::Color32,
@@ -299,6 +306,7 @@ impl ThemeColors {
             text_primary: TEXT_PRIMARY,
             text_secondary: TEXT_SECONDARY,
             text_disabled: TEXT_DISABLED,
+            control_track: CONTROL_TRACK,
             button_primary_bg: BUTTON_PRIMARY_BG,
             button_secondary_bg: BUTTON_SECONDARY_BG,
             success: colors::SUCCESS,
@@ -320,6 +328,7 @@ impl ThemeColors {
             text_primary: TEXT_PRIMARY,
             text_secondary: TEXT_SECONDARY,
             text_disabled: TEXT_DISABLED,
+            control_track: CONTROL_TRACK,
             button_primary_bg: BUTTON_PRIMARY_BG,
             button_secondary_bg: BUTTON_SECONDARY_BG,
             success: colors::SUCCESS,
