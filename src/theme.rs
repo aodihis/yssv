@@ -227,7 +227,7 @@ pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
         style.spacing.indent = 15.0;
         style.spacing.interact_size.y = 32.0;
         style.spacing.combo_height = 34.0;
-
+        
         // TextStyle → FontId mapping
         style
             .text_styles

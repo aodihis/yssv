@@ -12,6 +12,7 @@ pub struct SshConfig {
 pub enum SshAuth {
     Password(String),
     KeyFile(String),
+    Agent,
 }
 
 impl Default for SshConfig {

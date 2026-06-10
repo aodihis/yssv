@@ -7,7 +7,9 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     use crate::core::connections::model::DbEngine;
     use crate::pages::connections::state::TestStatus;
     use crate::ui::atoms::button::primary_button;
-    use crate::ui::atoms::input::{password_input, text_input};
+    use crate::pages::connections::state::SshAuthMethod;
+    use crate::ui::atoms::dropdown::dropdown;
+    use crate::ui::atoms::input::{file_input, password_input, text_input};
     use crate::ui::atoms::light_switch::light_switch;
     use crate::ui::molecules::color_picker::color_picker;
 
@@ -163,36 +165,55 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             });
                             ui.add_space(14.0);
 
-                            field_label(ui, "SSH Username", &tc);
-                            text_input(ui, &mut app.conn_page.form.ssh_username, "admin", None);
+                            ui.horizontal(|ui| {
+                                let width = (ui.available_width() - 10.0) / 2.0;
+                                ui.vertical(|ui| {
+                                    ui.set_width(width);
+
+                                    field_label(ui, "SSH User", &tc);
+                                    text_input(ui, &mut app.conn_page.form.ssh_username, "admin", None);
+                                });
+
+                                ui.add_space(4.0);
+
+                                ui.vertical(|ui| {
+                                    field_label(ui, "Authentication", &tc);
+                                    dropdown(
+                                        ui,
+                                        "ssh_auth_method",
+                                        &mut app.conn_page.form.ssh_auth_method,
+                                        &[
+                                            (SshAuthMethod::Password, "Password"),
+                                            (SshAuthMethod::KeyFile, "Key File"),
+                                            (SshAuthMethod::Agent, "SSH Agent"),
+                                        ],
+                                    );
+                                });
+
+                            });
+
                             ui.add_space(14.0);
 
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Use key file")
-                                        .size(13.0)
-                                        .color(tc.foreground),
-                                );
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        ui.checkbox(&mut app.conn_page.form.ssh_use_key, "");
-                                    },
-                                );
-                            });
-                            ui.add_space(10.0);
-
-                            if app.conn_page.form.ssh_use_key {
-                                field_label(ui, "Key file path", &tc);
-                                text_input(
-                                    ui,
-                                    &mut app.conn_page.form.ssh_key_path,
-                                    "/home/user/.ssh/id_rsa",
-                                    None,
-                                );
-                            } else {
-                                field_label(ui, "SSH Password", &tc);
-                                password_input(ui, &mut app.conn_page.form.ssh_password, "", None);
+                            match app.conn_page.form.ssh_auth_method {
+                                SshAuthMethod::Password => {
+                                    field_label(ui, "SSH Password", &tc);
+                                    password_input(ui, &mut app.conn_page.form.ssh_password, "", None);
+                                }
+                                SshAuthMethod::KeyFile => {
+                                    field_label(ui, "Key file path", &tc);
+                                    file_input(
+                                        ui,
+                                        &mut app.conn_page.form.ssh_key_path,
+                                        "/home/user/.ssh/id_rsa",
+                                    );
+                                }
+                                SshAuthMethod::Agent => {
+                                    ui.label(
+                                        egui::RichText::new("Uses the system SSH agent (ssh-agent / Pageant). No credentials needed.")
+                                            .size(12.0)
+                                            .weak(),
+                                    );
+                                }
                             }
                             ui.add_space(4.0);
                         }

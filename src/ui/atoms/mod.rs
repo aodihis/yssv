@@ -1,4 +1,5 @@
 pub mod badge;
+pub mod dropdown;
 pub mod button;
 pub mod divider;
 pub mod icon;
