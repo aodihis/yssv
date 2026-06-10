@@ -33,36 +33,31 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                 let pages = tab.total_pages();
                 let font = FontId::proportional(11.5);
 
-                // Row count — painter.text returns the bounding Rect; reuse width to advance cursor
                 let text_rect = ui.painter().text(
                     ui.cursor().min + egui::vec2(0.0, STATUS_H / 2.0),
                     egui::Align2::LEFT_CENTER,
                     format!("Rows {from}–{to} of {total}"),
                     font,
-                    tc.muted_foreground,
+                    tc.text_secondary,
                 );
                 ui.add_space(text_rect.width() + 16.0);
 
-                // Spacer
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add_space(12.0);
 
-                    // Next button
                     let next_resp = pg_button(ui, "▶", tab.can_go_next(), &tc);
                     if next_resp.clicked() {
                         next = true;
                     }
 
-                    // Page indicator
                     ui.add_space(6.0);
                     ui.label(
                         egui::RichText::new(format!("{} / {}", tab.page + 1, pages))
                             .size(11.5)
-                            .color(tc.muted_foreground),
+                            .color(tc.text_secondary),
                     );
                     ui.add_space(6.0);
 
-                    // Prev button
                     let prev_resp = pg_button(ui, "◀", tab.can_go_prev(), &tc);
                     if prev_resp.clicked() {
                         prev = true;
@@ -72,7 +67,7 @@ pub fn status_bar(ui: &mut Ui, tab: &TableTab) -> (bool, bool) {
                 ui.label(
                     egui::RichText::new("Loading…")
                         .size(11.5)
-                        .color(tc.subtle_foreground),
+                        .color(tc.text_disabled),
                 );
             }
         });
@@ -87,17 +82,17 @@ fn pg_button(ui: &mut Ui, label: &str, enabled: bool, tc: &ThemeColors) -> egui:
     if ui.is_rect_visible(rect) {
         let color = if !enabled {
             Color32::from_rgba_unmultiplied(
-                tc.subtle_foreground.r(),
-                tc.subtle_foreground.g(),
-                tc.subtle_foreground.b(),
+                tc.text_disabled.r(),
+                tc.text_disabled.g(),
+                tc.text_disabled.b(),
                 80,
             )
         } else if resp.hovered() {
             let painter = ui.painter();
-            painter.rect_filled(rect, egui::CornerRadius::same(5u8), tc.accent);
-            tc.foreground
+            painter.rect_filled(rect, egui::CornerRadius::same(5u8), tc.surface_secondary);
+            tc.text_primary
         } else {
-            tc.muted_foreground
+            tc.text_secondary
         };
         ui.painter().text(
             rect.center(),

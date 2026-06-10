@@ -15,7 +15,7 @@ pub fn color_picker(ui: &mut Ui, current: &mut ConnColor) {
                     ui.painter().circle_stroke(
                         rect.center(),
                         10.0,
-                        egui::Stroke::new(2.0, tc.foreground),
+                        egui::Stroke::new(2.0, tc.text_primary),
                     );
                 }
             }

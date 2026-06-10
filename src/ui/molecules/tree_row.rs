@@ -28,9 +28,9 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
 
     // Background
     let bg = if cfg.is_active {
-        tc.primary_subtle
+        tc.selection_bg
     } else if resp.hovered() {
-        tc.accent
+        tc.surface_secondary
     } else {
         Color32::TRANSPARENT
     };
@@ -42,7 +42,7 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
             egui::pos2(rect.left(), rect.top() + 3.0),
             egui::vec2(2.5, rect.height() - 6.0),
         );
-        painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.primary);
+        painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.button_primary_bg);
     }
 
     let center_y = rect.center().y;
@@ -56,16 +56,16 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
             egui::Align2::CENTER_CENTER,
             chev,
             FontId::proportional(11.0),
-            tc.subtle_foreground,
+            tc.text_disabled,
         );
     }
     x += 14.0;
 
     // Icon — 14px wide
     let icon_color = if cfg.is_active {
-        tc.primary
+        tc.button_primary_bg
     } else {
-        cfg.icon_color.unwrap_or(tc.muted_foreground)
+        cfg.icon_color.unwrap_or(tc.text_secondary)
     };
     painter.text(
         egui::pos2(x + 7.0, center_y),
@@ -77,7 +77,7 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
     x += 16.0;
 
     // Label — 12.5px
-    let label_color = tc.foreground;
+    let label_color = tc.text_primary;
     let label_font = FontId::proportional(12.5);
 
     // Right side: count or pill — compute before drawing label
@@ -118,7 +118,7 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig<'_>) -> Response {
             egui::Align2::RIGHT_CENTER,
             count,
             FontId::monospace(10.5),
-            tc.subtle_foreground,
+            tc.text_disabled,
         );
     }
 

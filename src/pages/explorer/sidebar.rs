@@ -30,7 +30,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 RichText::new(&conn_name)
                     .size(13.0)
                     .family(egui::FontFamily::Name("SemiBold".into()))
-                    .color(tc.foreground),
+                    .color(tc.text_primary),
             );
             ui.add_space(7.0);
             let e = app.explorer.as_mut().unwrap();
@@ -236,7 +236,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             let theme_btn = egui::Button::new(
                 egui::RichText::new(theme_icon)
                     .size(14.0)
-                    .color(tc.muted_foreground),
+                    .color(tc.text_secondary),
             )
             .fill(egui::Color32::TRANSPARENT)
             .stroke(egui::Stroke::NONE)
@@ -250,7 +250,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             let back_btn = egui::Button::new(
                 egui::RichText::new("◀  Connections")
                     .size(11.0)
-                    .color(tc.muted_foreground),
+                    .color(tc.text_secondary),
             )
             .fill(egui::Color32::TRANSPARENT)
             .stroke(egui::Stroke::new(1.0, tc.border_muted))

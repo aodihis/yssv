@@ -22,7 +22,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 RichText::new("Connections")
                     .size(14.0)
                     .family(egui::FontFamily::Name("SemiBold".into()))
-                    .color(tc.foreground),
+                    .color(tc.text_primary),
             );
             ui.add_space(4.0);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
@@ -62,12 +62,12 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 .horizontal(|ui| {
                     ui.add_space(14.0);
                     let chev = if collapsed { Icon::ChevronRight } else { Icon::ChevronDown };
-                    svg_icon(ui, chev, 10.0, tc.subtle_foreground);
+                    svg_icon(ui, chev, 10.0, tc.text_disabled);
                     ui.add_space(3.0);
                     ui.label(
                         RichText::new(group_name.to_uppercase())
                             .size(11.0)
-                            .color(tc.subtle_foreground)
+                            .color(tc.text_disabled)
                             .family(egui::FontFamily::Name("SemiBold".into())),
                     );
                 })
@@ -123,7 +123,7 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         let theme_btn = egui::Button::new(
             egui::RichText::new(theme_icon)
                 .size(14.0)
-                .color(tc.muted_foreground),
+                .color(tc.text_secondary),
         )
         .fill(egui::Color32::TRANSPARENT)
         .stroke(egui::Stroke::NONE)

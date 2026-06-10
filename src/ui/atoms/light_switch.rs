@@ -16,7 +16,7 @@ pub fn light_switch(ui: &mut Ui, on: &mut bool) -> Response {
         let tc = ThemeColors::from_ui(ui);
 
         let bg_color = if *on {
-            tc.primary
+            tc.button_primary_bg
         } else {
             tc.border
         };

@@ -65,7 +65,7 @@ pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
             ui.spacing_mut().button_padding = egui::vec2(0.0, 6.0);
             ui.spacing_mut().interact_size = Vec2::new(BTN_W, 30.0);
             let btn = egui::Button::new(
-                RichText::new("Browse").size(12.5).color(tc.foreground),
+                RichText::new("Browse").size(12.5).color(tc.text_primary),
             )
             .fill(Color32::WHITE)
             .min_size(Vec2::new(BTN_W, 30.0));

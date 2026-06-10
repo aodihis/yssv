@@ -25,7 +25,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
         let close_font = FontId::proportional(12.0);
         let close_w = ui
             .painter()
-            .layout_no_wrap("×".into(), close_font.clone(), tc.foreground)
+            .layout_no_wrap("×".into(), close_font.clone(), tc.text_primary)
             .size()
             .x;
 
@@ -37,7 +37,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
             let label_font = FontId::proportional(12.5);
             let text_w = ui
                 .painter()
-                .layout_no_wrap(label.clone(), label_font.clone(), tc.foreground)
+                .layout_no_wrap(label.clone(), label_font.clone(), tc.text_primary)
                 .size()
                 .x;
             let tab_w = 12.0 + text_w + 8.0 + close_w + 12.0;
@@ -55,7 +55,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
             let bg = if is_active {
                 tc.background
             } else if tab_resp.hovered() {
-                tc.accent
+                tc.surface_secondary
             } else {
                 Color32::TRANSPARENT
             };
@@ -69,7 +69,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                         egui::vec2(tab_rect.width(), 2.0),
                     ),
                     egui::CornerRadius::ZERO,
-                    tc.primary,
+                    tc.button_primary_bg,
                 );
             }
 
@@ -84,9 +84,9 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
 
             let center_y = tab_rect.center().y;
             let text_color = if is_active {
-                tc.foreground
+                tc.text_primary
             } else {
-                tc.muted_foreground
+                tc.text_secondary
             };
             let label_x = tab_rect.left() + 12.0;
 
@@ -110,12 +110,12 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
                 egui::Sense::click(),
             );
             let close_color = if close_resp.hovered() {
-                tc.foreground
+                tc.text_primary
             } else {
-                tc.subtle_foreground
+                tc.text_disabled
             };
             if close_resp.hovered() {
-                painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.accent_active);
+                painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.surface_active);
             }
             painter.text(
                 close_rect.center(),

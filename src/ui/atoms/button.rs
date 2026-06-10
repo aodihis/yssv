@@ -6,7 +6,7 @@ pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
     let tc = ThemeColors::from_ui(ui);
     ui.add(
         Button::new(egui::RichText::new(label).color(Color32::WHITE))
-            .fill(tc.primary)
+            .fill(tc.button_primary_bg)
             .min_size(Vec2::new(0.0, 32.0)),
     )
 }
@@ -23,7 +23,7 @@ pub fn compact_button(ui: &mut Ui, label: &str) -> Response {
         ui.spacing_mut().interact_size.x = 69.0;
         ui.add(
             Button::new(egui::RichText::new(label).color(Color32::WHITE))
-                .fill(tc.primary),
+                .fill(tc.button_primary_bg),
         )
     })
     .inner

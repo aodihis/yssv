@@ -16,7 +16,7 @@ pub fn view_pill(ui: &mut Ui) {
 
 pub fn count_pill(ui: &mut Ui, count: &str) {
     let tc = ThemeColors::from_ui(ui);
-    badge_pill(ui, count, tc.accent_active, tc.muted_foreground);
+    badge_pill(ui, count, tc.surface_active, tc.text_secondary);
 }
 
 fn badge_pill(ui: &mut Ui, text: &str, bg: Color32, fg: Color32) {

@@ -59,9 +59,9 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         ("Structure", TabView::Structure, !is_data),
                     ] {
                         let color = if active {
-                            tc.foreground
+                            tc.text_primary
                         } else {
-                            tc.muted_foreground
+                            tc.text_secondary
                         };
                         let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
                             .fill(egui::Color32::TRANSPARENT)
@@ -75,7 +75,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                     egui::vec2(resp.rect.width(), 2.0),
                                 ),
                                 egui::CornerRadius::ZERO,
-                                tc.primary,
+                                tc.button_primary_bg,
                             );
                         }
                         if resp.clicked() {

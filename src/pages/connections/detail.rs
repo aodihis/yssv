@@ -59,15 +59,15 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     for engine in [DbEngine::Postgres, DbEngine::MySQL] {
                         let selected = app.conn_page.form.engine == engine;
                         let (bg, border) = if selected {
-                            (tc.primary_muted, tc.primary)
+                            (tc.button_secondary_bg, tc.button_primary_bg)
                         } else {
-                            (tc.background, tc.input)
+                            (tc.background, tc.field_border)
                         };
                         let btn = egui::Button::new(
                             RichText::new(engine.label()).size(13.0).color(if selected {
-                                tc.primary
+                                tc.button_primary_bg
                             } else {
-                                tc.foreground
+                                tc.text_primary
                             }),
                         )
                         .fill(bg)
@@ -124,7 +124,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     .corner_radius(5.0)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            svg_icon(ui, Icon::Terminal, 24.0, tc.foreground);
+                            svg_icon(ui, Icon::Terminal, 24.0, tc.text_primary);
                             ui.add_space(10.0);
                             ui.vertical(|ui| {
                                 ui.label(egui::RichText::new("Connect through SSH").family(egui::FontFamily::Name("SemiBold".into())));
@@ -225,15 +225,15 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
                 ui.horizontal(|ui| {
                     let (test_label, test_color) = match &app.conn_page.test_status {
-                        TestStatus::Idle => ("Test Connection", tc.muted_foreground),
-                        TestStatus::Testing => ("Testing…", tc.subtle_foreground),
+                        TestStatus::Idle => ("Test Connection", tc.text_secondary),
+                        TestStatus::Testing => ("Testing…", tc.text_disabled),
                         TestStatus::Ok => ("✓ Connected", tc.success),
-                        TestStatus::Failed(_) => ("✗ Failed", tc.destructive),
+                        TestStatus::Failed(_) => ("✗ Failed", tc.error),
                     };
                     let test_btn =
                         egui::Button::new(RichText::new(test_label).size(13.0).color(test_color))
                             .fill(tc.background)
-                            .stroke(egui::Stroke::new(1.0, tc.input))
+                            .stroke(egui::Stroke::new(1.0, tc.field_border))
                             .min_size(egui::vec2(0.0, 32.0));
 
                     if ui.add(test_btn).clicked()
@@ -249,9 +249,9 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     ui.add_space(8.0);
 
                     let save_btn =
-                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.foreground))
+                        egui::Button::new(RichText::new("Save").size(13.0).color(tc.text_primary))
                             .fill(tc.background)
-                            .stroke(egui::Stroke::new(1.0, tc.input))
+                            .stroke(egui::Stroke::new(1.0, tc.field_border))
                             .min_size(egui::vec2(0.0, 32.0));
                     if ui.add(save_btn).clicked() {
                         app.save_connection();
@@ -272,7 +272,7 @@ fn field_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
     ui.label(
         RichText::new(text)
             .size(11.5)
-            .color(tc.muted_foreground)
+            .color(tc.text_secondary)
             .family(egui::FontFamily::Name("SemiBold".into())),
     );
     ui.add_space(4.0);
@@ -283,7 +283,7 @@ fn section_label(ui: &mut egui::Ui, text: &str, tc: &ThemeColors) {
         ui.label(
             RichText::new(text)
                 .size(11.0)
-                .color(tc.subtle_foreground)
+                .color(tc.text_disabled)
                 .family(egui::FontFamily::Name("SemiBold".into())),
         );
         ui.add_space(8.0);

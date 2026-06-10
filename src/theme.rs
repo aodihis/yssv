@@ -64,7 +64,7 @@ pub mod colors {
     // Semantic status (theme-independent)
     pub const SUCCESS: Color32 = Color32::from_rgb(0x2e, 0xa3, 0x6b);
     pub const WARNING: Color32 = Color32::from_rgb(0xd9, 0x83, 0x16);
-    pub const DESTRUCTIVE: Color32 = Color32::from_rgb(0xe5, 0x48, 0x4d);
+    pub const ERROR: Color32 = Color32::from_rgb(0xe5, 0x48, 0x4d);
 
     // DB engine brand colors (theme-independent)
     pub const POSTGRES: Color32 = Color32::from_rgb(0x3a, 0x6e, 0xa5);
@@ -76,29 +76,31 @@ pub mod colors {
         // Backgrounds
         pub const BACKGROUND: Color32 = Color32::from_rgb(0x11, 0x15, 0x1c);
         pub const SURFACE: Color32 = Color32::from_rgb(0x0c, 0x10, 0x15);
-        pub const CARD: Color32 = Color32::from_rgb(0x17, 0x1c, 0x25);
-        pub const ACCENT: Color32 = Color32::from_rgb(0x1a, 0x20, 0x2a);
-        pub const ACCENT_ACTIVE: Color32 = Color32::from_rgb(0x22, 0x2a, 0x36);
-        pub const PRIMARY_SUBTLE: Color32 = Color32::from_rgb(0x16, 0x26, 0x3f);
+        pub const SURFACE_SECONDARY: Color32 = Color32::from_rgb(0x1a, 0x20, 0x2a);
+        pub const SURFACE_ACTIVE: Color32 = Color32::from_rgb(0x22, 0x2a, 0x36);
+        pub const SELECTION_BG: Color32 = Color32::from_rgb(0x16, 0x26, 0x3f);
         pub const TITLEBAR: Color32 = Color32::from_rgb(0x0c, 0x10, 0x15);
         pub const TABLE_HEADER: Color32 = Color32::from_rgb(0x13, 0x18, 0x20);
         pub const TABLE_ROW_ALT: Color32 = Color32::from_rgb(0x0e, 0x13, 0x1a);
 
+        // Fields
+        pub const FIELD_BG: Color32 = Color32::from_rgb(0x17, 0x1c, 0x25);
+        pub const FIELD_BORDER: Color32 = Color32::from_rgb(0x31, 0x3a, 0x48);
+
         // Borders
         pub const BORDER: Color32 = Color32::from_rgb(0x23, 0x2a, 0x35);
-        pub const INPUT: Color32 = Color32::from_rgb(0x31, 0x3a, 0x48);
         pub const BORDER_MUTED: Color32 = Color32::from_rgb(0x1a, 0x20, 0x29);
+        pub const BORDER_FOCUS: Color32 = Color32::from_rgb(0x2f, 0x48, 0x85);
 
         // Text
-        pub const FOREGROUND: Color32 = Color32::from_rgb(0xe7, 0xeb, 0xf2);
-        pub const MUTED_FOREGROUND: Color32 = Color32::from_rgb(0x99, 0xa3, 0xb2);
-        pub const SUBTLE_FOREGROUND: Color32 = Color32::from_rgb(0x5e, 0x68, 0x77);
+        pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0xe7, 0xeb, 0xf2);
+        pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0x99, 0xa3, 0xb2);
+        pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x5e, 0x68, 0x77);
 
-        // Primary (action/brand color)
-        pub const PRIMARY: Color32 = Color32::from_rgb(0x51, 0x81, 0xff);
-        pub const PRIMARY_HOVER: Color32 = Color32::from_rgb(0x6f, 0x99, 0xff);
-        pub const PRIMARY_MUTED: Color32 = Color32::from_rgb(0x18, 0x26, 0x40);
-        pub const PRIMARY_BORDER: Color32 = Color32::from_rgb(0x2f, 0x48, 0x85);
+        // Buttons
+        pub const BUTTON_PRIMARY_BG: Color32 = Color32::from_rgb(0x51, 0x81, 0xff);
+        pub const BUTTON_PRIMARY_HOVER: Color32 = Color32::from_rgb(0x6f, 0x99, 0xff);
+        pub const BUTTON_SECONDARY_BG: Color32 = Color32::from_rgb(0x18, 0x26, 0x40);
     }
 
     pub mod light {
@@ -107,29 +109,31 @@ pub mod colors {
         // Backgrounds
         pub const BACKGROUND: Color32 = Color32::from_rgb(0xff, 0xff, 0xff);
         pub const SURFACE: Color32 = Color32::from_rgb(0xf5, 0xf6, 0xf8);
-        pub const CARD: Color32 = Color32::from_rgb(0xff, 0xff, 0xff);
-        pub const ACCENT: Color32 = Color32::from_rgb(0xee, 0xf0, 0xf3);
-        pub const ACCENT_ACTIVE: Color32 = Color32::from_rgb(0xe6, 0xe9, 0xee);
-        pub const PRIMARY_SUBTLE: Color32 = Color32::from_rgb(0xe9, 0xf0, 0xfe);
+        pub const SURFACE_SECONDARY: Color32 = Color32::from_rgb(0xee, 0xf0, 0xf3);
+        pub const SURFACE_ACTIVE: Color32 = Color32::from_rgb(0xe6, 0xe9, 0xee);
+        pub const SELECTION_BG: Color32 = Color32::from_rgb(0xe9, 0xf0, 0xfe);
         pub const TITLEBAR: Color32 = Color32::from_rgb(0xf0, 0xf2, 0xf5);
         pub const TABLE_HEADER: Color32 = Color32::from_rgb(0xf7, 0xf8, 0xfa);
         pub const TABLE_ROW_ALT: Color32 = Color32::from_rgb(0xfa, 0xfb, 0xfc);
 
+        // Fields
+        pub const FIELD_BG: Color32 = Color32::from_rgb(0xff, 0xff, 0xff);
+        pub const FIELD_BORDER: Color32 = Color32::from_rgb(0xd3, 0xd8, 0xe0);
+
         // Borders
         pub const BORDER: Color32 = Color32::from_rgb(0xe3, 0xe6, 0xeb);
-        pub const INPUT: Color32 = Color32::from_rgb(0xd3, 0xd8, 0xe0);
         pub const BORDER_MUTED: Color32 = Color32::from_rgb(0xed, 0xef, 0xf2);
+        pub const BORDER_FOCUS: Color32 = Color32::from_rgb(0xbc, 0xcc, 0xfb);
 
         // Text
-        pub const FOREGROUND: Color32 = Color32::from_rgb(0x1b, 0x1f, 0x24);
-        pub const MUTED_FOREGROUND: Color32 = Color32::from_rgb(0x59, 0x62, 0x6f);
-        pub const SUBTLE_FOREGROUND: Color32 = Color32::from_rgb(0x98, 0xa0, 0xac);
+        pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0x1b, 0x1f, 0x24);
+        pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0x59, 0x62, 0x6f);
+        pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x98, 0xa0, 0xac);
 
-        // Primary (action/brand color)
-        pub const PRIMARY: Color32 = Color32::from_rgb(0x2f, 0x5c, 0xe6);
-        pub const PRIMARY_HOVER: Color32 = Color32::from_rgb(0x24, 0x47, 0xc2);
-        pub const PRIMARY_MUTED: Color32 = Color32::from_rgb(0xec, 0xf1, 0xfe);
-        pub const PRIMARY_BORDER: Color32 = Color32::from_rgb(0xbc, 0xcc, 0xfb);
+        // Buttons
+        pub const BUTTON_PRIMARY_BG: Color32 = Color32::from_rgb(0x2f, 0x5c, 0xe6);
+        pub const BUTTON_PRIMARY_HOVER: Color32 = Color32::from_rgb(0x24, 0x47, 0xc2);
+        pub const BUTTON_SECONDARY_BG: Color32 = Color32::from_rgb(0xec, 0xf1, 0xfe);
     }
 }
 
@@ -145,37 +149,41 @@ fn build_dark() -> Visuals {
     let mut v = Visuals::dark();
     v.window_fill = SURFACE;
     v.panel_fill = SURFACE;
-    v.faint_bg_color = ACCENT;
+    v.faint_bg_color = SURFACE_SECONDARY;
     v.extreme_bg_color = TABLE_HEADER;
-    v.override_text_color = Some(FOREGROUND);
-    v.selection.bg_fill = PRIMARY_SUBTLE;
-    v.selection.stroke = Stroke::new(0.0, FOREGROUND);
-    v.hyperlink_color = PRIMARY;
+    v.override_text_color = Some(TEXT_PRIMARY);
+    v.selection.bg_fill = SELECTION_BG;
+    v.hyperlink_color = BUTTON_PRIMARY_BG;
     v.window_corner_radius = egui::CornerRadius::same(12);
 
     let border_stroke = Stroke::new(1.0, BORDER);
     v.widgets.noninteractive.bg_fill = BACKGROUND;
     v.widgets.noninteractive.bg_stroke = border_stroke;
-    v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.noninteractive.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.inactive.bg_fill = CARD;
-    v.widgets.inactive.bg_stroke = Stroke::new(1.0, INPUT);
-    v.widgets.inactive.fg_stroke = Stroke::new(1.0, MUTED_FOREGROUND);
+    v.widgets.inactive.bg_fill = BACKGROUND;
+    v.widgets.inactive.weak_bg_fill = BACKGROUND;
+    v.widgets.inactive.bg_stroke = Stroke::new(1.0, FIELD_BORDER);
+    v.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT_SECONDARY);
     v.widgets.inactive.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.hovered.bg_fill = ACCENT;
-    v.widgets.hovered.bg_stroke = Stroke::new(1.0, PRIMARY_BORDER);
-    v.widgets.hovered.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.hovered.bg_fill = SURFACE_SECONDARY;
+    v.widgets.hovered.weak_bg_fill = SURFACE_SECONDARY;
+    v.widgets.hovered.bg_stroke = Stroke::new(1.0, BORDER_FOCUS);
+    v.widgets.hovered.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.hovered.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.active.bg_fill = ACCENT_ACTIVE;
-    v.widgets.active.bg_stroke = Stroke::new(1.0, PRIMARY);
-    v.widgets.active.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.active.bg_fill = SURFACE_ACTIVE;
+    v.widgets.active.weak_bg_fill = SURFACE_ACTIVE;
+    v.widgets.active.bg_stroke = Stroke::new(1.0, BUTTON_PRIMARY_BG);
+    v.widgets.active.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.active.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.open.bg_fill = ACCENT_ACTIVE;
-    v.widgets.open.bg_stroke = Stroke::new(1.0, PRIMARY);
+    v.widgets.open.bg_fill = SURFACE_ACTIVE;
+    v.widgets.open.weak_bg_fill = BACKGROUND;
+    v.widgets.open.bg_stroke = Stroke::new(1.0, FIELD_BORDER);
+    v.text_edit_bg_color = Some(FIELD_BG);
     v
 }
 
@@ -184,51 +192,56 @@ fn build_light() -> Visuals {
     let mut v = Visuals::light();
     v.window_fill = SURFACE;
     v.panel_fill = SURFACE;
-    v.faint_bg_color = ACCENT;
+    v.faint_bg_color = SURFACE_SECONDARY;
     v.extreme_bg_color = TABLE_HEADER;
-    v.override_text_color = Some(FOREGROUND);
-    v.selection.bg_fill = PRIMARY_SUBTLE;
-    v.selection.stroke = Stroke::new(0.0, FOREGROUND);
-    v.hyperlink_color = PRIMARY;
+    v.override_text_color = Some(TEXT_PRIMARY);
+    v.selection.bg_fill = SELECTION_BG;
+    v.hyperlink_color = BUTTON_PRIMARY_BG;
     v.window_corner_radius = egui::CornerRadius::same(12);
 
     let border_stroke = Stroke::new(1.0, BORDER);
     v.widgets.noninteractive.bg_fill = BACKGROUND;
     v.widgets.noninteractive.bg_stroke = border_stroke;
-    v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.noninteractive.corner_radius = egui::CornerRadius::same(5u8);
 
     v.widgets.inactive.bg_fill = BACKGROUND;
-    v.widgets.inactive.bg_stroke = Stroke::new(1.0, INPUT);
-    v.widgets.inactive.fg_stroke = Stroke::new(1.0, MUTED_FOREGROUND);
+    v.widgets.inactive.weak_bg_fill = BACKGROUND;
+    v.widgets.inactive.bg_stroke = Stroke::new(1.0, FIELD_BORDER);
+    v.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT_SECONDARY);
     v.widgets.inactive.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.hovered.bg_fill = ACCENT;
-    v.widgets.hovered.bg_stroke = Stroke::new(1.0, PRIMARY_BORDER);
-    v.widgets.hovered.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.hovered.bg_fill = SURFACE_SECONDARY;
+    v.widgets.hovered.weak_bg_fill = SURFACE_SECONDARY;
+    v.widgets.hovered.bg_stroke = Stroke::new(1.0, BORDER_FOCUS);
+    v.widgets.hovered.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.hovered.corner_radius = egui::CornerRadius::same(5u8);
 
-    v.widgets.active.bg_fill = ACCENT_ACTIVE;
-    v.widgets.active.bg_stroke = Stroke::new(1.0, PRIMARY);
-    v.widgets.active.fg_stroke = Stroke::new(1.0, FOREGROUND);
+    v.widgets.active.bg_fill = SURFACE_ACTIVE;
+    v.widgets.active.weak_bg_fill = SURFACE_ACTIVE;
+    v.widgets.active.bg_stroke = Stroke::new(1.0, BUTTON_PRIMARY_BG);
+    v.widgets.active.fg_stroke = Stroke::new(1.0, TEXT_PRIMARY);
     v.widgets.active.corner_radius = egui::CornerRadius::same(5u8);
 
+    v.widgets.open.bg_fill = SURFACE_ACTIVE;
+    v.widgets.open.weak_bg_fill = BACKGROUND;
+    v.widgets.open.bg_stroke = Stroke::new(1.0, FIELD_BORDER);
+    v.text_edit_bg_color = Some(FIELD_BG);
     v
 }
 
 pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
     ctx.set_visuals(build_visuals(theme));
+
     ctx.global_style_mut(|style| {
         use egui::{FontFamily, FontId, TextStyle};
 
-        // Spacing (from spec bootstrap)
         style.spacing.button_padding = egui::vec2(14.0, 6.5);
         style.spacing.window_margin = egui::Margin::same(0);
         style.spacing.indent = 15.0;
         style.spacing.interact_size.y = 32.0;
         style.spacing.combo_height = 34.0;
-        
-        // TextStyle → FontId mapping
+
         style
             .text_styles
             .insert(TextStyle::Body, FontId::new(13.0, FontFamily::Proportional));
@@ -256,24 +269,19 @@ pub fn apply_theme(ctx: &egui::Context, theme: Theme) {
 pub struct ThemeColors {
     pub background: egui::Color32,
     pub surface: egui::Color32,
-    pub card: egui::Color32,
-    pub accent: egui::Color32,
-    pub accent_active: egui::Color32,
-    pub primary_subtle: egui::Color32,
+    pub surface_secondary: egui::Color32,
+    pub surface_active: egui::Color32,
+    pub selection_bg: egui::Color32,
     pub border: egui::Color32,
-    pub input: egui::Color32,
     pub border_muted: egui::Color32,
-    pub foreground: egui::Color32,
-    pub muted_foreground: egui::Color32,
-    pub subtle_foreground: egui::Color32,
-    pub primary: egui::Color32,
-    pub primary_hover: egui::Color32,
-    pub primary_muted: egui::Color32,
-    pub table_header: egui::Color32,
-    pub table_border: egui::Color32,
-    pub table_row_alt: egui::Color32,
+    pub field_border: egui::Color32,
+    pub text_primary: egui::Color32,
+    pub text_secondary: egui::Color32,
+    pub text_disabled: egui::Color32,
+    pub button_primary_bg: egui::Color32,
+    pub button_secondary_bg: egui::Color32,
     pub success: egui::Color32,
-    pub destructive: egui::Color32,
+    pub error: egui::Color32,
 }
 
 impl ThemeColors {
@@ -282,24 +290,19 @@ impl ThemeColors {
         Self {
             background: BACKGROUND,
             surface: SURFACE,
-            card: CARD,
-            accent: ACCENT,
-            accent_active: ACCENT_ACTIVE,
-            primary_subtle: PRIMARY_SUBTLE,
+            surface_secondary: SURFACE_SECONDARY,
+            surface_active: SURFACE_ACTIVE,
+            selection_bg: SELECTION_BG,
             border: BORDER,
-            input: INPUT,
             border_muted: BORDER_MUTED,
-            foreground: FOREGROUND,
-            muted_foreground: MUTED_FOREGROUND,
-            subtle_foreground: SUBTLE_FOREGROUND,
-            primary: PRIMARY,
-            primary_hover: PRIMARY_HOVER,
-            primary_muted: PRIMARY_MUTED,
-            table_header: TABLE_HEADER,
-            table_border: BORDER_MUTED,
-            table_row_alt: TABLE_ROW_ALT,
+            field_border: FIELD_BORDER,
+            text_primary: TEXT_PRIMARY,
+            text_secondary: TEXT_SECONDARY,
+            text_disabled: TEXT_DISABLED,
+            button_primary_bg: BUTTON_PRIMARY_BG,
+            button_secondary_bg: BUTTON_SECONDARY_BG,
             success: colors::SUCCESS,
-            destructive: colors::DESTRUCTIVE,
+            error: colors::ERROR,
         }
     }
 
@@ -308,24 +311,19 @@ impl ThemeColors {
         Self {
             background: BACKGROUND,
             surface: SURFACE,
-            card: CARD,
-            accent: ACCENT,
-            accent_active: ACCENT_ACTIVE,
-            primary_subtle: PRIMARY_SUBTLE,
+            surface_secondary: SURFACE_SECONDARY,
+            surface_active: SURFACE_ACTIVE,
+            selection_bg: SELECTION_BG,
             border: BORDER,
-            input: INPUT,
             border_muted: BORDER_MUTED,
-            foreground: FOREGROUND,
-            muted_foreground: MUTED_FOREGROUND,
-            subtle_foreground: SUBTLE_FOREGROUND,
-            primary: PRIMARY,
-            primary_hover: PRIMARY_HOVER,
-            primary_muted: PRIMARY_MUTED,
-            table_header: TABLE_HEADER,
-            table_border: BORDER_MUTED,
-            table_row_alt: TABLE_ROW_ALT,
+            field_border: FIELD_BORDER,
+            text_primary: TEXT_PRIMARY,
+            text_secondary: TEXT_SECONDARY,
+            text_disabled: TEXT_DISABLED,
+            button_primary_bg: BUTTON_PRIMARY_BG,
+            button_secondary_bg: BUTTON_SECONDARY_BG,
             success: colors::SUCCESS,
-            destructive: colors::DESTRUCTIVE,
+            error: colors::ERROR,
         }
     }
 
@@ -353,26 +351,26 @@ mod tests {
     #[test]
     fn dark_selection_fill_is_correct() {
         let v = build_visuals(Theme::Dark);
-        assert_eq!(v.selection.bg_fill, colors::dark::PRIMARY_SUBTLE);
+        assert_eq!(v.selection.bg_fill, colors::dark::SELECTION_BG);
         assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]
     fn light_selection_fill_is_correct() {
         let v = build_visuals(Theme::Light);
-        assert_eq!(v.selection.bg_fill, colors::light::PRIMARY_SUBTLE);
+        assert_eq!(v.selection.bg_fill, colors::light::SELECTION_BG);
         assert_eq!(v.selection.stroke.width, 0.0);
     }
 
     #[test]
     fn dark_foreground_is_set() {
         let v = build_visuals(Theme::Dark);
-        assert_eq!(v.override_text_color, Some(colors::dark::FOREGROUND));
+        assert_eq!(v.override_text_color, Some(colors::dark::TEXT_PRIMARY));
     }
 
     #[test]
     fn light_foreground_is_set() {
         let v = build_visuals(Theme::Light);
-        assert_eq!(v.override_text_color, Some(colors::light::FOREGROUND));
+        assert_eq!(v.override_text_color, Some(colors::light::TEXT_PRIMARY));
     }
 }
