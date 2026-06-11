@@ -36,7 +36,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             );
             ui.add_space(7.0);
             let e = app.explorer.as_mut().unwrap();
-            text_input(ui, &mut e.filter, "Filter tables…", Some("⌕"));
+            text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
         });
 
     let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));

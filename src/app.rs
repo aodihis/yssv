@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 
 use crate::core::{
@@ -19,6 +20,7 @@ pub enum AppEvent {
         default_db: String,
         databases: Vec<DbInfo>,
         connection: Arc<dyn ActiveConnection>,
+        conn_config: crate::core::connections::model::Connection,
     },
     ConnectError {
         conn_id: String,
@@ -47,6 +49,10 @@ pub enum AppEvent {
         tab_id: String,
         columns: Vec<ColumnDef>,
     },
+    DbConnected {
+        db: String,
+        conn: Arc<dyn ActiveConnection>,
+    },
 }
 
 pub enum Screen {
@@ -59,8 +65,15 @@ pub struct YssvApp {
     pub settings: SettingsState,
     pub conn_page: ConnectionsPageState,
     pub explorer: Option<ExplorerState>,
-    pub active_conn: Option<Arc<dyn ActiveConnection>>,
     pub error_modal: Option<String>,
+
+    // One cached connection per database name. Created lazily on first use
+    // (table open or schema load) and reused for the rest of the session.
+    // Keyed by database name so queries always hit the right database —
+    // PostgreSQL information_schema and relation lookups are scoped to the
+    // current connection's database, not the one named in the query.
+    db_conns: HashMap<String, Arc<dyn ActiveConnection>>,
+    conn_config: Option<crate::core::connections::model::Connection>,
 
     storage: Storage,
     rt: Arc<tokio::runtime::Runtime>,
@@ -97,8 +110,9 @@ impl YssvApp {
             settings,
             conn_page,
             explorer: None,
-            active_conn: None,
             error_modal: None,
+            db_conns: HashMap::new(),
+            conn_config: None,
             storage,
             rt,
             event_tx: tx,
@@ -120,12 +134,15 @@ impl YssvApp {
                 default_db,
                 databases,
                 connection,
+                conn_config,
             } => {
                 tracing::info!(
                     conn_id = %conn_id, conn = %conn_name,
                     default_db = %default_db, db_count = databases.len(), "connected"
                 );
-                self.active_conn = Some(connection);
+                self.db_conns.clear();
+                self.db_conns.insert(default_db.clone(), connection);
+                self.conn_config = Some(conn_config);
                 self.explorer = Some(ExplorerState::new(
                     conn_id,
                     conn_name,
@@ -197,6 +214,10 @@ impl YssvApp {
                     tab.structure_loading = false;
                 }
             }
+            AppEvent::DbConnected { db, conn } => {
+                tracing::debug!(db = %db, "db connection cached");
+                self.db_conns.insert(db, conn);
+            }
         }
     }
 
@@ -261,6 +282,7 @@ impl YssvApp {
                                 default_db,
                                 databases,
                                 connection,
+                                conn_config: conn.clone(),
                             });
                         }
                         Err(e) => {
@@ -334,52 +356,76 @@ impl YssvApp {
         limit: u32,
         offset: u32,
     ) {
-        if let Some(conn) = &self.active_conn {
-            tracing::debug!(
-                tab_id = %tab_id, db = %db, schema = %schema,
-                table = %table, limit, offset, "fetching rows"
-            );
-            let conn = conn.clone();
-            let tx = self.event_tx.clone();
-            self.rt.spawn(async move {
-                match conn.fetch_rows(&db, &schema, &table, limit, offset).await {
-                    Ok(result) => {
-                        let _ = tx.send(AppEvent::RowsLoaded { tab_id, result });
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e.message, "fetch rows failed");
+        tracing::debug!(
+            tab_id = %tab_id, db = %db, schema = %schema,
+            table = %table, limit, offset, "fetching rows"
+        );
+        let conn = self.db_conns.get(&db).cloned();
+        let base_config = self.conn_config.clone();
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            let conn = match conn {
+                Some(c) => c,
+                None => match Self::open_db_conn(base_config, &db, &tx).await {
+                    Some(c) => c,
+                    None => {
                         let _ = tx.send(AppEvent::RowLoadError {
                             tab_id,
-                            message: e.message,
+                            message: format!("no connection available for database '{db}'"),
                         });
+                        ctx.request_repaint();
+                        return;
                     }
+                },
+            };
+            match conn.fetch_rows(&db, &schema, &table, limit, offset).await {
+                Ok(result) => {
+                    let _ = tx.send(AppEvent::RowsLoaded { tab_id, result });
                 }
-                ctx.request_repaint();
-            });
-        }
+                Err(e) => {
+                    tracing::warn!(error = %e.message, "fetch rows failed");
+                    let _ = tx.send(AppEvent::RowLoadError { tab_id, message: e.message });
+                }
+            }
+            ctx.request_repaint();
+        });
     }
 
     pub fn load_schemas(&self, ctx: egui::Context, db: String) {
         tracing::debug!(db = %db, "load_schemas: requested");
-        if let Some(conn) = &self.active_conn {
-            let conn = conn.clone();
-            let tx = self.event_tx.clone();
-            self.rt.spawn(async move {
-                tracing::debug!(db = %db, "load_schemas: starting async fetch");
-                match conn.list_schemas(&db).await {
-                    Ok(schemas) => {
-                        tracing::info!(db = %db, count = schemas.len(), "load_schemas: success");
-                        let _ = tx.send(AppEvent::SchemasLoaded { db, schemas });
+        let Some(base_config) = self.conn_config.clone() else {
+            tracing::warn!(db = %db, "load_schemas: no connection config, skipping");
+            return;
+        };
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            // Open a fresh connection scoped to the target database.
+            // PostgreSQL's information_schema is limited to the current connection's
+            // database, so reusing the active pool would return the wrong schemas.
+            // The connection is dropped at the end of this block (fire-and-forget).
+            let mut target = base_config;
+            target.database = db.clone();
+            tracing::debug!(db = %db, "load_schemas: opening ephemeral connection");
+            match crate::core::drivers::connect(&target).await {
+                Ok(conn) => {
+                    tracing::debug!(db = %db, "load_schemas: starting async fetch");
+                    match conn.list_schemas(&db).await {
+                        Ok(schemas) => {
+                            tracing::info!(db = %db, count = schemas.len(), "load_schemas: success");
+                            let _ = tx.send(AppEvent::SchemasLoaded { db, schemas });
+                        }
+                        Err(e) => {
+                            tracing::warn!(db = %db, error = %e.message, "load_schemas: fetch failed");
+                        }
                     }
-                    Err(e) => {
-                        tracing::warn!(db = %db, error = %e.message, "load_schemas: failed");
-                    }
+                    // conn drops here — pool closed, connection slot freed
                 }
-                ctx.request_repaint();
-            });
-        } else {
-            tracing::warn!(db = %db, "load_schemas: no active connection, skipping");
-        }
+                Err(e) => {
+                    tracing::warn!(db = %db, error = %e.message, "load_schemas: connect failed");
+                }
+            }
+            ctx.request_repaint();
+        });
     }
 
     pub fn load_structure(
@@ -391,23 +437,52 @@ impl YssvApp {
         table: String,
     ) {
         tracing::debug!(tab_id = %tab_id, db = %db, schema = %schema, table = %table, "load_structure: requested");
-        if let Some(conn) = &self.active_conn {
-            let conn = conn.clone();
-            let tx = self.event_tx.clone();
-            self.rt.spawn(async move {
-                match conn.describe_table(&db, &schema, &table).await {
-                    Ok(columns) => {
-                        tracing::debug!(tab_id = %tab_id, column_count = columns.len(), "load_structure: success");
-                        let _ = tx.send(AppEvent::StructureLoaded { tab_id, columns });
+        let conn = self.db_conns.get(&db).cloned();
+        let base_config = self.conn_config.clone();
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            let conn = match conn {
+                Some(c) => c,
+                None => match Self::open_db_conn(base_config, &db, &tx).await {
+                    Some(c) => c,
+                    None => {
+                        tracing::warn!(tab_id = %tab_id, db = %db, "load_structure: no connection");
+                        ctx.request_repaint();
+                        return;
                     }
-                    Err(e) => {
-                        tracing::warn!(tab_id = %tab_id, db = %db, schema = %schema, table = %table, error = %e.message, "load_structure: failed");
-                    }
+                },
+            };
+            match conn.describe_table(&db, &schema, &table).await {
+                Ok(columns) => {
+                    tracing::debug!(tab_id = %tab_id, column_count = columns.len(), "load_structure: success");
+                    let _ = tx.send(AppEvent::StructureLoaded { tab_id, columns });
                 }
-                ctx.request_repaint();
-            });
-        } else {
-            tracing::warn!(tab_id = %tab_id, "load_structure: no active connection");
+                Err(e) => {
+                    tracing::warn!(tab_id = %tab_id, db = %db, schema = %schema, table = %table, error = %e.message, "load_structure: failed");
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
+    async fn open_db_conn(
+        base_config: Option<crate::core::connections::model::Connection>,
+        db: &str,
+        tx: &mpsc::SyncSender<AppEvent>,
+    ) -> Option<Arc<dyn ActiveConnection>> {
+        let mut cfg = base_config?;
+        cfg.database = db.to_string();
+        tracing::debug!(db = %db, "opening connection for database");
+        match crate::core::drivers::connect(&cfg).await {
+            Ok(conn) => {
+                let conn: Arc<dyn ActiveConnection> = Arc::from(conn);
+                let _ = tx.send(AppEvent::DbConnected { db: db.to_string(), conn: conn.clone() });
+                Some(conn)
+            }
+            Err(e) => {
+                tracing::warn!(db = %db, error = %e.message, "failed to open db connection");
+                None
+            }
         }
     }
 
