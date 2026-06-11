@@ -158,7 +158,10 @@ impl YssvApp {
                 self.error_modal = Some(message);
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
             }
-            AppEvent::TestOk { conn_id, latency_ms } => {
+            AppEvent::TestOk {
+                conn_id,
+                latency_ms,
+            } => {
                 tracing::debug!(conn_id = %conn_id, latency_ms, "test connection ok");
                 self.conn_page.test_status =
                     crate::pages::connections::state::TestStatus::Ok(latency_ms);
@@ -326,7 +329,10 @@ impl YssvApp {
             match crate::core::drivers::connect(&conn).await {
                 Ok(_) => {
                     let latency_ms = start.elapsed().as_millis() as u64;
-                    let _ = tx.send(AppEvent::TestOk { conn_id, latency_ms });
+                    let _ = tx.send(AppEvent::TestOk {
+                        conn_id,
+                        latency_ms,
+                    });
                 }
                 Err(e) => {
                     let hint = e.install_hint().unwrap_or("").to_string();

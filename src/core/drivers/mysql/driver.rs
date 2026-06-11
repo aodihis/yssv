@@ -126,7 +126,6 @@ impl ActiveConnection for MyConnection {
             });
         }
 
-        use sqlx::Row;
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
             .map(|row| {
@@ -199,7 +198,9 @@ fn is_temporal(data_type: &str) -> bool {
 
 fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
     use sqlx::Row;
-    if let Ok(v) = row.try_get::<Option<String>, _>(i) { return v }
+    if let Ok(v) = row.try_get::<Option<String>, _>(i) {
+        return v;
+    }
     if let Ok(Some(v)) = row.try_get::<Option<i64>, _>(i) {
         return Some(v.to_string());
     }

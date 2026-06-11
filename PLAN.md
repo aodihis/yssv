@@ -72,7 +72,7 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 
 - [x] Wire "Connect" → store live `ActiveConnection` in app state
 - [x] Sidebar tree: load schemas lazily on database node expand
-- [ ] Table row counts: show real counts in sidebar (use `reltuples` estimate for PG)
+- [x] Table row counts: show real counts in sidebar (use `reltuples` estimate for PG)
 - [x] Structure view: render `describe_table` output in the data grid
 - [x] Column type annotations in grid headers (PK / FK markers)
 - [x] Row selection and highlight
@@ -84,13 +84,11 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 ### Phase 3 — Connection UX Polish
 **Goal**: Full connection management workflow.
 
-- [ ] Delete connection (with confirmation)
-- [ ] Duplicate connection
+- [x] Delete connection (with confirmation)
+- [x] Duplicate connection
 - [ ] Drag-and-drop reorder within/across groups
-- [ ] Favorite connections pinned to top
-- [ ] Test Connection button shows real latency
+- [x] Test Connection button shows real latency
 - [ ] Group rename
-- [ ] Export/import connections as JSON
 
 ---
 

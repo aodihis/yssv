@@ -1,7 +1,7 @@
+use crate::pages::connections::state::TestStatus;
 use crate::theme::ThemeColors;
 use crate::ui::atoms::icon::{Icon, icon_image, svg_icon};
 use egui::RichText;
-use crate::pages::connections::state::TestStatus;
 
 pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let ctx = ui.ctx().clone();
@@ -244,11 +244,10 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::new(1.0, tc.field_border))
                         .min_size(egui::vec2(32.0, 32.0));
-                        if ui.add(del_btn).clicked() {
-                            if let Some(id) = app.conn_page.selected_id.clone() {
+                        if ui.add(del_btn).clicked()
+                            && let Some(id) = app.conn_page.selected_id.clone() {
                                 app.conn_page.pending_delete = Some(id);
                             }
-                        }
 
                         ui.add_space(4.0);
 

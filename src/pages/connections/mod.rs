@@ -73,33 +73,31 @@ fn render_delete_confirm(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
                     // Trash icon in a tinted circle
                     ui.vertical_centered(|ui| {
-                        let (rect, _) = ui.allocate_exact_size(
-                            egui::vec2(44.0, 44.0),
-                            egui::Sense::hover(),
-                        );
+                        let (rect, _) =
+                            ui.allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
                         let icon_bg = egui::Color32::from_rgba_unmultiplied(
                             tc.error.r(),
                             tc.error.g(),
                             tc.error.b(),
                             30,
                         );
-                        ui.painter()
-                            .circle_filled(rect.center(), 22.0, icon_bg);
+                        ui.painter().circle_filled(rect.center(), 22.0, icon_bg);
                         ui.painter().circle_stroke(
                             rect.center(),
                             22.0,
-                            egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(
-                                tc.error.r(),
-                                tc.error.g(),
-                                tc.error.b(),
-                                60,
-                            )),
+                            egui::Stroke::new(
+                                1.0,
+                                egui::Color32::from_rgba_unmultiplied(
+                                    tc.error.r(),
+                                    tc.error.g(),
+                                    tc.error.b(),
+                                    60,
+                                ),
+                            ),
                         );
                         // Inline trash icon via image
-                        let icon_rect = egui::Rect::from_center_size(
-                            rect.center(),
-                            egui::vec2(20.0, 20.0),
-                        );
+                        let icon_rect =
+                            egui::Rect::from_center_size(rect.center(), egui::vec2(20.0, 20.0));
                         let (bytes, uri) = (
                             egui::load::Bytes::Static(include_bytes!(
                                 "../../../assets/icons/trash-2.svg"
@@ -150,38 +148,35 @@ fn render_delete_confirm(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     ui.add_space(16.0);
 
                     ui.horizontal(|ui| {
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                let del = egui::Button::new(
-                                    egui::RichText::new("Delete")
-                                        .size(13.0)
-                                        .color(egui::Color32::WHITE),
-                                )
-                                .fill(tc.error)
-                                .stroke(egui::Stroke::NONE)
-                                .corner_radius(6.0)
-                                .min_size(egui::vec2(80.0, 32.0));
-                                if ui.add(del).clicked() {
-                                    confirmed = true;
-                                }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let del = egui::Button::new(
+                                egui::RichText::new("Delete")
+                                    .size(13.0)
+                                    .color(egui::Color32::WHITE),
+                            )
+                            .fill(tc.error)
+                            .stroke(egui::Stroke::NONE)
+                            .corner_radius(6.0)
+                            .min_size(egui::vec2(80.0, 32.0));
+                            if ui.add(del).clicked() {
+                                confirmed = true;
+                            }
 
-                                ui.add_space(8.0);
+                            ui.add_space(8.0);
 
-                                let cancel = egui::Button::new(
-                                    egui::RichText::new("Cancel")
-                                        .size(13.0)
-                                        .color(tc.text_primary),
-                                )
-                                .fill(tc.background)
-                                .stroke(egui::Stroke::new(1.0, tc.field_border))
-                                .corner_radius(6.0)
-                                .min_size(egui::vec2(80.0, 32.0));
-                                if ui.add(cancel).clicked() {
-                                    cancelled = true;
-                                }
-                            },
-                        );
+                            let cancel = egui::Button::new(
+                                egui::RichText::new("Cancel")
+                                    .size(13.0)
+                                    .color(tc.text_primary),
+                            )
+                            .fill(tc.background)
+                            .stroke(egui::Stroke::new(1.0, tc.field_border))
+                            .corner_radius(6.0)
+                            .min_size(egui::vec2(80.0, 32.0));
+                            if ui.add(cancel).clicked() {
+                                cancelled = true;
+                            }
+                        });
                     });
                 });
         });
