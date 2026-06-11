@@ -1,6 +1,7 @@
 use crate::app::Screen;
 use crate::core::schema::model::TableKind;
 use crate::theme::{self, ThemeColors, colors};
+use crate::ui::atoms::icon::Icon;
 use crate::ui::atoms::input::text_input;
 use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
 use egui::RichText;
@@ -111,12 +112,12 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             let resp = tree_row(
                 ui,
                 TreeRowConfig {
-                    label: db_name,
+                    label: db_name.clone(),
                     level: 0,
                     is_leaf: false,
                     is_open: *db_open,
                     is_active: *is_active,
-                    icon: "🗄",
+                    icon: Icon::Database,
                     icon_color: if *is_active { Some(accent_color) } else { None },
                     count: None,
                     pill: None,
@@ -131,12 +132,12 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 let resp = tree_row(
                     ui,
                     TreeRowConfig {
-                        label: schema_name,
+                        label: schema_name.clone(),
                         level: 1,
                         is_leaf: false,
                         is_open: *sc_open,
                         is_active: false,
-                        icon: "◫",
+                        icon: Icon::Layers,
                         icon_color: None,
                         count: Some(tables.len().to_string()),
                         pill: None,
@@ -158,15 +159,15 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     let resp = tree_row(
                         ui,
                         TreeRowConfig {
-                            label: table_name,
+                            label: table_name.clone(),
                             level: 2,
                             is_leaf: true,
                             is_open: false,
                             is_active: *active_table,
-                            icon: if is_view { "⊡" } else { "▦" },
+                            icon: if is_view { Icon::Eye } else { Icon::Table2 },
                             icon_color: if is_view { Some(colors::PURPLE) } else { None },
                             count: if is_view { None } else { count_str },
-                            pill: if is_view { Some("VIEW") } else { None },
+                            pill: if is_view { Some("VIEW".to_string()) } else { None },
                         },
                     );
                     if resp.clicked() {

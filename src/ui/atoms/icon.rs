@@ -1,5 +1,6 @@
 use egui::{Color32, Response, Ui, Vec2};
 
+#[derive(Copy, Clone)]
 pub enum Icon {
     ChevronRight,
     ChevronDown,
@@ -8,6 +9,10 @@ pub enum Icon {
     Plug2,
     CornerDownLeft,
     Trash2,
+    Database,
+    Layers,
+    Table2,
+    Eye,
 }
 
 impl Icon {
@@ -40,6 +45,22 @@ impl Icon {
             Icon::Trash2 => (
                 include_bytes!("../../../assets/icons/trash-2.svg"),
                 "bytes://icon/trash-2.svg",
+            ),
+            Icon::Database => (
+                include_bytes!("../../../assets/icons/database.svg"),
+                "bytes://icon/database.svg",
+            ),
+            Icon::Layers => (
+                include_bytes!("../../../assets/icons/layers.svg"),
+                "bytes://icon/layers.svg",
+            ),
+            Icon::Table2 => (
+                include_bytes!("../../../assets/icons/table-2.svg"),
+                "bytes://icon/table-2.svg",
+            ),
+            Icon::Eye => (
+                include_bytes!("../../../assets/icons/eye.svg"),
+                "bytes://icon/eye.svg",
             ),
         }
     }
