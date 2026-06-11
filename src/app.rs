@@ -20,7 +20,7 @@ pub enum AppEvent {
         default_db: String,
         databases: Vec<DbInfo>,
         connection: Arc<dyn ActiveConnection>,
-        conn_config: crate::core::connections::model::Connection,
+        conn_config: Box<crate::core::connections::model::Connection>,
     },
     ConnectError {
         conn_id: String,
@@ -142,7 +142,7 @@ impl YssvApp {
                 );
                 self.db_conns.clear();
                 self.db_conns.insert(default_db.clone(), connection);
-                self.conn_config = Some(conn_config);
+                self.conn_config = Some(*conn_config);
                 let explorer = ExplorerState::new(conn_id, conn_name, &default_db, databases);
                 let load_db = explorer.active_db.clone();
                 self.explorer = Some(explorer);
@@ -278,7 +278,7 @@ impl YssvApp {
                                 default_db,
                                 databases,
                                 connection,
-                                conn_config: conn.clone(),
+                                conn_config: Box::new(conn.clone()),
                             });
                         }
                         Err(e) => {

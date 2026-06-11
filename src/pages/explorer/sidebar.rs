@@ -213,8 +213,8 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         // not on the next input event (which could be delayed in reactive mode).
         ctx.request_repaint();
         if !was_open {
-            if key.starts_with("db:") {
-                let db_name = key["db:".len()..].to_string();
+            if let Some(stripped) = key.strip_prefix("db:") {
+                let db_name = stripped.to_string();
                 if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
                     && db.schemas.is_empty()
                 {
