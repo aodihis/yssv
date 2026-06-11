@@ -83,6 +83,51 @@ Named color constants (connection labels, icons) live in `crate::theme::colors`.
 
 ---
 
+## Logging
+
+The project uses `tracing` crate. Every non-trivial operation MUST have log coverage. Missing logs are a bug, not a style choice — they make production issues impossible to diagnose.
+
+### Level rules
+
+| Level | Use for |
+|---|---|
+| `tracing::error!` | Unrecoverable failures — things that should never happen |
+| `tracing::warn!` | Recoverable errors, unexpected-but-handled states (e.g. no active connection, event for unknown id) |
+| `tracing::info!` | Important user-visible transitions: connected, schemas loaded, rows loaded, connection saved/deleted |
+| `tracing::debug!` | Internal state changes, function entry for async ops, counts, decisions |
+
+### Required log points
+
+**Every async operation** must log at entry (`debug!`) and on both success (`info!` or `debug!`) and failure (`warn!` or `error!`):
+```rust
+tracing::debug!(db = %db, "load_schemas: requested");
+// ... spawn ...
+tracing::debug!(db = %db, "load_schemas: starting async fetch");
+match result {
+    Ok(x)  => tracing::info!(db = %db, count = x.len(), "load_schemas: success"),
+    Err(e) => tracing::warn!(db = %db, error = %e.message, "load_schemas: failed"),
+}
+```
+
+**Every `apply_event` arm** must log the key fields of the event.
+
+**Every guard / early-return** for missing state must log a `warn!` explaining why:
+```rust
+} else {
+    tracing::warn!(db = %db, "SchemasLoaded: no matching database in explorer");
+}
+```
+
+### Field naming conventions
+
+Always include relevant context fields — don't log bare messages:
+- `conn_id = %id` on all connection-related events
+- `db = %db`, `schema = %schema`, `table = %table` on DB operations
+- `count = n` or `row_count = n` on result sets
+- `error = %e.message` on failures
+
+---
+
 ## Testing
 
 ```
@@ -97,7 +142,7 @@ Write unit tests in-module with `#[cfg(test)]`. Test public functions; don't tes
 
 ## Remaining Phase 2 Work
 
-- [ ] Table row counts in sidebar (PG: `reltuples` estimate via `pg_class`)
+- [x] Table row counts in sidebar (PG: `reltuples` via `pg_class` LEFT JOIN; MySQL: `TABLE_ROWS`)
 - [ ] Connection status indicator (latency ping in explorer footer)
 
 ## Phase 3 Next

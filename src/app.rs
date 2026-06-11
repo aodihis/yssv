@@ -16,6 +16,7 @@ pub enum AppEvent {
     Connected {
         conn_id: String,
         conn_name: String,
+        default_db: String,
         databases: Vec<DbInfo>,
         connection: Arc<dyn ActiveConnection>,
     },
@@ -116,19 +117,19 @@ impl YssvApp {
             AppEvent::Connected {
                 conn_id,
                 conn_name,
+                default_db,
                 databases,
                 connection,
             } => {
-                tracing::info!(conn_id = %conn_id, conn = %conn_name, databases = databases.len(), "connected");
+                tracing::info!(
+                    conn_id = %conn_id, conn = %conn_name,
+                    default_db = %default_db, db_count = databases.len(), "connected"
+                );
                 self.active_conn = Some(connection);
-                let first_db = databases.first().map(|d| d.name.clone());
-                self.explorer = Some(ExplorerState::new(conn_id, conn_name, databases));
+                self.explorer = Some(ExplorerState::new(conn_id, conn_name, &default_db, databases));
                 self.screen = Screen::Explorer;
-                // The first DB is pre-opened in ExplorerState but schemas aren't loaded yet —
-                // trigger the initial load here so the tree is populated on first view.
-                if let Some(db_name) = first_db {
-                    self.load_schemas(ctx.clone(), db_name);
-                }
+                tracing::debug!(db = %default_db, "auto-loading schemas for connected database");
+                self.load_schemas(ctx.clone(), default_db);
             }
             AppEvent::ConnectError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "connection failed");
@@ -162,11 +163,20 @@ impl YssvApp {
                 self.error_modal = Some(message);
             }
             AppEvent::SchemasLoaded { db, schemas } => {
-                tracing::debug!(db = %db, schemas = schemas.len(), "schemas loaded");
-                if let Some(explorer) = &mut self.explorer
-                    && let Some(db_info) = explorer.databases.iter_mut().find(|d| d.name == db) {
+                tracing::info!(db = %db, schema_count = schemas.len(), "schemas loaded");
+                for s in &schemas {
+                    tracing::debug!(db = %db, schema = %s.name, table_count = s.tables.len(), "schema ready");
+                }
+                if let Some(explorer) = &mut self.explorer {
+                    if let Some(db_info) = explorer.databases.iter_mut().find(|d| d.name == db) {
                         db_info.schemas = schemas;
+                        tracing::debug!(db = %db, "explorer database updated with schemas");
+                    } else {
+                        tracing::warn!(db = %db, "SchemasLoaded: no matching database in explorer");
                     }
+                } else {
+                    tracing::warn!(db = %db, "SchemasLoaded: explorer is None");
+                }
             }
             AppEvent::StructureLoaded { tab_id, columns } => {
                 tracing::debug!(tab_id = %tab_id, columns = columns.len(), "structure loaded");
@@ -190,9 +200,14 @@ impl YssvApp {
         self.rt.spawn(async move {
             let conn_id = conn.id.clone();
             let conn_name = conn.name.clone();
+            let default_db = conn.database.clone();
             match crate::core::drivers::connect(&conn).await {
                 Ok(active) => match active.list_databases().await {
                     Ok(dbs) => {
+                        tracing::info!(
+                            conn_id = %conn_id, db_count = dbs.len(),
+                            default_db = %default_db, "database list loaded"
+                        );
                         let databases = dbs
                             .into_iter()
                             .map(|name| crate::core::schema::model::DbInfo {
@@ -204,6 +219,7 @@ impl YssvApp {
                         let _ = tx.send(AppEvent::Connected {
                             conn_id,
                             conn_name,
+                            default_db,
                             databases,
                             connection,
                         });
@@ -304,20 +320,25 @@ impl YssvApp {
     }
 
     pub fn load_schemas(&self, ctx: egui::Context, db: String) {
+        tracing::debug!(db = %db, "load_schemas: requested");
         if let Some(conn) = &self.active_conn {
             let conn = conn.clone();
             let tx = self.event_tx.clone();
             self.rt.spawn(async move {
+                tracing::debug!(db = %db, "load_schemas: starting async fetch");
                 match conn.list_schemas(&db).await {
                     Ok(schemas) => {
+                        tracing::info!(db = %db, count = schemas.len(), "load_schemas: success");
                         let _ = tx.send(AppEvent::SchemasLoaded { db, schemas });
                     }
                     Err(e) => {
-                        tracing::warn!(error = %e.message, "load schemas failed");
+                        tracing::warn!(db = %db, error = %e.message, "load_schemas: failed");
                     }
                 }
                 ctx.request_repaint();
             });
+        } else {
+            tracing::warn!(db = %db, "load_schemas: no active connection, skipping");
         }
     }
 
@@ -329,20 +350,24 @@ impl YssvApp {
         schema: String,
         table: String,
     ) {
+        tracing::debug!(tab_id = %tab_id, db = %db, schema = %schema, table = %table, "load_structure: requested");
         if let Some(conn) = &self.active_conn {
             let conn = conn.clone();
             let tx = self.event_tx.clone();
             self.rt.spawn(async move {
                 match conn.describe_table(&db, &schema, &table).await {
                     Ok(columns) => {
+                        tracing::debug!(tab_id = %tab_id, column_count = columns.len(), "load_structure: success");
                         let _ = tx.send(AppEvent::StructureLoaded { tab_id, columns });
                     }
                     Err(e) => {
-                        tracing::warn!(error = %e.message, "describe table failed");
+                        tracing::warn!(tab_id = %tab_id, db = %db, schema = %schema, table = %table, error = %e.message, "load_structure: failed");
                     }
                 }
                 ctx.request_repaint();
             });
+        } else {
+            tracing::warn!(tab_id = %tab_id, "load_structure: no active connection");
         }
     }
 

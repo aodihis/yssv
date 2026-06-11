@@ -116,15 +116,22 @@ pub struct ExplorerState {
 }
 
 impl ExplorerState {
-    pub fn new(conn_id: String, conn_name: String, databases: Vec<DbInfo>) -> Self {
-        let active_db = databases
-            .first()
-            .map(|d| d.name.clone())
-            .unwrap_or_default();
+    pub fn new(conn_id: String, conn_name: String, default_db: &str, databases: Vec<DbInfo>) -> Self {
+        // Pre-open the connected database (not just the first alphabetically).
+        // The connection pool is scoped to default_db, so schema queries
+        // always return data from that database.
+        let active_db = if databases.iter().any(|d| d.name == default_db) {
+            default_db.to_string()
+        } else {
+            databases.first().map(|d| d.name.clone()).unwrap_or_default()
+        };
+        tracing::debug!(
+            conn_id = %conn_id, default_db = %default_db,
+            active_db = %active_db, db_count = databases.len(),
+            "ExplorerState created"
+        );
         let mut open_nodes = HashSet::new();
-        if let Some(db) = databases.first() {
-            open_nodes.insert(format!("db:{}", db.name));
-        }
+        open_nodes.insert(format!("db:{}", active_db));
         Self {
             conn_id,
             conn_name,
@@ -234,7 +241,7 @@ mod tests {
 
     #[test]
     fn toggle_node_opens_and_closes() {
-        let mut state = ExplorerState::new("id".into(), "name".into(), make_db());
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
         let key = "sc:public";
         assert!(!state.is_open(key));
         state.toggle_node(key);
@@ -245,7 +252,7 @@ mod tests {
 
     #[test]
     fn filter_reduces_visible_tables() {
-        let mut state = ExplorerState::new("id".into(), "name".into(), make_db());
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
         state.filter = "user".into();
         let tables = state.filtered_tables("public");
         assert_eq!(tables.len(), 1);
