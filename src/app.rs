@@ -111,7 +111,7 @@ impl YssvApp {
         }
     }
 
-    fn apply_event(&mut self, event: AppEvent, _ctx: &egui::Context) {
+    fn apply_event(&mut self, event: AppEvent, ctx: &egui::Context) {
         match event {
             AppEvent::Connected {
                 conn_id,
@@ -121,8 +121,14 @@ impl YssvApp {
             } => {
                 tracing::info!(conn_id = %conn_id, conn = %conn_name, databases = databases.len(), "connected");
                 self.active_conn = Some(connection);
+                let first_db = databases.first().map(|d| d.name.clone());
                 self.explorer = Some(ExplorerState::new(conn_id, conn_name, databases));
                 self.screen = Screen::Explorer;
+                // The first DB is pre-opened in ExplorerState but schemas aren't loaded yet —
+                // trigger the initial load here so the tree is populated on first view.
+                if let Some(db_name) = first_db {
+                    self.load_schemas(ctx.clone(), db_name);
+                }
             }
             AppEvent::ConnectError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "connection failed");

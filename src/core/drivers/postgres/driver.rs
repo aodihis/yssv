@@ -60,11 +60,14 @@ impl ActiveConnection for PgConnection {
 
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
         tracing::debug!(schema, "postgres: list_tables");
-        let rows = sqlx::query_as::<_, (String, String)>(
-            "SELECT table_name, table_type
-             FROM information_schema.tables
-             WHERE table_schema = $1
-             ORDER BY table_name",
+        let rows = sqlx::query_as::<_, (String, String, Option<i64>)>(
+            "SELECT t.table_name, t.table_type,
+                    CASE WHEN c.reltuples < 0 THEN NULL ELSE c.reltuples::bigint END
+             FROM information_schema.tables t
+             LEFT JOIN pg_namespace n ON n.nspname = t.table_schema
+             LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid
+             WHERE t.table_schema = $1
+             ORDER BY t.table_name",
         )
         .bind(schema)
         .fetch_all(&self.pool)
@@ -72,7 +75,7 @@ impl ActiveConnection for PgConnection {
 
         let tables: Vec<TableInfo> = rows
             .into_iter()
-            .map(|(name, ttype)| {
+            .map(|(name, ttype, row_count)| {
                 let kind = if ttype == "VIEW" {
                     TableKind::View
                 } else {
@@ -81,7 +84,7 @@ impl ActiveConnection for PgConnection {
                 TableInfo {
                     name,
                     kind,
-                    row_count: None,
+                    row_count: row_count.map(|n| n as u64),
                 }
             })
             .collect();
