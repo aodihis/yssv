@@ -243,6 +243,16 @@ impl ConnectionsPageState {
         }
     }
 
+    /// Sorted deduplicated list of all group names across saved connections.
+    pub fn groups(&self) -> Vec<String> {
+        self.connections
+            .iter()
+            .map(|c| c.group.clone())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+
     /// Groups with their connections (filtered by search_query).
     pub fn grouped_connections(&self) -> Vec<(String, Vec<&Connection>)> {
         let q = self.search_query.to_lowercase();

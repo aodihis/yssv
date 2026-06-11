@@ -9,6 +9,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     use crate::pages::connections::state::SaveStatus;
     use crate::pages::connections::state::SshAuthMethod;
     use crate::ui::atoms::dropdown::dropdown;
+    use crate::ui::atoms::group_input::group_input;
     use crate::ui::atoms::input::{file_input, password_input, text_input};
     use crate::ui::atoms::light_switch::light_switch;
     use crate::ui::molecules::color_picker::color_picker;
@@ -43,7 +44,8 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
                     ui.vertical(|ui| {
                         field_label(ui, "Group", &tc);
-                        text_input(ui, &mut app.conn_page.form.group, "Local", None);
+                        let groups = app.conn_page.groups();
+                        group_input(ui, &mut app.conn_page.form.group, &groups);
                     });
 
                 });
