@@ -12,6 +12,7 @@ pub use error::DbError;
 
 #[async_trait]
 pub trait ActiveConnection: Send + Sync {
+    async fn current_database(&self) -> Result<String, DbError>;
     async fn list_databases(&self) -> Result<Vec<String>, DbError>;
     async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError>;
     async fn list_tables(&self, db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError>;

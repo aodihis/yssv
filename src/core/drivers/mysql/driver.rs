@@ -29,6 +29,14 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
 
 #[async_trait]
 impl ActiveConnection for MyConnection {
+    async fn current_database(&self) -> Result<String, DbError> {
+        let db = sqlx::query_scalar::<_, String>("SELECT DATABASE()")
+            .fetch_one(&self.pool)
+            .await?;
+        tracing::debug!(db = %db, "mysql: current_database");
+        Ok(db)
+    }
+
     async fn list_databases(&self) -> Result<Vec<String>, DbError> {
         let rows = sqlx::query_scalar::<_, String>("SHOW DATABASES")
             .fetch_all(&self.pool)
@@ -159,7 +167,12 @@ impl ActiveConnection for MyConnection {
                 nullable: nullable == "YES",
             })
             .collect();
-        tracing::debug!(schema, table, columns = cols.len(), "mysql: describe_table done");
+        tracing::debug!(
+            schema,
+            table,
+            columns = cols.len(),
+            "mysql: describe_table done"
+        );
         Ok(cols)
     }
 }

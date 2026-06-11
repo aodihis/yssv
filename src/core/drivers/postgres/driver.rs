@@ -29,6 +29,14 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
 
 #[async_trait]
 impl ActiveConnection for PgConnection {
+    async fn current_database(&self) -> Result<String, DbError> {
+        let db = sqlx::query_scalar::<_, String>("SELECT current_database()")
+            .fetch_one(&self.pool)
+            .await?;
+        tracing::debug!(db = %db, "postgres: current_database");
+        Ok(db)
+    }
+
     async fn list_databases(&self) -> Result<Vec<String>, DbError> {
         let rows = sqlx::query_scalar::<_, String>(
             "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname",
@@ -61,11 +69,17 @@ impl ActiveConnection for PgConnection {
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
         tracing::debug!(schema, "postgres: list_tables");
         let rows = sqlx::query_as::<_, (String, String, Option<i64>)>(
-            "SELECT t.table_name, t.table_type,
-                    CASE WHEN c.reltuples < 0 THEN NULL ELSE c.reltuples::bigint END
+            "SELECT t.table_name,
+                    t.table_type,
+                    (SELECT CASE WHEN c.reltuples < 0 THEN NULL
+                                 ELSE c.reltuples::bigint END
+                     FROM pg_class c
+                     JOIN pg_namespace n ON c.relnamespace = n.oid
+                     WHERE n.nspname = t.table_schema
+                       AND c.relname = t.table_name
+                       AND c.relkind IN ('r','v','m','p','f')
+                     LIMIT 1) AS row_count
              FROM information_schema.tables t
-             LEFT JOIN pg_namespace n ON n.nspname = t.table_schema
-             LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid
              WHERE t.table_schema = $1
              ORDER BY t.table_name",
         )
@@ -187,7 +201,12 @@ impl ActiveConnection for PgConnection {
                 nullable: nullable == "YES",
             })
             .collect();
-        tracing::debug!(schema, table, columns = cols.len(), "postgres: describe_table done");
+        tracing::debug!(
+            schema,
+            table,
+            columns = cols.len(),
+            "postgres: describe_table done"
+        );
         Ok(cols)
     }
 }

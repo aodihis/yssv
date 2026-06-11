@@ -126,10 +126,18 @@ impl YssvApp {
                     default_db = %default_db, db_count = databases.len(), "connected"
                 );
                 self.active_conn = Some(connection);
-                self.explorer = Some(ExplorerState::new(conn_id, conn_name, &default_db, databases));
+                self.explorer = Some(ExplorerState::new(
+                    conn_id,
+                    conn_name,
+                    &default_db,
+                    databases,
+                ));
                 self.screen = Screen::Explorer;
-                tracing::debug!(db = %default_db, "auto-loading schemas for connected database");
-                self.load_schemas(ctx.clone(), default_db);
+                // Use the resolved active_db (ExplorerState picks the first DB when
+                // default_db is empty) so load_schemas has a real DB name to match against.
+                let load_db = self.explorer.as_ref().unwrap().active_db.clone();
+                tracing::debug!(db = %load_db, "auto-loading schemas for connected database");
+                self.load_schemas(ctx.clone(), load_db);
             }
             AppEvent::ConnectError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "connection failed");
@@ -148,18 +156,20 @@ impl YssvApp {
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
-                        tab.result = Some(result);
-                        tab.loading = false;
-                    }
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                {
+                    tab.result = Some(result);
+                    tab.loading = false;
+                }
             }
             AppEvent::RowLoadError { tab_id, message } => {
                 tracing::warn!(tab_id = %tab_id, error = %message, "row load failed");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
-                        tab.loading = false;
-                        tab.result = None;
-                    }
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                {
+                    tab.loading = false;
+                    tab.result = None;
+                }
                 self.error_modal = Some(message);
             }
             AppEvent::SchemasLoaded { db, schemas } => {
@@ -181,10 +191,11 @@ impl YssvApp {
             AppEvent::StructureLoaded { tab_id, columns } => {
                 tracing::debug!(tab_id = %tab_id, columns = columns.len(), "structure loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id) {
-                        tab.structure = Some(columns);
-                        tab.structure_loading = false;
-                    }
+                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                {
+                    tab.structure = Some(columns);
+                    tab.structure_loading = false;
+                }
             }
         }
     }
@@ -200,43 +211,72 @@ impl YssvApp {
         self.rt.spawn(async move {
             let conn_id = conn.id.clone();
             let conn_name = conn.name.clone();
-            let default_db = conn.database.clone();
+            let configured_db = conn.database.clone();
+            let user_specified_db = !configured_db.is_empty();
             match crate::core::drivers::connect(&conn).await {
-                Ok(active) => match active.list_databases().await {
-                    Ok(dbs) => {
-                        tracing::info!(
-                            conn_id = %conn_id, db_count = dbs.len(),
-                            default_db = %default_db, "database list loaded"
-                        );
-                        let databases = dbs
-                            .into_iter()
-                            .map(|name| crate::core::schema::model::DbInfo {
-                                name,
-                                schemas: vec![],
-                            })
-                            .collect();
-                        let connection: Arc<dyn ActiveConnection> = Arc::from(active);
-                        let _ = tx.send(AppEvent::Connected {
-                            conn_id,
-                            conn_name,
-                            default_db,
-                            databases,
-                            connection,
-                        });
+                Ok(active) => {
+                    let default_db = if configured_db.is_empty() {
+                        match active.current_database().await {
+                            Ok(db) => {
+                                tracing::debug!(db = %db, "resolved current_database for empty config");
+                                db
+                            }
+                            Err(e) => {
+                                tracing::warn!(error = %e.message, "current_database failed, falling back to empty");
+                                configured_db
+                            }
+                        }
+                    } else {
+                        configured_db
+                    };
+                    match active.list_databases().await {
+                        Ok(dbs) => {
+                            tracing::info!(
+                                conn_id = %conn_id, db_count = dbs.len(),
+                                default_db = %default_db, "database list loaded"
+                            );
+                                // When the user specified a database, only expose that one.
+                            // The connection pool is scoped to it, so other databases
+                            // can't be queried for schemas anyway.
+                            // Use configured_db (not the resolved default_db) so that
+                            // an empty form field still shows all databases.
+                            let databases: Vec<DbInfo> =
+                                if user_specified_db {
+                                    vec![DbInfo {
+                                        name: default_db.clone(),
+                                        schemas: vec![],
+                                    }]
+                                } else {
+                                    dbs.into_iter()
+                                        .map(|name| DbInfo {
+                                            name,
+                                            schemas: vec![],
+                                        })
+                                        .collect()
+                                };
+                            let connection: Arc<dyn ActiveConnection> = Arc::from(active);
+                            let _ = tx.send(AppEvent::Connected {
+                                conn_id,
+                                conn_name,
+                                default_db,
+                                databases,
+                                connection,
+                            });
+                        }
+                        Err(e) => {
+                            let hint = e.install_hint().unwrap_or("").to_string();
+                            let msg = if hint.is_empty() {
+                                e.message.clone()
+                            } else {
+                                format!("{}\n\n{}", e.message, hint)
+                            };
+                            let _ = tx.send(AppEvent::ConnectError {
+                                conn_id,
+                                message: msg,
+                            });
+                        }
                     }
-                    Err(e) => {
-                        let hint = e.install_hint().unwrap_or("").to_string();
-                        let msg = if hint.is_empty() {
-                            e.message.clone()
-                        } else {
-                            format!("{}\n\n{}", e.message, hint)
-                        };
-                        let _ = tx.send(AppEvent::ConnectError {
-                            conn_id,
-                            message: msg,
-                        });
-                    }
-                },
+                }
                 Err(e) => {
                     let hint = e.install_hint().unwrap_or("").to_string();
                     let msg = if hint.is_empty() {
@@ -372,10 +412,12 @@ impl YssvApp {
     }
 
     pub fn save_connection(&mut self) {
+        use crate::pages::connections::state::SaveStatus;
         let c = self.conn_page.form.to_connection();
         tracing::debug!(conn_id = %c.id, name = %c.name, "saving connection");
         let _ = self.storage.save(&c);
         self.conn_page.apply_saved(c);
+        self.conn_page.save_status = SaveStatus::Saved;
     }
 
     pub fn delete_connection(&mut self, id: &str) {

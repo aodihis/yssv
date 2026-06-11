@@ -1,4 +1,7 @@
-use crate::core::{results::model::{ColumnDef, QueryResult}, schema::model::DbInfo};
+use crate::core::{
+    results::model::{ColumnDef, QueryResult},
+    schema::model::DbInfo,
+};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -116,14 +119,22 @@ pub struct ExplorerState {
 }
 
 impl ExplorerState {
-    pub fn new(conn_id: String, conn_name: String, default_db: &str, databases: Vec<DbInfo>) -> Self {
+    pub fn new(
+        conn_id: String,
+        conn_name: String,
+        default_db: &str,
+        databases: Vec<DbInfo>,
+    ) -> Self {
         // Pre-open the connected database (not just the first alphabetically).
         // The connection pool is scoped to default_db, so schema queries
         // always return data from that database.
         let active_db = if databases.iter().any(|d| d.name == default_db) {
             default_db.to_string()
         } else {
-            databases.first().map(|d| d.name.clone()).unwrap_or_default()
+            databases
+                .first()
+                .map(|d| d.name.clone())
+                .unwrap_or_default()
         };
         tracing::debug!(
             conn_id = %conn_id, default_db = %default_db,
@@ -201,6 +212,15 @@ mod tests {
         }]
     }
 
+    fn make_empty_db() -> Vec<DbInfo> {
+        vec![DbInfo {
+            name: "mydb".into(),
+            schemas: vec![],
+        }]
+    }
+
+    // --- TabState tests ---
+
     #[test]
     fn open_tab_activates_existing() {
         let mut ts = TabState::default();
@@ -239,16 +259,107 @@ mod tests {
         assert!(tab.can_go_prev());
     }
 
+    // --- ExplorerState: open_nodes ---
+
+    #[test]
+    fn default_db_is_pre_opened() {
+        let state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        assert!(state.is_open("db:mydb"), "connected db must be pre-opened");
+    }
+
+    #[test]
+    fn non_default_db_not_pre_opened() {
+        let dbs = vec![
+            DbInfo {
+                name: "alpha".into(),
+                schemas: vec![],
+            },
+            DbInfo {
+                name: "mydb".into(),
+                schemas: vec![],
+            },
+        ];
+        let state = ExplorerState::new("id".into(), "name".into(), "mydb", dbs);
+        assert!(!state.is_open("db:alpha"), "other dbs must start closed");
+        assert!(state.is_open("db:mydb"));
+    }
+
+    #[test]
+    fn active_db_falls_back_to_first_when_default_missing() {
+        let dbs = vec![
+            DbInfo {
+                name: "alpha".into(),
+                schemas: vec![],
+            },
+            DbInfo {
+                name: "beta".into(),
+                schemas: vec![],
+            },
+        ];
+        let state = ExplorerState::new("id".into(), "name".into(), "missing", dbs);
+        assert_eq!(state.active_db, "alpha");
+        assert!(state.is_open("db:alpha"));
+    }
+
     #[test]
     fn toggle_node_opens_and_closes() {
         let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
-        let key = "sc:public";
+        let key = "sc:mydb:public";
         assert!(!state.is_open(key));
         state.toggle_node(key);
         assert!(state.is_open(key));
         state.toggle_node(key);
         assert!(!state.is_open(key));
     }
+
+    // --- ExplorerState: schema-loaded simulation (mirrors apply_event SchemasLoaded) ---
+
+    #[test]
+    fn schemas_loaded_event_populates_tables() {
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_empty_db());
+        assert_eq!(
+            state.filtered_tables("public").len(),
+            0,
+            "empty before load"
+        );
+
+        // Simulate what apply_event SchemasLoaded does
+        if let Some(db) = state.databases.iter_mut().find(|d| d.name == "mydb") {
+            db.schemas = vec![SchemaInfo {
+                name: "public".into(),
+                tables: vec![
+                    TableInfo {
+                        name: "users".into(),
+                        kind: TableKind::Table,
+                        row_count: Some(42),
+                    },
+                    TableInfo {
+                        name: "posts".into(),
+                        kind: TableKind::Table,
+                        row_count: None,
+                    },
+                ],
+            }];
+        }
+
+        let tables = state.filtered_tables("public");
+        assert_eq!(tables.len(), 2, "both tables visible after load");
+        assert_eq!(tables[0].name, "users");
+        assert_eq!(tables[1].name, "posts");
+    }
+
+    #[test]
+    fn schemas_loaded_wrong_db_name_is_noop() {
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_empty_db());
+
+        // Simulate SchemasLoaded arriving with a db name that doesn't match
+        let result = state.databases.iter_mut().find(|d| d.name == "wrongdb");
+        assert!(result.is_none(), "mismatch must not update any db");
+
+        assert_eq!(state.filtered_tables("public").len(), 0);
+    }
+
+    // --- ExplorerState: filter ---
 
     #[test]
     fn filter_reduces_visible_tables() {
@@ -257,5 +368,55 @@ mod tests {
         let tables = state.filtered_tables("public");
         assert_eq!(tables.len(), 1);
         assert_eq!(tables[0].name, "users");
+    }
+
+    #[test]
+    fn filter_is_case_insensitive() {
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        state.filter = "USER".into();
+        let tables = state.filtered_tables("public");
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, "users");
+    }
+
+    #[test]
+    fn empty_filter_shows_all_tables() {
+        let state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        let tables = state.filtered_tables("public");
+        assert_eq!(tables.len(), 2);
+    }
+
+    #[test]
+    fn filter_no_match_returns_empty() {
+        let mut state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        state.filter = "zzz_no_match".into();
+        let tables = state.filtered_tables("public");
+        assert_eq!(tables.len(), 0);
+    }
+
+    // --- schema count logic (mirrors what sidebar computes for the count badge) ---
+
+    #[test]
+    fn schema_table_count_correct_before_schema_open() {
+        let state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        let db = state.databases.iter().find(|d| d.name == "mydb").unwrap();
+        let sc = db.schemas.iter().find(|s| s.name == "public").unwrap();
+        // This mirrors the sidebar's filtered_count calculation for an empty filter
+        let count = sc.tables.len();
+        assert_eq!(count, 2, "count must reflect actual tables, not open-state");
+    }
+
+    #[test]
+    fn schema_table_count_with_filter() {
+        let state = ExplorerState::new("id".into(), "name".into(), "mydb", make_db());
+        let db = state.databases.iter().find(|d| d.name == "mydb").unwrap();
+        let sc = db.schemas.iter().find(|s| s.name == "public").unwrap();
+        let q = "user";
+        let count = sc
+            .tables
+            .iter()
+            .filter(|t| t.name.to_lowercase().contains(q))
+            .count();
+        assert_eq!(count, 1);
     }
 }

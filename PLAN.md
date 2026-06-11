@@ -101,7 +101,6 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 - [ ] New "Query" tab type (alongside table tabs)
 - [ ] Syntax-highlighted SQL editor (using `egui_code_editor` or similar)
 - [ ] Run query → display results in grid below editor
-- [ ] Query history (local SQLite log)
 - [ ] Multi-statement support
 - [ ] Error display with line/column highlight
 - [ ] Keyboard shortcut: Ctrl+Enter to run

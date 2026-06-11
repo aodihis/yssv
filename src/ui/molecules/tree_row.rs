@@ -35,22 +35,26 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     } else {
         Color32::TRANSPARENT
     };
-    ui.painter().rect_filled(rect, egui::CornerRadius::same(5u8), bg);
+    ui.painter()
+        .rect_filled(rect, egui::CornerRadius::same(5u8), bg);
     if cfg.is_active {
         let bar = egui::Rect::from_min_size(
             egui::pos2(rect.left(), rect.top() + 3.0),
             egui::vec2(2.5, rect.height() - 6.0),
         );
-        ui.painter().rect_filled(bar, egui::CornerRadius::same(3u8), tc.button_primary_bg);
+        ui.painter()
+            .rect_filled(bar, egui::CornerRadius::same(3u8), tc.button_primary_bg);
     }
 
     // Chevron SVG — paint_at does not advance the cursor
     if !cfg.is_leaf {
-        let chev_icon = if cfg.is_open { Icon::ChevronDown } else { Icon::ChevronRight };
-        let chev_rect = egui::Rect::from_center_size(
-            egui::pos2(x + 7.0, center_y),
-            Vec2::splat(10.0),
-        );
+        let chev_icon = if cfg.is_open {
+            Icon::ChevronDown
+        } else {
+            Icon::ChevronRight
+        };
+        let chev_rect =
+            egui::Rect::from_center_size(egui::pos2(x + 7.0, center_y), Vec2::splat(10.0));
         icon_image(chev_icon, 10.0, tc.text_disabled).paint_at(ui, chev_rect);
     }
     x += 14.0;
@@ -61,10 +65,7 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     } else {
         cfg.icon_color.unwrap_or(tc.text_secondary)
     };
-    let icon_rect = egui::Rect::from_center_size(
-        egui::pos2(x + 7.0, center_y),
-        Vec2::splat(13.0),
-    );
+    let icon_rect = egui::Rect::from_center_size(egui::pos2(x + 7.0, center_y), Vec2::splat(13.0));
     icon_image(cfg.icon, 13.0, icon_color).paint_at(ui, icon_rect);
     x += 16.0;
 
@@ -114,12 +115,7 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     let label_color = tc.text_primary;
     let label_font = FontId::proportional(12.5);
     let label_max_x = right_x - 28.0;
-    let label_galley = painter.layout(
-        cfg.label.clone(),
-        label_font,
-        label_color,
-        label_max_x - x,
-    );
+    let label_galley = painter.layout(cfg.label.clone(), label_font, label_color, label_max_x - x);
     painter.galley(
         egui::pos2(x, center_y - label_galley.size().y / 2.0),
         label_galley,

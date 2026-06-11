@@ -1,6 +1,6 @@
 use crate::core::connections::model::Connection;
 use crate::theme::ThemeColors;
-use crate::ui::atoms::icon::{icon_image, Icon};
+use crate::ui::atoms::icon::{Icon, icon_image};
 use egui::{Color32, FontId, Response, Ui, Vec2};
 
 pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
@@ -98,7 +98,10 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
             egui::pos2(badge_rect.left() - 18.0, center_y - icon_size / 2.0),
             egui::vec2(icon_size, icon_size),
         );
-        ui.put(icon_rect, icon_image(Icon::Terminal, icon_size, tc.text_disabled));
+        ui.put(
+            icon_rect,
+            icon_image(Icon::Terminal, icon_size, tc.text_disabled),
+        );
     }
 
     resp

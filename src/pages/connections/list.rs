@@ -1,6 +1,6 @@
 use crate::theme::{self, ThemeColors};
-use crate::ui::atoms::icon::{svg_icon, Icon};
 use crate::ui::atoms::button::compact_button;
+use crate::ui::atoms::icon::{Icon, svg_icon};
 use crate::ui::atoms::input::text_input;
 use egui::RichText;
 
@@ -61,7 +61,11 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             let header_resp = ui
                 .horizontal(|ui| {
                     ui.add_space(14.0);
-                    let chev = if collapsed { Icon::ChevronRight } else { Icon::ChevronDown };
+                    let chev = if collapsed {
+                        Icon::ChevronRight
+                    } else {
+                        Icon::ChevronDown
+                    };
                     svg_icon(ui, chev, 10.0, tc.text_disabled);
                     ui.add_space(3.0);
                     ui.label(
@@ -73,11 +77,10 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 })
                 .response
                 .interact(egui::Sense::click());
-            if header_resp.clicked() {
-                if !app.conn_page.collapsed_groups.remove(&group_name) {
+            if header_resp.clicked()
+                && !app.conn_page.collapsed_groups.remove(&group_name) {
                     app.conn_page.collapsed_groups.insert(group_name);
                 }
-            }
 
             if !collapsed {
                 ui.add_space(2.0);

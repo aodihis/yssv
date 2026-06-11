@@ -7,7 +7,7 @@ use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
 use egui::RichText;
 
 type TableRow = (String, TableKind, Option<u64>, bool);
-type SchemaRow = (String, bool, Vec<TableRow>);
+type SchemaRow = (String, bool, usize, Vec<TableRow>);
 type DbRow = (String, bool, bool, Vec<SchemaRow>);
 
 pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
@@ -47,6 +47,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let tree_data: Vec<DbRow> = {
         let e = app.explorer.as_ref().unwrap();
         let q = e.filter.to_lowercase();
+
         e.databases
             .iter()
             .map(|db| {
@@ -59,6 +60,14 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .map(|sc| {
                             let sc_key = format!("sc:{}:{}", db.name, sc.name);
                             let sc_open = e.is_open(&sc_key);
+                            let filtered_count = if q.is_empty() {
+                                sc.tables.len()
+                            } else {
+                                sc.tables
+                                    .iter()
+                                    .filter(|t| t.name.to_lowercase().contains(&q))
+                                    .count()
+                            };
                             let tables = if sc_open {
                                 sc.tables
                                     .iter()
@@ -79,7 +88,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             } else {
                                 vec![]
                             };
-                            (sc.name.clone(), sc_open, tables)
+                            (sc.name.clone(), sc_open, filtered_count, tables)
                         })
                         .collect()
                 } else {
@@ -127,7 +136,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 toggle_node = Some(db_key);
             }
 
-            for (schema_name, sc_open, tables) in schemas {
+            for (schema_name, sc_open, filtered_count, tables) in schemas {
                 let sc_key = format!("sc:{}:{}", db_name, schema_name);
                 let resp = tree_row(
                     ui,
@@ -139,7 +148,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         is_active: false,
                         icon: Icon::Layers,
                         icon_color: None,
-                        count: Some(tables.len().to_string()),
+                        count: Some(filtered_count.to_string()),
                         pill: None,
                     },
                 );
@@ -167,7 +176,11 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             icon: if is_view { Icon::Eye } else { Icon::Table2 },
                             icon_color: if is_view { Some(colors::PURPLE) } else { None },
                             count: if is_view { None } else { count_str },
-                            pill: if is_view { Some("VIEW".to_string()) } else { None },
+                            pill: if is_view {
+                                Some("VIEW".to_string())
+                            } else {
+                                None
+                            },
                         },
                     );
                     if resp.clicked() {
@@ -180,20 +193,33 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     });
 
     let mut load_schemas_for: Option<String> = None;
-    if let Some(ref key) = toggle_node {
-        if let Some(e) = &mut app.explorer {
+    if let Some(ref key) = toggle_node
+        && let Some(e) = &mut app.explorer {
             let was_open = e.is_open(key);
             e.toggle_node(key);
-            if !was_open && key.starts_with("db:") {
-                let db_name = key["db:".len()..].to_string();
-                if let Some(db) = e.databases.iter().find(|d| d.name == db_name) {
-                    if db.schemas.is_empty() {
-                        load_schemas_for = Some(db_name);
+            // Always repaint so the expanded/collapsed state renders on the very next frame,
+            // not on the next input event (which could be delayed in reactive mode).
+            ctx.request_repaint();
+            if !was_open {
+                if key.starts_with("db:") {
+                    let db_name = key["db:".len()..].to_string();
+                    if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
+                        && db.schemas.is_empty() {
+                            load_schemas_for = Some(db_name);
+                        }
+                } else if key.starts_with("sc:") {
+                    // fallback: if the parent db never loaded schemas, load now
+                    let parts: Vec<&str> = key.splitn(3, ':').collect();
+                    if parts.len() == 3 {
+                        let db_name = parts[1].to_string();
+                        if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
+                            && db.schemas.is_empty() {
+                                load_schemas_for = Some(db_name);
+                            }
                     }
                 }
             }
         }
-    }
     if let Some(db) = load_schemas_for {
         app.load_schemas(ctx.clone(), db);
     }

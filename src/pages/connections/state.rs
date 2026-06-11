@@ -18,6 +18,13 @@ pub enum TestStatus {
     Failed(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum SaveStatus {
+    #[default]
+    Idle,
+    Saved,
+}
+
 /// Mirrors `Connection` with owned `String` fields for the form.
 #[derive(Debug, Clone)]
 pub struct ConnectionForm {
@@ -50,17 +57,40 @@ impl Default for ConnectionForm {
 
 impl ConnectionForm {
     pub fn from_connection(c: &Connection) -> Self {
-        let (ssh_enabled, ssh_host, ssh_port, ssh_username, ssh_auth_method, ssh_password, ssh_key_path) =
-            if let Some(ssh) = &c.ssh {
-                let (method, pass, key) = match &ssh.auth {
-                    SshAuth::Password(p) => (SshAuthMethod::Password, p.clone(), String::new()),
-                    SshAuth::KeyFile(k) => (SshAuthMethod::KeyFile, String::new(), k.clone()),
-                    SshAuth::Agent => (SshAuthMethod::Agent, String::new(), String::new()),
-                };
-                (true, ssh.host.clone(), ssh.port.to_string(), ssh.username.clone(), method, pass, key)
-            } else {
-                (false, String::new(), "22".into(), String::new(), SshAuthMethod::Password, String::new(), String::new())
+        let (
+            ssh_enabled,
+            ssh_host,
+            ssh_port,
+            ssh_username,
+            ssh_auth_method,
+            ssh_password,
+            ssh_key_path,
+        ) = if let Some(ssh) = &c.ssh {
+            let (method, pass, key) = match &ssh.auth {
+                SshAuth::Password(p) => (SshAuthMethod::Password, p.clone(), String::new()),
+                SshAuth::KeyFile(k) => (SshAuthMethod::KeyFile, String::new(), k.clone()),
+                SshAuth::Agent => (SshAuthMethod::Agent, String::new(), String::new()),
             };
+            (
+                true,
+                ssh.host.clone(),
+                ssh.port.to_string(),
+                ssh.username.clone(),
+                method,
+                pass,
+                key,
+            )
+        } else {
+            (
+                false,
+                String::new(),
+                "22".into(),
+                String::new(),
+                SshAuthMethod::Password,
+                String::new(),
+                String::new(),
+            )
+        };
 
         Self {
             id: c.id.clone(),
@@ -133,6 +163,7 @@ pub struct ConnectionsPageState {
     pub selected_id: Option<String>,
     pub form: ConnectionForm,
     pub test_status: TestStatus,
+    pub save_status: SaveStatus,
     pub search_query: String,
     pub collapsed_groups: std::collections::HashSet<String>,
     pub is_new: bool,
@@ -153,6 +184,7 @@ impl ConnectionsPageState {
             selected_id,
             form,
             test_status: TestStatus::Idle,
+            save_status: SaveStatus::Idle,
             search_query: String::new(),
             collapsed_groups: Default::default(),
             is_new,
@@ -165,6 +197,7 @@ impl ConnectionsPageState {
             self.form = ConnectionForm::from_connection(c);
         }
         self.test_status = TestStatus::Idle;
+        self.save_status = SaveStatus::Idle;
         self.is_new = false;
     }
 
@@ -173,15 +206,17 @@ impl ConnectionsPageState {
         self.selected_id = Some(c.id.clone());
         self.form = ConnectionForm::from_connection(&c);
         self.test_status = TestStatus::Idle;
+        self.save_status = SaveStatus::Idle;
         self.is_new = true;
     }
 
     pub fn reset_form(&mut self) {
         if let Some(id) = &self.selected_id.clone()
-            && let Some(c) = self.connections.iter().find(|c| &c.id == id) {
-                self.form = ConnectionForm::from_connection(c);
-                self.test_status = TestStatus::Idle;
-            }
+            && let Some(c) = self.connections.iter().find(|c| &c.id == id)
+        {
+            self.form = ConnectionForm::from_connection(c);
+            self.test_status = TestStatus::Idle;
+        }
     }
 
     /// Apply a saved connection to the list (insert or update).

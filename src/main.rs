@@ -35,9 +35,10 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
         }
         if let Ok(meta) = entry.metadata()
             && let Ok(modified) = meta.modified()
-                && modified < cutoff {
-                    let _ = std::fs::remove_file(&path);
-                }
+            && modified < cutoff
+        {
+            let _ = std::fs::remove_file(&path);
+        }
     }
 }
 
@@ -47,7 +48,7 @@ fn cleanup_old_logs(dir: &str, keep_days: u64) {
 ///
 /// | Variable            | Default      | Description                                  |
 /// |---------------------|--------------|----------------------------------------------|
-/// | `YSSV_LOG`          | `info`       | Log filter. Supports level and per-crate directives (see below). |
+/// | `YSSV_LOG`          | `error,yssv=info` | Log filter. Supports level and per-crate directives (see below). |
 /// | `YSSV_LOG_KEEP_DAYS`| `7`          | How many days of rolling log files to keep.  |
 ///
 /// ## Log levels (lowest → highest severity)
@@ -75,7 +76,7 @@ fn init_logging() -> tracing_appender::non_blocking::WorkerGuard {
     let file_appender = tracing_appender::rolling::daily(&dir, "yssv.log");
     let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
 
-    let default_level = "info,wgpu_hal=off,wgpu=warn,naga=warn";
+    let default_level = "error,yssv=info,wgpu_hal=off,wgpu=warn,naga=warn";
     let env_filter =
         EnvFilter::try_from_env("YSSV_LOG").unwrap_or_else(|_| EnvFilter::new(default_level));
 

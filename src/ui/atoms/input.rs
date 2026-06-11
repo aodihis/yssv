@@ -6,7 +6,12 @@ fn base_input<'a>(value: &'a mut String, placeholder: &str, icon: Option<&str>) 
     TextEdit::singleline(value)
         .hint_text(placeholder)
         .desired_width(f32::INFINITY)
-        .margin(Margin { left, right: 11, top: 7, bottom: 7 })
+        .margin(Margin {
+            left,
+            right: 11,
+            top: 7,
+            bottom: 7,
+        })
 }
 
 fn paint_icon(ui: &Ui, resp: &Response, icon: &str) {
@@ -19,7 +24,12 @@ fn paint_icon(ui: &Ui, resp: &Response, icon: &str) {
     );
 }
 
-pub fn text_input(ui: &mut Ui, value: &mut String, placeholder: &str, icon: Option<&str>) -> Response {
+pub fn text_input(
+    ui: &mut Ui,
+    value: &mut String,
+    placeholder: &str,
+    icon: Option<&str>,
+) -> Response {
     let resp = ui.add(base_input(value, placeholder, icon));
     if let Some(ic) = icon {
         paint_icon(ui, &resp, ic);
@@ -27,15 +37,29 @@ pub fn text_input(ui: &mut Ui, value: &mut String, placeholder: &str, icon: Opti
     resp
 }
 
-pub fn password_input(ui: &mut Ui, value: &mut String, placeholder: &str, icon: Option<&str>) -> Response {
+pub fn password_input(
+    ui: &mut Ui,
+    value: &mut String,
+    placeholder: &str,
+    icon: Option<&str>,
+) -> Response {
     let resp = ui.add(base_input(value, placeholder, icon).password(true));
-    if let Some(ic) = icon { paint_icon(ui, &resp, ic); }
+    if let Some(ic) = icon {
+        paint_icon(ui, &resp, ic);
+    }
     resp
 }
 
-pub fn mono_input(ui: &mut Ui, value: &mut String, placeholder: &str, icon: Option<&str>) -> Response {
+pub fn mono_input(
+    ui: &mut Ui,
+    value: &mut String,
+    placeholder: &str,
+    icon: Option<&str>,
+) -> Response {
     let resp = ui.add(base_input(value, placeholder, icon).font(egui::TextStyle::Monospace));
-    if let Some(ic) = icon { paint_icon(ui, &resp, ic); }
+    if let Some(ic) = icon {
+        paint_icon(ui, &resp, ic);
+    }
     resp
 }
 
@@ -52,28 +76,32 @@ pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
         let text_w = (ui.available_width() - BTN_W - GAP).max(0.0);
         ui.set_width(ui.available_width());
 
-        text_resp = Some(ui.add(
-            TextEdit::singleline(value)
-                .hint_text(placeholder)
-                .desired_width(text_w)
-                .margin(Margin { left: 11, right: 11, top: 7, bottom: 7 }),
-        ));
+        text_resp = Some(
+            ui.add(
+                TextEdit::singleline(value)
+                    .hint_text(placeholder)
+                    .desired_width(text_w)
+                    .margin(Margin {
+                        left: 11,
+                        right: 11,
+                        top: 7,
+                        bottom: 7,
+                    }),
+            ),
+        );
 
         ui.add_space(GAP);
 
         ui.scope(|ui| {
             ui.spacing_mut().button_padding = egui::vec2(0.0, 6.0);
             ui.spacing_mut().interact_size = Vec2::new(BTN_W, 30.0);
-            let btn = egui::Button::new(
-                RichText::new("Browse").size(12.5).color(tc.text_primary),
-            )
-            .fill(Color32::WHITE)
-            .min_size(Vec2::new(BTN_W, 30.0));
-            if ui.add(btn).clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_file() {
+            let btn = egui::Button::new(RichText::new("Browse").size(12.5).color(tc.text_primary))
+                .fill(Color32::WHITE)
+                .min_size(Vec2::new(BTN_W, 30.0));
+            if ui.add(btn).clicked()
+                && let Some(path) = rfd::FileDialog::new().pick_file() {
                     *value = path.to_string_lossy().into_owned();
                 }
-            }
         });
     });
 

@@ -1,5 +1,5 @@
 use crate::core::connections::model::DbEngine;
-use crate::theme::{colors, ThemeColors};
+use crate::theme::{ThemeColors, colors};
 use egui::{Color32, Ui};
 
 pub fn engine_badge(ui: &mut Ui, engine: DbEngine) {

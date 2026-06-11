@@ -1,12 +1,13 @@
 use crate::theme::ThemeColors;
+use crate::ui::atoms::icon::{Icon, icon_image, svg_icon};
 use egui::RichText;
-use crate::ui::atoms::icon::{icon_image, svg_icon, Icon};
 
 pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let ctx = ui.ctx().clone();
     use crate::core::connections::model::DbEngine;
-    use crate::pages::connections::state::TestStatus;
+    use crate::pages::connections::state::SaveStatus;
     use crate::pages::connections::state::SshAuthMethod;
+    use crate::pages::connections::state::TestStatus;
     use crate::ui::atoms::dropdown::dropdown;
     use crate::ui::atoms::input::{file_input, password_input, text_input};
     use crate::ui::atoms::light_switch::light_switch;
@@ -243,11 +244,10 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::new(1.0, tc.field_border))
                         .min_size(egui::vec2(32.0, 32.0));
-                        if ui.add(del_btn).clicked() {
-                            if let Some(id) = app.conn_page.selected_id.clone() {
+                        if ui.add(del_btn).clicked()
+                            && let Some(id) = app.conn_page.selected_id.clone() {
                                 app.delete_connection(&id);
                             }
-                        }
                     }
 
                     // Test / Save / Connect — right side
@@ -293,10 +293,14 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             app.test_connection(ctx.clone());
                         }
 
-                        let status_msg = match &app.conn_page.test_status {
-                            TestStatus::Ok => Some(("Connection successful", tc.success)),
-                            TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
-                            _ => None,
+                        let status_msg = if app.conn_page.save_status == SaveStatus::Saved {
+                            Some(("Saved", tc.success))
+                        } else {
+                            match &app.conn_page.test_status {
+                                TestStatus::Ok => Some(("Connection successful", tc.success)),
+                                TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
+                                _ => None,
+                            }
                         };
                         if let Some((msg, color)) = status_msg {
                             ui.add_space(6.0);

@@ -16,8 +16,12 @@ pub(super) struct LoadRequest {
 pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let sidebar_width = app.settings.sidebar_width;
 
-    let panel_frame = egui::Frame::side_top_panel(ui.style())
-        .inner_margin(egui::Margin { left: 0, right: 0, top: 0, bottom: 0 });
+    let panel_frame = egui::Frame::side_top_panel(ui.style()).inner_margin(egui::Margin {
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+    });
     egui::Panel::left("explorer_sidebar")
         .default_size(sidebar_width)
         .size_range(160.0..=400.0)

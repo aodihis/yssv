@@ -94,9 +94,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             );
 
             if let Some(v) = new_view
-                && let Some(t) = explorer.tabs.active_tab_mut() {
-                    t.view = v;
-                }
+                && let Some(t) = explorer.tabs.active_tab_mut()
+            {
+                t.view = v;
+            }
         }
     }
 
@@ -105,7 +106,12 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         let explorer = app.explorer.as_ref().unwrap();
         if let Some(tab) = explorer.tabs.active_tab() {
             if tab.view == TabView::Structure && tab.structure.is_none() && !tab.structure_loading {
-                Some((tab.id.clone(), tab.database.clone(), tab.schema.clone(), tab.table.clone()))
+                Some((
+                    tab.id.clone(),
+                    tab.database.clone(),
+                    tab.schema.clone(),
+                    tab.table.clone(),
+                ))
             } else {
                 None
             }
@@ -157,22 +163,25 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             if struct_loading {
                 grid_ui.centered_and_justified(|ui| {
                     ui.label(
-                        RichText::new("Loading structure…")
-                            .color(ui.visuals().weak_text_color()),
+                        RichText::new("Loading structure…").color(ui.visuals().weak_text_color()),
                     );
                 });
             } else if has_structure {
                 let explorer = app.explorer.as_ref().unwrap();
-                let columns = explorer.tabs.active_tab().unwrap().structure.as_deref().unwrap();
+                let columns = explorer
+                    .tabs
+                    .active_tab()
+                    .unwrap()
+                    .structure
+                    .as_deref()
+                    .unwrap();
                 render_structure_table(&mut grid_ui, columns, row_height);
             }
         }
         TabView::Data => {
             if is_loading {
                 grid_ui.centered_and_justified(|ui| {
-                    ui.label(
-                        RichText::new("Loading…").color(ui.visuals().weak_text_color()),
-                    );
+                    ui.label(RichText::new("Loading…").color(ui.visuals().weak_text_color()));
                 });
             } else if has_result {
                 let (columns, rows) = {
@@ -209,9 +218,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                                 .size(12.0)
                                                 .family(egui::FontFamily::Name("SemiBold".into())),
                                         );
-                                        ui.label(
-                                            RichText::new(&col.data_type).size(10.0).weak(),
-                                        );
+                                        ui.label(RichText::new(&col.data_type).size(10.0).weak());
                                     });
                                 });
                             }
@@ -222,21 +229,14 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                 let is_selected = new_selected == Some(ri);
                                 row.set_selected(is_selected);
                                 row.col(|ui| {
-                                    ui.label(
-                                        RichText::new((ri + 1).to_string()).size(11.0).weak(),
-                                    );
+                                    ui.label(RichText::new((ri + 1).to_string()).size(11.0).weak());
                                 });
                                 for (ci, col) in columns.iter().enumerate() {
                                     let (_, resp) = row.col(|ui| {
-                                        render_cell(
-                                            ui,
-                                            col,
-                                            &rows[ri].get(ci).cloned().flatten(),
-                                        );
+                                        render_cell(ui, col, &rows[ri].get(ci).cloned().flatten());
                                     });
                                     if resp.clicked() {
-                                        new_selected =
-                                            if is_selected { None } else { Some(ri) };
+                                        new_selected = if is_selected { None } else { Some(ri) };
                                     }
                                 }
                             });
@@ -244,8 +244,8 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 });
 
                 // Copy selected row (Ctrl+C)
-                if let Some(sel_ri) = new_selected {
-                    if grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) {
+                if let Some(sel_ri) = new_selected
+                    && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) {
                         let text = rows[sel_ri]
                             .iter()
                             .map(|v| v.clone().unwrap_or_default())
@@ -253,14 +253,12 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             .join("\t");
                         grid_ui.ctx().copy_text(text);
                     }
-                }
 
                 // Persist selection change
-                if new_selected != selected_row {
-                    if let Some(tab) = app.explorer.as_mut().unwrap().tabs.active_tab_mut() {
+                if new_selected != selected_row
+                    && let Some(tab) = app.explorer.as_mut().unwrap().tabs.active_tab_mut() {
                         tab.selected_row = new_selected;
                     }
-                }
             }
         }
     }
