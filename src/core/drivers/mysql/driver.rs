@@ -15,7 +15,7 @@ pub struct MyConnection {
 pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
     tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "mysql: connecting");
     let url = format!(
-        "mysql://{}:{}@{}:{}/{}",
+        "mysql://{}:{}@{}:{}/{}?charset=utf8mb4",
         conn.username, conn.password, conn.host, conn.port, conn.database
     );
     let pool = MySqlPoolOptions::new()
@@ -87,43 +87,49 @@ impl ActiveConnection for MyConnection {
 
     async fn fetch_rows(
         &self,
-        _db: &str,
+        db: &str,
         schema: &str,
         table: &str,
         limit: u32,
         offset: u32,
     ) -> Result<QueryResult, DbError> {
         tracing::debug!(schema, table, limit, offset, "mysql: fetch_rows");
-        let query = format!("SELECT * FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}");
+
+        let col_defs = self.describe_table(db, schema, table).await?;
+
+        let select_list = if col_defs.is_empty() {
+            "*".to_string()
+        } else {
+            col_defs
+                .iter()
+                .map(|c| {
+                    let name = &c.name;
+                    if is_temporal(&c.data_type) {
+                        format!("CAST(`{name}` AS CHAR) AS `{name}`")
+                    } else {
+                        format!("`{name}`")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let query =
+            format!("SELECT {select_list} FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}");
         let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
-            return Ok(QueryResult::empty());
+            return Ok(QueryResult {
+                columns: col_defs,
+                rows: vec![],
+                total_rows: Some(0),
+            });
         }
 
-        use sqlx::Column;
         use sqlx::Row;
-        use sqlx::TypeInfo;
-
-        let columns: Vec<ColumnDef> = rows[0]
-            .columns()
-            .iter()
-            .map(|c| ColumnDef {
-                name: c.name().to_string(),
-                data_type: c.type_info().name().to_string(),
-                is_pk: false,
-                is_fk: false,
-                nullable: true,
-            })
-            .collect();
-
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
-            .map(|row| {
-                (0..columns.len())
-                    .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
-                    .collect()
-            })
+            .map(|row| (0..col_defs.len()).map(|i| decode_col_mysql(row, i)).collect())
             .collect();
 
         let count_query = format!("SELECT COUNT(*) FROM `{schema}`.`{table}`");
@@ -136,7 +142,7 @@ impl ActiveConnection for MyConnection {
             });
 
         Ok(QueryResult {
-            columns,
+            columns: col_defs,
             rows: data_rows,
             total_rows: Some(total as u64),
         })
@@ -178,6 +184,31 @@ impl ActiveConnection for MyConnection {
         );
         Ok(cols)
     }
+}
+
+fn is_temporal(data_type: &str) -> bool {
+    matches!(
+        data_type.to_lowercase().as_str(),
+        "datetime" | "timestamp" | "date" | "time" | "year"
+    )
+}
+
+fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
+    use sqlx::Row;
+    match row.try_get::<Option<String>, _>(i) {
+        Ok(v) => return v,
+        Err(_) => {}
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<i64>, _>(i) {
+        return Some(v.to_string());
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<f64>, _>(i) {
+        return Some(v.to_string());
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<bool>, _>(i) {
+        return Some(v.to_string());
+    }
+    None
 }
 
 #[cfg(test)]

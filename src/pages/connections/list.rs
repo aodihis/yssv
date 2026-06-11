@@ -77,10 +77,9 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 })
                 .response
                 .interact(egui::Sense::click());
-            if header_resp.clicked()
-                && !app.conn_page.collapsed_groups.remove(&group_name) {
-                    app.conn_page.collapsed_groups.insert(group_name);
-                }
+            if header_resp.clicked() && !app.conn_page.collapsed_groups.remove(&group_name) {
+                app.conn_page.collapsed_groups.insert(group_name);
+            }
 
             if !collapsed {
                 ui.add_space(2.0);

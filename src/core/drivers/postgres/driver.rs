@@ -108,46 +108,48 @@ impl ActiveConnection for PgConnection {
 
     async fn fetch_rows(
         &self,
-        _db: &str,
+        db: &str,
         schema: &str,
         table: &str,
         limit: u32,
         offset: u32,
     ) -> Result<QueryResult, DbError> {
         tracing::debug!(schema, table, limit, offset, "postgres: fetch_rows");
-        let query = format!("SELECT * FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}");
+
+        let col_defs = self.describe_table(db, schema, table).await?;
+
+        let select_list = if col_defs.is_empty() {
+            "*".to_string()
+        } else {
+            col_defs
+                .iter()
+                .map(|c| format!("\"{}\"::text AS \"{}\"", c.name, c.name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+
+        let query =
+            format!("SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}");
         let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
-            return Ok(QueryResult::empty());
+            return Ok(QueryResult {
+                columns: col_defs,
+                rows: vec![],
+                total_rows: Some(0),
+            });
         }
 
-        use sqlx::Column;
         use sqlx::Row;
-        use sqlx::TypeInfo;
-
-        let columns: Vec<ColumnDef> = rows[0]
-            .columns()
-            .iter()
-            .map(|c| ColumnDef {
-                name: c.name().to_string(),
-                data_type: c.type_info().name().to_string(),
-                is_pk: false,
-                is_fk: false,
-                nullable: true,
-            })
-            .collect();
-
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
             .map(|row| {
-                (0..columns.len())
+                (0..col_defs.len())
                     .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
                     .collect()
             })
             .collect();
 
-        // Get total count
         let count_query = format!("SELECT COUNT(*) FROM \"{schema}\".\"{table}\"");
         let total: i64 = sqlx::query_scalar(&count_query)
             .fetch_one(&self.pool)
@@ -158,7 +160,7 @@ impl ActiveConnection for PgConnection {
             });
 
         Ok(QueryResult {
-            columns,
+            columns: col_defs,
             rows: data_rows,
             total_rows: Some(total as u64),
         })
@@ -213,6 +215,7 @@ impl ActiveConnection for PgConnection {
         Ok(cols)
     }
 }
+
 
 #[cfg(test)]
 mod tests {

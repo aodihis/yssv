@@ -39,8 +39,63 @@ pub fn setup_fonts(ctx: &egui::Context) {
         .entry(FontFamily::Monospace)
         .or_default()
         .insert(0, "IBMPlexMono-Regular".to_owned());
-
+    load_system_fonts(&mut fonts);
     ctx.set_fonts(fonts);
+}
+
+fn load_system_fonts(fonts: &mut FontDefinitions) {
+    for (i, path) in system_font_candidates().iter().enumerate() {
+        if let Ok(bytes) = std::fs::read(path) {
+            let name = format!("SystemFont{i}");
+            fonts
+                .font_data
+                .insert(name.clone(), std::sync::Arc::new(FontData::from_owned(bytes)));
+            for family in [
+                FontFamily::Proportional,
+                FontFamily::Monospace,
+                FontFamily::Name("SemiBold".into()),
+            ] {
+                fonts.families.entry(family).or_default().push(name.clone());
+            }
+            tracing::debug!(path = %path.display(), "loaded system font fallback");
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn system_font_candidates() -> Vec<std::path::PathBuf> {
+    let windir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".into());
+    vec![
+        format!("{windir}\\Fonts\\segoeui.ttf").into(),   // Latin + Arabic
+        format!("{windir}\\Fonts\\msyh.ttc").into(),      // Microsoft YaHei (Chinese)
+        format!("{windir}\\Fonts\\msgothic.ttc").into(),   // MS Gothic (Japanese)
+        format!("{windir}\\Fonts\\malgun.ttf").into(),     // Malgun Gothic (Korean)
+        format!("{windir}\\Fonts\\meiryo.ttc").into(),     // Meiryo (Japanese)
+        format!("{windir}\\Fonts\\simsun.ttc").into(),     // SimSun (Chinese)
+        format!("{windir}\\Fonts\\seguisym.ttf").into(),   // Segoe UI Symbol
+    ]
+}
+
+#[cfg(target_os = "macos")]
+fn system_font_candidates() -> Vec<std::path::PathBuf> {
+    vec![
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf".into(),
+        "/System/Library/Fonts/PingFang.ttc".into(),
+        "/System/Library/Fonts/Hiragino Sans GB.ttc".into(),
+        "/System/Library/Fonts/STHeiti Light.ttc".into(),
+        "/Library/Fonts/Arial Unicode MS.ttf".into(),
+    ]
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn system_font_candidates() -> Vec<std::path::PathBuf> {
+    vec![
+        "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf".into(),
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc".into(),
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc".into(),
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc".into(),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf".into(),
+    ]
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
