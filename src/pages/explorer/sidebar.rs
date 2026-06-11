@@ -1,6 +1,7 @@
 use crate::app::Screen;
 use crate::core::schema::model::TableKind;
 use crate::theme::{self, ThemeColors, colors};
+use crate::ui::atoms::input::text_input;
 use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
 use egui::RichText;
 
@@ -34,10 +35,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             );
             ui.add_space(7.0);
             let e = app.explorer.as_mut().unwrap();
-            egui::TextEdit::singleline(&mut e.filter)
-                .hint_text("Filter tables…")
-                .desired_width(ui.available_width())
-                .show(ui);
+            text_input(ui, &mut e.filter, "Filter tables…", Some("⌕"));
         });
 
     let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
@@ -236,6 +234,19 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         egui::Stroke::new(1.0, tc.border_muted),
     );
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+        ui.add_space(1.0);
+        let back_btn = egui::Button::new(
+            egui::RichText::new("◀  Connections")
+                .size(11.0)
+                .color(tc.text_secondary),
+        )
+        .fill(egui::Color32::TRANSPARENT)
+        .stroke(egui::Stroke::new(1.0, tc.border_muted))
+        .min_size(egui::vec2(0.0, 22.0));
+        if ui.add(back_btn).clicked() {
+            app.screen = Screen::Connections;
+        }
+
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add_space(4.0);
             let theme_icon = if app.settings.theme == theme::Theme::Dark {
@@ -254,19 +265,6 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             if ui.add(theme_btn).clicked() {
                 app.settings.toggle_theme();
                 theme::apply_theme(&ctx, app.settings.theme);
-            }
-
-            ui.add_space(8.0);
-            let back_btn = egui::Button::new(
-                egui::RichText::new("◀  Connections")
-                    .size(11.0)
-                    .color(tc.text_secondary),
-            )
-            .fill(egui::Color32::TRANSPARENT)
-            .stroke(egui::Stroke::new(1.0, tc.border_muted))
-            .min_size(egui::vec2(0.0, 22.0));
-            if ui.add(back_btn).clicked() {
-                app.screen = Screen::Connections;
             }
         });
     });

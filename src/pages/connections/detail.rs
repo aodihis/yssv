@@ -292,22 +292,24 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         {
                             app.test_connection(ctx.clone());
                         }
+
+                        let status_msg = match &app.conn_page.test_status {
+                            TestStatus::Ok => Some(("Connection successful", tc.success)),
+                            TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
+                            _ => None,
+                        };
+                        if let Some((msg, color)) = status_msg {
+                            ui.add_space(6.0);
+                            ui.horizontal(|ui| {
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    ui.label(RichText::new(msg).size(12.0).color(color));
+                                });
+                            });
+                        }
                     });
                 });
 
-                let status_msg = match &app.conn_page.test_status {
-                    TestStatus::Ok => Some(("Connection successful", tc.success)),
-                    TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
-                    _ => None,
-                };
-                if let Some((msg, color)) = status_msg {
-                    ui.add_space(6.0);
-                    ui.horizontal(|ui| {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            ui.label(RichText::new(msg).size(12.0).color(color));
-                        });
-                    });
-                }
+
             });
     });
 }
