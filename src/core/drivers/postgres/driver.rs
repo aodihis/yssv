@@ -128,8 +128,9 @@ impl ActiveConnection for PgConnection {
                 .join(", ")
         };
 
-        let query =
-            format!("SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}");
+        let query = format!(
+            "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
+        );
         let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
 
         if rows.is_empty() {
@@ -215,7 +216,6 @@ impl ActiveConnection for PgConnection {
         Ok(cols)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

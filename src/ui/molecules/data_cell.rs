@@ -16,16 +16,12 @@ pub fn render_cell(ui: &mut Ui, col: &ColumnDef, value: &Option<String>) {
             let dtype = col.data_type.to_lowercase();
             if dtype.contains("bool") {
                 let is_true = v == "true" || v == "1" || v == "t";
-                let (icon, color) = if is_true {
-                    ("✓", colors::SUCCESS)
+                let color = if is_true {
+                    colors::SUCCESS
                 } else {
-                    ("✗", ui.visuals().weak_text_color())
+                    colors::ERROR
                 };
-                ui.label(
-                    RichText::new(format!("{} {}", icon, v))
-                        .size(12.0)
-                        .color(color),
-                );
+                ui.label(RichText::new(v.to_string()).size(12.0).color(color));
             } else if is_numeric(&dtype) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(

@@ -129,7 +129,11 @@ impl ActiveConnection for MyConnection {
         use sqlx::Row;
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
-            .map(|row| (0..col_defs.len()).map(|i| decode_col_mysql(row, i)).collect())
+            .map(|row| {
+                (0..col_defs.len())
+                    .map(|i| decode_col_mysql(row, i))
+                    .collect()
+            })
             .collect();
 
         let count_query = format!("SELECT COUNT(*) FROM `{schema}`.`{table}`");
@@ -195,10 +199,7 @@ fn is_temporal(data_type: &str) -> bool {
 
 fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
     use sqlx::Row;
-    match row.try_get::<Option<String>, _>(i) {
-        Ok(v) => return v,
-        Err(_) => {}
-    }
+    if let Ok(v) = row.try_get::<Option<String>, _>(i) { return v }
     if let Ok(Some(v)) = row.try_get::<Option<i64>, _>(i) {
         return Some(v.to_string());
     }

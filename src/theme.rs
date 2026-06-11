@@ -47,9 +47,10 @@ fn load_system_fonts(fonts: &mut FontDefinitions) {
     for (i, path) in system_font_candidates().iter().enumerate() {
         if let Ok(bytes) = std::fs::read(path) {
             let name = format!("SystemFont{i}");
-            fonts
-                .font_data
-                .insert(name.clone(), std::sync::Arc::new(FontData::from_owned(bytes)));
+            fonts.font_data.insert(
+                name.clone(),
+                std::sync::Arc::new(FontData::from_owned(bytes)),
+            );
             for family in [
                 FontFamily::Proportional,
                 FontFamily::Monospace,
@@ -66,13 +67,13 @@ fn load_system_fonts(fonts: &mut FontDefinitions) {
 fn system_font_candidates() -> Vec<std::path::PathBuf> {
     let windir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".into());
     vec![
-        format!("{windir}\\Fonts\\segoeui.ttf").into(),   // Latin + Arabic
-        format!("{windir}\\Fonts\\msyh.ttc").into(),      // Microsoft YaHei (Chinese)
-        format!("{windir}\\Fonts\\msgothic.ttc").into(),   // MS Gothic (Japanese)
-        format!("{windir}\\Fonts\\malgun.ttf").into(),     // Malgun Gothic (Korean)
-        format!("{windir}\\Fonts\\meiryo.ttc").into(),     // Meiryo (Japanese)
-        format!("{windir}\\Fonts\\simsun.ttc").into(),     // SimSun (Chinese)
-        format!("{windir}\\Fonts\\seguisym.ttf").into(),   // Segoe UI Symbol
+        format!("{windir}\\Fonts\\segoeui.ttf").into(), // Latin + Arabic
+        format!("{windir}\\Fonts\\msyh.ttc").into(),    // Microsoft YaHei (Chinese)
+        format!("{windir}\\Fonts\\msgothic.ttc").into(), // MS Gothic (Japanese)
+        format!("{windir}\\Fonts\\malgun.ttf").into(),  // Malgun Gothic (Korean)
+        format!("{windir}\\Fonts\\meiryo.ttc").into(),  // Meiryo (Japanese)
+        format!("{windir}\\Fonts\\simsun.ttc").into(),  // SimSun (Chinese)
+        format!("{windir}\\Fonts\\seguisym.ttf").into(), // Segoe UI Symbol
     ]
 }
 
