@@ -27,39 +27,35 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     let center_y = rect.center().y;
     let mut x = rect.left() + indent;
 
-    // Background + active bar — scoped so painter is dropped before ui.put()
-    {
-        let painter = ui.painter();
-        let bg = if cfg.is_active {
-            tc.selection_bg
-        } else if resp.hovered() {
-            tc.surface_secondary
-        } else {
-            Color32::TRANSPARENT
-        };
-        painter.rect_filled(rect, egui::CornerRadius::same(5u8), bg);
-
-        if cfg.is_active {
-            let bar = egui::Rect::from_min_size(
-                egui::pos2(rect.left(), rect.top() + 3.0),
-                egui::vec2(2.5, rect.height() - 6.0),
-            );
-            painter.rect_filled(bar, egui::CornerRadius::same(3u8), tc.button_primary_bg);
-        }
+    // Background + active bar
+    let bg = if cfg.is_active {
+        tc.selection_bg
+    } else if resp.hovered() {
+        tc.surface_secondary
+    } else {
+        Color32::TRANSPARENT
+    };
+    ui.painter().rect_filled(rect, egui::CornerRadius::same(5u8), bg);
+    if cfg.is_active {
+        let bar = egui::Rect::from_min_size(
+            egui::pos2(rect.left(), rect.top() + 3.0),
+            egui::vec2(2.5, rect.height() - 6.0),
+        );
+        ui.painter().rect_filled(bar, egui::CornerRadius::same(3u8), tc.button_primary_bg);
     }
 
-    // Chevron SVG — 14px slot
+    // Chevron SVG — paint_at does not advance the cursor
     if !cfg.is_leaf {
         let chev_icon = if cfg.is_open { Icon::ChevronDown } else { Icon::ChevronRight };
         let chev_rect = egui::Rect::from_center_size(
             egui::pos2(x + 7.0, center_y),
             Vec2::splat(10.0),
         );
-        ui.put(chev_rect, icon_image(chev_icon, 10.0, tc.text_disabled));
+        icon_image(chev_icon, 10.0, tc.text_disabled).paint_at(ui, chev_rect);
     }
     x += 14.0;
 
-    // Row icon SVG — 14px slot
+    // Row icon SVG — paint_at does not advance the cursor
     let icon_color = if cfg.is_active {
         tc.button_primary_bg
     } else {
@@ -69,10 +65,10 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
         egui::pos2(x + 7.0, center_y),
         Vec2::splat(13.0),
     );
-    ui.put(icon_rect, icon_image(cfg.icon, 13.0, icon_color));
+    icon_image(cfg.icon, 13.0, icon_color).paint_at(ui, icon_rect);
     x += 16.0;
 
-    // Right decorations + label — painter re-acquired after all ui.put() calls
+    // Right decorations + label via painter
     let painter = ui.painter();
     let right_x = rect.right() - 8.0;
 
