@@ -4,12 +4,21 @@ A native desktop SQL client built with Rust and [egui](https://github.com/emilk/
 
 ## Features
 
+**Connection manager**
 - PostgreSQL and MySQL support
-- SSH tunnel configuration
-- Connection manager with color labels and groups
-- Data explorer — browse databases, schemas, and tables
-- Tabbed result grid with pagination
-- Dark and light themes
+- Save, duplicate, and delete connections (delete requires confirmation)
+- Color labels and smart group autocomplete — pick an existing group or type a new one
+- SSH tunnel configuration (password, key file, or agent auth)
+- Test connection with real round-trip latency display
+
+**Data explorer**
+- Browse databases, schemas, and tables in a collapsible sidebar tree
+- Data tab — paginated row grid with row selection, cell highlight, and copy to clipboard
+- Structure tab — column definitions with PK / FK / nullable annotations
+
+**UI**
+- Dark and light themes with a single toggle
+- Compact / Regular / Comfy row density
 - Structured logs with automatic daily rotation
 
 ## Requirements

@@ -13,6 +13,7 @@ pub enum Icon {
     Layers,
     Table2,
     Eye,
+    EyeOff,
     Copy,
 }
 
@@ -62,6 +63,10 @@ impl Icon {
             Icon::Eye => (
                 include_bytes!("../../../assets/icons/eye.svg"),
                 "bytes://icon/eye.svg",
+            ),
+            Icon::EyeOff => (
+                include_bytes!("../../../assets/icons/eye-off.svg"),
+                "bytes://icon/eye-off.svg",
             ),
             Icon::Copy => (
                 include_bytes!("../../../assets/icons/copy.svg"),

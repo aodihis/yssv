@@ -1,4 +1,6 @@
 use crate::core::connections::model::{ConnColor, Connection, DbEngine};
+use crate::core::connections::secrets;
+use crate::core::ssh::model::{SshAuth, SshConfig};
 use rusqlite::{Connection as SqliteConn, Result as SqliteResult, params};
 
 pub struct Storage {
@@ -34,7 +36,6 @@ impl Storage {
                 port        INTEGER NOT NULL,
                 database    TEXT NOT NULL DEFAULT '',
                 username    TEXT NOT NULL DEFAULT '',
-                password    TEXT NOT NULL DEFAULT '',
                 ssh_json    TEXT,
                 is_favorite INTEGER NOT NULL DEFAULT 0
             );
@@ -44,42 +45,87 @@ impl Storage {
     }
 
     pub fn load_all(&self) -> SqliteResult<Vec<Connection>> {
+        // Column indices: 0=id 1=name 2=group_name 3=engine 4=color 5=host
+        //                 6=port 7=database 8=username 9=ssh_json 10=is_favorite
         let mut stmt = self.conn.prepare(
             "SELECT id, name, group_name, engine, color, host, port, database,
-                    username, password, ssh_json, is_favorite
+                    username, ssh_json, is_favorite
              FROM connections ORDER BY group_name, name",
         )?;
         tracing::debug!("storage: loading all connections");
         let rows = stmt.query_map([], |row| {
-            let engine_str: String = row.get(3)?;
-            let color_str: String = row.get(4)?;
-            let ssh_json: Option<String> = row.get(10)?;
-            Ok(Connection {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                group: row.get(2)?,
+            Ok((
+                row.get::<_, String>(0)?,  // id
+                row.get::<_, String>(1)?,  // name
+                row.get::<_, String>(2)?,  // group_name
+                row.get::<_, String>(3)?,  // engine
+                row.get::<_, String>(4)?,  // color
+                row.get::<_, String>(5)?,  // host
+                row.get::<_, i64>(6)?,     // port
+                row.get::<_, String>(7)?,  // database
+                row.get::<_, String>(8)?,  // username
+                row.get::<_, Option<String>>(9)?,  // ssh_json
+                row.get::<_, i64>(10)?,    // is_favorite
+            ))
+        })?;
+
+        let mut conns = Vec::new();
+        for row in rows {
+            let (id, name, group, engine_str, color_str, host, port, database, username, ssh_json, is_fav) = row?;
+
+            let password = secrets::load_db_password(&id);
+
+            let ssh = ssh_json.and_then(|j| {
+                let mut cfg: SshConfig = serde_json::from_str(&j).ok()?;
+                if let SshAuth::Password(_) = &cfg.auth {
+                    cfg.auth = SshAuth::Password(secrets::load_ssh_password(&id));
+                }
+                Some(cfg)
+            });
+
+            conns.push(Connection {
+                id,
+                name,
+                group,
                 engine: parse_engine(&engine_str),
                 color: parse_color(&color_str),
-                host: row.get(5)?,
-                port: row.get::<_, i64>(6)? as u16,
-                database: row.get(7)?,
-                username: row.get(8)?,
-                password: row.get(9)?,
-                ssh: ssh_json.and_then(|j| serde_json::from_str(&j).ok()),
-                is_favorite: row.get::<_, i64>(11)? != 0,
-            })
-        })?;
-        rows.collect()
+                host,
+                port: port as u16,
+                database,
+                username,
+                password,
+                ssh,
+                is_favorite: is_fav != 0,
+            });
+        }
+        Ok(conns)
     }
 
     pub fn save(&self, c: &Connection) -> SqliteResult<()> {
         tracing::debug!(conn_id = %c.id, name = %c.name, "storage: save connection");
-        let ssh_json = c.ssh.as_ref().and_then(|s| serde_json::to_string(s).ok());
+
+        // Persist passwords in keychain; keep column empty
+        secrets::save_db_password(&c.id, &c.password);
+
+        // Strip SSH password before serializing, save to keychain separately
+        let ssh_for_storage = c.ssh.as_ref().map(|ssh| {
+            let mut stripped = ssh.clone();
+            if let SshAuth::Password(ref p) = ssh.auth {
+                secrets::save_ssh_password(&c.id, p);
+                stripped.auth = SshAuth::Password(String::new());
+            }
+            stripped
+        });
+
+        let ssh_json = ssh_for_storage
+            .as_ref()
+            .and_then(|s| serde_json::to_string(s).ok());
+
         self.conn.execute(
             "INSERT OR REPLACE INTO connections
              (id, name, group_name, engine, color, host, port, database,
-              username, password, ssh_json, is_favorite)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+              username, ssh_json, is_favorite)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![
                 c.id,
                 c.name,
@@ -90,7 +136,6 @@ impl Storage {
                 c.port as i64,
                 c.database,
                 c.username,
-                c.password,
                 ssh_json,
                 c.is_favorite as i64,
             ],
@@ -100,6 +145,7 @@ impl Storage {
 
     pub fn delete(&self, id: &str) -> SqliteResult<()> {
         tracing::debug!(conn_id = %id, "storage: delete connection");
+        secrets::delete_all(id);
         self.conn
             .execute("DELETE FROM connections WHERE id = ?1", params![id])?;
         Ok(())

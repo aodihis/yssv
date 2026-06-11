@@ -1,6 +1,8 @@
 use eframe::epaint::Color32;
 use egui::{Margin, Response, RichText, TextEdit, Ui, Vec2};
 
+use crate::ui::atoms::icon::{Icon, icon_image};
+
 fn base_input<'a>(value: &'a mut String, placeholder: &str, icon: Option<&str>) -> TextEdit<'a> {
     let left: i8 = if icon.is_some() { 28 } else { 11 };
     TextEdit::singleline(value)
@@ -37,16 +39,62 @@ pub fn text_input(
     resp
 }
 
+/// Password field with an eye-toggle button on the right.
+/// Visibility state is stored in egui's temp data keyed to the field's position.
 pub fn password_input(
     ui: &mut Ui,
     value: &mut String,
     placeholder: &str,
     icon: Option<&str>,
 ) -> Response {
-    let resp = ui.add(base_input(value, placeholder, icon).password(true));
+    let tc = crate::theme::ThemeColors::from_ui(ui);
+
+    // Stable per-call-site ID derived from layout position (not the TextEdit's own ID)
+    let vis_id = egui::Id::new(("pw_vis", ui.id(), ui.next_auto_id()));
+    let show = ui.data(|d| d.get_temp::<bool>(vis_id).unwrap_or(false));
+
+    let left: i8 = if icon.is_some() { 28 } else { 11 };
+    let edit = TextEdit::singleline(value)
+        .hint_text(placeholder)
+        .desired_width(f32::INFINITY)
+        .password(!show)
+        .margin(Margin {
+            left,
+            right: 32,  // room for eye button
+            top: 7,
+            bottom: 7,
+        });
+
+    let resp = ui.add(edit);
+
     if let Some(ic) = icon {
         paint_icon(ui, &resp, ic);
     }
+
+    // Eye toggle overlaid at the right edge of the field.
+    // button_padding is zeroed in a scope so the image fills the rect exactly,
+    // preventing the default padding from pushing the icon off-center.
+    let eye_rect = egui::Rect::from_center_size(
+        egui::pos2(resp.rect.right() - 16.0, resp.rect.center().y),
+        egui::vec2(20.0, 20.0),
+    );
+    let eye_icon = if show { Icon::EyeOff } else { Icon::Eye };
+    let eye_resp = ui
+        .scope(|ui| {
+            ui.spacing_mut().button_padding = egui::vec2(0.0, 0.0);
+            ui.put(
+                eye_rect,
+                egui::Button::image(icon_image(eye_icon, 14.0, tc.text_secondary))
+                    .fill(egui::Color32::TRANSPARENT)
+                    .stroke(egui::Stroke::NONE),
+            )
+        })
+        .inner
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    if eye_resp.clicked() {
+        ui.data_mut(|d| d.insert_temp(vis_id, !show));
+    }
+
     resp
 }
 
