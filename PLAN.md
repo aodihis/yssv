@@ -88,7 +88,6 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 - [ ] Duplicate connection
 - [ ] Drag-and-drop reorder within/across groups
 - [ ] Favorite connections pinned to top
-- [ ] Recent connections list on empty state
 - [ ] Test Connection button shows real latency
 - [ ] Group rename
 - [ ] Export/import connections as JSON

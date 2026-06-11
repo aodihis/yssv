@@ -28,6 +28,7 @@ pub enum AppEvent {
     },
     TestOk {
         conn_id: String,
+        latency_ms: u64,
     },
     TestError {
         conn_id: String,
@@ -157,9 +158,10 @@ impl YssvApp {
                 self.error_modal = Some(message);
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
             }
-            AppEvent::TestOk { conn_id } => {
-                tracing::debug!(conn_id = %conn_id, "test connection ok");
-                self.conn_page.test_status = crate::pages::connections::state::TestStatus::Ok;
+            AppEvent::TestOk { conn_id, latency_ms } => {
+                tracing::debug!(conn_id = %conn_id, latency_ms, "test connection ok");
+                self.conn_page.test_status =
+                    crate::pages::connections::state::TestStatus::Ok(latency_ms);
             }
             AppEvent::TestError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "test connection failed");
@@ -320,9 +322,11 @@ impl YssvApp {
         let conn_id = conn.id.clone();
         let tx = self.event_tx.clone();
         self.rt.spawn(async move {
+            let start = std::time::Instant::now();
             match crate::core::drivers::connect(&conn).await {
                 Ok(_) => {
-                    let _ = tx.send(AppEvent::TestOk { conn_id });
+                    let latency_ms = start.elapsed().as_millis() as u64;
+                    let _ = tx.send(AppEvent::TestOk { conn_id, latency_ms });
                 }
                 Err(e) => {
                     let hint = e.install_hint().unwrap_or("").to_string();
@@ -501,6 +505,26 @@ impl YssvApp {
         tracing::debug!(conn_id = %id, "deleting connection");
         let _ = self.storage.delete(id);
         self.conn_page.remove(id);
+    }
+
+    pub fn duplicate_connection(&mut self) {
+        let Some(id) = self.conn_page.selected_id.clone() else {
+            tracing::warn!("duplicate_connection: no selected connection");
+            return;
+        };
+        let Some(conn) = self.conn_page.connections.iter().find(|c| c.id == id) else {
+            tracing::warn!(conn_id = %id, "duplicate_connection: connection not found");
+            return;
+        };
+        let mut new_conn = conn.clone();
+        new_conn.id = uuid::Uuid::new_v4().to_string();
+        new_conn.name = format!("{} (copy)", new_conn.name);
+        tracing::info!(
+            source_id = %id, new_id = %new_conn.id, name = %new_conn.name,
+            "connection duplicated"
+        );
+        let _ = self.storage.save(&new_conn);
+        self.conn_page.apply_saved(new_conn);
     }
 }
 

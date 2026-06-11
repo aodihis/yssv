@@ -14,7 +14,7 @@ pub enum TestStatus {
     #[default]
     Idle,
     Testing,
-    Ok,
+    Ok(u64),
     Failed(String),
 }
 
@@ -167,6 +167,7 @@ pub struct ConnectionsPageState {
     pub search_query: String,
     pub collapsed_groups: std::collections::HashSet<String>,
     pub is_new: bool,
+    pub pending_delete: Option<String>,
 }
 
 impl ConnectionsPageState {
@@ -188,6 +189,7 @@ impl ConnectionsPageState {
             search_query: String::new(),
             collapsed_groups: Default::default(),
             is_new,
+            pending_delete: None,
         }
     }
 
@@ -316,7 +318,6 @@ mod tests {
     #[test]
     fn apply_saved_updates_existing() {
         let c = make_conn("Original", "Local");
-        let id = c.id.clone();
         let mut state = ConnectionsPageState::new(vec![c]);
         let mut updated = state.connections[0].clone();
         updated.name = "Updated".into();

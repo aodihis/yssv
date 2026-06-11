@@ -1,13 +1,13 @@
 use crate::theme::ThemeColors;
 use crate::ui::atoms::icon::{Icon, icon_image, svg_icon};
 use egui::RichText;
+use crate::pages::connections::state::TestStatus;
 
 pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let ctx = ui.ctx().clone();
     use crate::core::connections::model::DbEngine;
     use crate::pages::connections::state::SaveStatus;
     use crate::pages::connections::state::SshAuthMethod;
-    use crate::pages::connections::state::TestStatus;
     use crate::ui::atoms::dropdown::dropdown;
     use crate::ui::atoms::input::{file_input, password_input, text_input};
     use crate::ui::atoms::light_switch::light_switch;
@@ -236,7 +236,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 ui.add_space(16.0);
 
                 ui.horizontal(|ui| {
-                    // Delete — left side, saved connections only (hidden while testing)
+                    // Delete / Duplicate — left side, saved connections only (hidden while testing)
                     if !app.conn_page.is_new && app.conn_page.test_status != TestStatus::Testing {
                         let del_btn = egui::Button::image(
                             icon_image(Icon::Trash2, 14.0, tc.error),
@@ -244,10 +244,23 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .fill(egui::Color32::TRANSPARENT)
                         .stroke(egui::Stroke::new(1.0, tc.field_border))
                         .min_size(egui::vec2(32.0, 32.0));
-                        if ui.add(del_btn).clicked()
-                            && let Some(id) = app.conn_page.selected_id.clone() {
-                                app.delete_connection(&id);
+                        if ui.add(del_btn).clicked() {
+                            if let Some(id) = app.conn_page.selected_id.clone() {
+                                app.conn_page.pending_delete = Some(id);
                             }
+                        }
+
+                        ui.add_space(4.0);
+
+                        let dup_btn = egui::Button::image(
+                            icon_image(Icon::Copy, 14.0, tc.text_secondary),
+                        )
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::new(1.0, tc.field_border))
+                        .min_size(egui::vec2(32.0, 32.0));
+                        if ui.add(dup_btn).on_hover_text("Duplicate connection").clicked() {
+                            app.duplicate_connection();
+                        }
                     }
 
                     // Test / Save / Connect — right side
@@ -277,7 +290,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         ui.add_space(8.0);
 
                         let (test_label, test_color) = match &app.conn_page.test_status {
-                            TestStatus::Idle | TestStatus::Ok | TestStatus::Failed(_) => ("Test Connection", tc.text_secondary),
+                            TestStatus::Idle | TestStatus::Ok(_) | TestStatus::Failed(_) => ("Test Connection", tc.text_secondary),
                             TestStatus::Testing => ("Testing…", tc.text_disabled),
                         };
                         let test_btn = egui::Button::image_and_text(
@@ -293,15 +306,21 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             app.test_connection(ctx.clone());
                         }
 
-                        let status_msg = if app.conn_page.save_status == SaveStatus::Saved {
-                            Some(("Saved", tc.success))
-                        } else {
-                            match &app.conn_page.test_status {
-                                TestStatus::Ok => Some(("Connection successful", tc.success)),
-                                TestStatus::Failed(_) => Some(("Connection failed", tc.error)),
-                                _ => None,
-                            }
-                        };
+                        let status_msg: Option<(String, egui::Color32)> =
+                            if app.conn_page.save_status == SaveStatus::Saved {
+                                Some(("Saved".into(), tc.success))
+                            } else {
+                                match &app.conn_page.test_status {
+                                    TestStatus::Ok(ms) => Some((
+                                        format!("Connected ({}ms)", ms),
+                                        tc.success,
+                                    )),
+                                    TestStatus::Failed(_) => {
+                                        Some(("Connection failed".into(), tc.error))
+                                    }
+                                    _ => None,
+                                }
+                            };
                         if let Some((msg, color)) = status_msg {
                             ui.add_space(6.0);
                             ui.horizontal(|ui| {
