@@ -99,11 +99,12 @@ pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
                 .fill(Color32::WHITE)
                 .min_size(Vec2::new(BTN_W, 30.0));
             if ui.add(btn).clicked()
-                && let Some(path) = rfd::FileDialog::new().pick_file() {
-                    *value = path.to_string_lossy().into_owned();
-                }
+                && let Some(path) = rfd::FileDialog::new().pick_file()
+            {
+                *value = path.to_string_lossy().into_owned();
+            }
         });
     });
 
-    text_resp.unwrap()
+    text_resp.expect("text_resp is always set inside the horizontal closure above")
 }

@@ -152,7 +152,10 @@ impl ActiveConnection for PgConnection {
         let total: i64 = sqlx::query_scalar(&count_query)
             .fetch_one(&self.pool)
             .await
-            .unwrap_or(0);
+            .unwrap_or_else(|e| {
+                tracing::warn!(schema, table, error = %e, "postgres: COUNT(*) failed, using 0");
+                0
+            });
 
         Ok(QueryResult {
             columns,

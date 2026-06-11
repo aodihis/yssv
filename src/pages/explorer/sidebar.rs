@@ -18,7 +18,12 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let accent_color = ui.visuals().selection.stroke.color;
     let tc = ThemeColors::from_ui(ui);
 
-    let conn_name = app.explorer.as_ref().unwrap().conn_name.clone();
+    let conn_name = app
+        .explorer
+        .as_ref()
+        .expect("explorer is Some — checked above")
+        .conn_name
+        .clone();
 
     egui::Frame::new()
         .inner_margin(egui::Margin {
@@ -35,7 +40,10 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     .color(tc.text_primary),
             );
             ui.add_space(7.0);
-            let e = app.explorer.as_mut().unwrap();
+            let e = app
+                .explorer
+                .as_mut()
+                .expect("explorer is Some — checked above");
             text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
         });
 
@@ -45,7 +53,10 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     ui.add_space(1.0);
 
     let tree_data: Vec<DbRow> = {
-        let e = app.explorer.as_ref().unwrap();
+        let e = app
+            .explorer
+            .as_ref()
+            .expect("explorer is Some — checked above");
         let q = e.filter.to_lowercase();
 
         e.databases
@@ -194,38 +205,44 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
     let mut load_schemas_for: Option<String> = None;
     if let Some(ref key) = toggle_node
-        && let Some(e) = &mut app.explorer {
-            let was_open = e.is_open(key);
-            e.toggle_node(key);
-            // Always repaint so the expanded/collapsed state renders on the very next frame,
-            // not on the next input event (which could be delayed in reactive mode).
-            ctx.request_repaint();
-            if !was_open {
-                if key.starts_with("db:") {
-                    let db_name = key["db:".len()..].to_string();
+        && let Some(e) = &mut app.explorer
+    {
+        let was_open = e.is_open(key);
+        e.toggle_node(key);
+        // Always repaint so the expanded/collapsed state renders on the very next frame,
+        // not on the next input event (which could be delayed in reactive mode).
+        ctx.request_repaint();
+        if !was_open {
+            if key.starts_with("db:") {
+                let db_name = key["db:".len()..].to_string();
+                if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
+                    && db.schemas.is_empty()
+                {
+                    load_schemas_for = Some(db_name);
+                }
+            } else if key.starts_with("sc:") {
+                // fallback: if the parent db never loaded schemas, load now
+                let parts: Vec<&str> = key.splitn(3, ':').collect();
+                if parts.len() == 3 {
+                    let db_name = parts[1].to_string();
                     if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
-                        && db.schemas.is_empty() {
-                            load_schemas_for = Some(db_name);
-                        }
-                } else if key.starts_with("sc:") {
-                    // fallback: if the parent db never loaded schemas, load now
-                    let parts: Vec<&str> = key.splitn(3, ':').collect();
-                    if parts.len() == 3 {
-                        let db_name = parts[1].to_string();
-                        if let Some(db) = e.databases.iter().find(|d| d.name == db_name)
-                            && db.schemas.is_empty() {
-                                load_schemas_for = Some(db_name);
-                            }
+                        && db.schemas.is_empty()
+                    {
+                        load_schemas_for = Some(db_name);
                     }
                 }
             }
         }
+    }
     if let Some(db) = load_schemas_for {
         app.load_schemas(ctx.clone(), db);
     }
     if let Some((table, schema, db)) = open_table {
         let load_req = {
-            let e = app.explorer.as_mut().unwrap();
+            let e = app
+                .explorer
+                .as_mut()
+                .expect("explorer is Some — open_table came from tree_data which borrows explorer");
             let tab = e.tabs.open(&table, &schema, &db);
             if tab.result.is_none() && !tab.loading {
                 tab.loading = true;

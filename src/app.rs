@@ -143,21 +143,17 @@ impl YssvApp {
                 self.db_conns.clear();
                 self.db_conns.insert(default_db.clone(), connection);
                 self.conn_config = Some(conn_config);
-                self.explorer = Some(ExplorerState::new(
-                    conn_id,
-                    conn_name,
-                    &default_db,
-                    databases,
-                ));
+                let explorer = ExplorerState::new(conn_id, conn_name, &default_db, databases);
+                let load_db = explorer.active_db.clone();
+                self.explorer = Some(explorer);
                 self.screen = Screen::Explorer;
-                // Use the resolved active_db (ExplorerState picks the first DB when
-                // default_db is empty) so load_schemas has a real DB name to match against.
-                let load_db = self.explorer.as_ref().unwrap().active_db.clone();
                 tracing::debug!(db = %load_db, "auto-loading schemas for connected database");
                 self.load_schemas(ctx.clone(), load_db);
             }
             AppEvent::ConnectError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "connection failed");
+                self.db_conns.clear();
+                self.conn_config = None;
                 self.error_modal = Some(message);
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
             }
@@ -384,7 +380,10 @@ impl YssvApp {
                 }
                 Err(e) => {
                     tracing::warn!(error = %e.message, "fetch rows failed");
-                    let _ = tx.send(AppEvent::RowLoadError { tab_id, message: e.message });
+                    let _ = tx.send(AppEvent::RowLoadError {
+                        tab_id,
+                        message: e.message,
+                    });
                 }
             }
             ctx.request_repaint();
@@ -476,7 +475,10 @@ impl YssvApp {
         match crate::core::drivers::connect(&cfg).await {
             Ok(conn) => {
                 let conn: Arc<dyn ActiveConnection> = Arc::from(conn);
-                let _ = tx.send(AppEvent::DbConnected { db: db.to_string(), conn: conn.clone() });
+                let _ = tx.send(AppEvent::DbConnected {
+                    db: db.to_string(),
+                    conn: conn.clone(),
+                });
                 Some(conn)
             }
             Err(e) => {

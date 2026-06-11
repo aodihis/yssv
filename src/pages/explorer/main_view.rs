@@ -18,7 +18,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     }
 
     let (activate, close) = {
-        let explorer = app.explorer.as_ref().unwrap();
+        let explorer = app
+            .explorer
+            .as_ref()
+            .expect("explorer is Some — checked above");
         if explorer.tabs.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
                 ui.label(
@@ -32,7 +35,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         tab_bar(ui, &explorer.tabs.tabs, explorer.tabs.active)
     };
     {
-        let explorer = app.explorer.as_mut().unwrap();
+        let explorer = app
+            .explorer
+            .as_mut()
+            .expect("explorer is Some — checked above");
         if let Some(i) = activate {
             explorer.tabs.active = i;
         }
@@ -48,7 +54,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         ui.painter()
             .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
 
-        let explorer = app.explorer.as_mut().unwrap();
+        let explorer = app
+            .explorer
+            .as_mut()
+            .expect("explorer is Some — checked above");
         if let Some(tab) = explorer.tabs.active_tab() {
             let is_data = tab.view == TabView::Data;
             let mut new_view: Option<TabView> = None;
@@ -103,7 +112,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
     // Trigger structure load if needed (after view switch or first open)
     let structure_load: Option<(String, String, String, String)> = {
-        let explorer = app.explorer.as_ref().unwrap();
+        let explorer = app
+            .explorer
+            .as_ref()
+            .expect("explorer is Some — checked above");
         if let Some(tab) = explorer.tabs.active_tab() {
             if tab.view == TabView::Structure && tab.structure.is_none() && !tab.structure_loading {
                 Some((
@@ -120,7 +132,13 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         }
     };
     if let Some((tab_id, db, schema, table)) = structure_load {
-        if let Some(tab) = app.explorer.as_mut().unwrap().tabs.active_tab_mut() {
+        if let Some(tab) = app
+            .explorer
+            .as_mut()
+            .expect("explorer is Some — checked above")
+            .tabs
+            .active_tab_mut()
+        {
             tab.structure_loading = true;
         }
         app.load_structure(ctx.clone(), tab_id, db, schema, table);
@@ -138,7 +156,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
     // Snapshot the tab state we need for rendering
     let tab_info = {
-        let explorer = app.explorer.as_ref().unwrap();
+        let explorer = app
+            .explorer
+            .as_ref()
+            .expect("explorer is Some — checked above");
         explorer.tabs.active_tab().map(|tab| {
             (
                 tab.view,
@@ -166,16 +187,12 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         RichText::new("Loading structure…").color(ui.visuals().weak_text_color()),
                     );
                 });
-            } else if has_structure {
-                let explorer = app.explorer.as_ref().unwrap();
-                let columns = explorer
-                    .tabs
-                    .active_tab()
-                    .unwrap()
-                    .structure
-                    .as_deref()
-                    .unwrap();
-                render_structure_table(&mut grid_ui, columns, row_height);
+            } else if has_structure
+                && let Some(explorer) = app.explorer.as_ref()
+                && let Some(tab) = explorer.tabs.active_tab()
+                && let Some(cols) = tab.structure.as_deref()
+            {
+                render_structure_table(&mut grid_ui, cols, row_height);
             }
         }
         TabView::Data => {
@@ -184,81 +201,95 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     ui.label(RichText::new("Loading…").color(ui.visuals().weak_text_color()));
                 });
             } else if has_result {
-                let (columns, rows) = {
-                    let explorer = app.explorer.as_ref().unwrap();
-                    let tab = explorer.tabs.active_tab().unwrap();
-                    let result = tab.result.as_ref().unwrap();
-                    (result.columns.clone(), result.rows.clone())
-                };
-
                 let mut new_selected = selected_row;
 
-                egui::ScrollArea::both().show(&mut grid_ui, |ui| {
-                    egui_extras::TableBuilder::new(ui)
-                        .striped(true)
-                        .resizable(true)
-                        .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                        .column(egui_extras::Column::auto().at_least(36.0))
-                        .columns(
-                            egui_extras::Column::auto().at_least(80.0).resizable(true),
-                            columns.len(),
-                        )
-                        .header(row_height, |mut header| {
-                            header.col(|ui| {
-                                ui.label(RichText::new("#").size(11.0).weak());
-                            });
-                            for col in &columns {
-                                header.col(|ui| {
-                                    ui.horizontal(|ui| {
-                                        if col.is_pk {
-                                            ui.label(RichText::new("🔑").size(10.0));
-                                        }
-                                        ui.label(
-                                            RichText::new(&col.name)
-                                                .size(12.0)
-                                                .family(egui::FontFamily::Name("SemiBold".into())),
-                                        );
-                                        ui.label(RichText::new(&col.data_type).size(10.0).weak());
-                                    });
-                                });
-                            }
-                        })
-                        .body(|body| {
-                            body.rows(row_height, rows.len(), |mut row| {
-                                let ri = row.index();
-                                let is_selected = new_selected == Some(ri);
-                                row.set_selected(is_selected);
-                                row.col(|ui| {
-                                    ui.label(RichText::new((ri + 1).to_string()).size(11.0).weak());
-                                });
-                                for (ci, col) in columns.iter().enumerate() {
-                                    let (_, resp) = row.col(|ui| {
-                                        render_cell(ui, col, &rows[ri].get(ci).cloned().flatten());
-                                    });
-                                    if resp.clicked() {
-                                        new_selected = if is_selected { None } else { Some(ri) };
-                                    }
-                                }
-                            });
-                        });
-                });
+                // Borrow explorer immutably for the entire render + copy block,
+                // then drop the borrow before the selection write-back below.
+                if let Some(explorer) = app.explorer.as_ref()
+                    && let Some(tab) = explorer.tabs.active_tab()
+                    && let Some(result) = tab.result.as_ref()
+                {
+                    let columns = &result.columns;
+                    let rows = &result.rows;
 
-                // Copy selected row (Ctrl+C)
-                if let Some(sel_ri) = new_selected
-                    && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) {
+                    egui::ScrollArea::both().show(&mut grid_ui, |ui| {
+                        egui_extras::TableBuilder::new(ui)
+                            .striped(true)
+                            .resizable(true)
+                            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                            .column(egui_extras::Column::auto().at_least(36.0))
+                            .columns(
+                                egui_extras::Column::auto().at_least(80.0).resizable(true),
+                                columns.len(),
+                            )
+                            .header(row_height, |mut header| {
+                                header.col(|ui| {
+                                    ui.label(RichText::new("#").size(11.0).weak());
+                                });
+                                for col in columns {
+                                    header.col(|ui| {
+                                        ui.horizontal(|ui| {
+                                            if col.is_pk {
+                                                ui.label(RichText::new("🔑").size(10.0));
+                                            }
+                                            ui.label(
+                                                RichText::new(&col.name).size(12.0).family(
+                                                    egui::FontFamily::Name("SemiBold".into()),
+                                                ),
+                                            );
+                                            ui.label(
+                                                RichText::new(&col.data_type).size(10.0).weak(),
+                                            );
+                                        });
+                                    });
+                                }
+                            })
+                            .body(|body| {
+                                body.rows(row_height, rows.len(), |mut row| {
+                                    let ri = row.index();
+                                    let is_selected = new_selected == Some(ri);
+                                    row.set_selected(is_selected);
+                                    row.col(|ui| {
+                                        ui.label(
+                                            RichText::new((ri + 1).to_string()).size(11.0).weak(),
+                                        );
+                                    });
+                                    for (ci, col) in columns.iter().enumerate() {
+                                        let (_, resp) = row.col(|ui| {
+                                            render_cell(
+                                                ui,
+                                                col,
+                                                &rows[ri].get(ci).cloned().flatten(),
+                                            );
+                                        });
+                                        if resp.clicked() {
+                                            new_selected =
+                                                if is_selected { None } else { Some(ri) };
+                                        }
+                                    }
+                                });
+                            });
+                    });
+
+                    // Copy selected row (Ctrl+C)
+                    if let Some(sel_ri) = new_selected
+                        && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
+                    {
                         let text = rows[sel_ri]
                             .iter()
-                            .map(|v| v.clone().unwrap_or_default())
+                            .map(|v| v.as_deref().unwrap_or_default())
                             .collect::<Vec<_>>()
                             .join("\t");
                         grid_ui.ctx().copy_text(text);
                     }
+                }
 
-                // Persist selection change
+                // Persist selection change — separate mutable borrow after the immutable block above.
                 if new_selected != selected_row
-                    && let Some(tab) = app.explorer.as_mut().unwrap().tabs.active_tab_mut() {
-                        tab.selected_row = new_selected;
-                    }
+                    && let Some(tab) = app.explorer.as_mut().and_then(|e| e.tabs.active_tab_mut())
+                {
+                    tab.selected_row = new_selected;
+                }
             }
         }
     }
@@ -266,7 +297,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let mut status_ui = ui.new_child(egui::UiBuilder::new().max_rect(status_rect));
     status_ui.separator();
     let load_req: Option<super::LoadRequest> = {
-        let explorer = app.explorer.as_ref().unwrap();
+        let explorer = app
+            .explorer
+            .as_ref()
+            .expect("explorer is Some — checked above");
         if let Some(tab) = explorer.tabs.active_tab()
             && tab.view == TabView::Data
         {
@@ -292,7 +326,10 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         }
     };
     if let Some(req) = load_req {
-        let explorer = app.explorer.as_mut().unwrap();
+        let explorer = app
+            .explorer
+            .as_mut()
+            .expect("explorer is Some — checked above");
         if let Some(tab) = explorer.tabs.active_tab_mut() {
             let going_prev = req.offset < tab.offset();
             if going_prev {
