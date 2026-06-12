@@ -94,16 +94,54 @@ mod tests {
     }
 
     #[test]
-    fn classifies_auth_failed() {
+    fn classifies_no_route_to_host() {
+        let e = DbError::new("No route to host");
+        assert_eq!(e.kind, DbErrorKind::ConnectionRefused);
+    }
+
+    #[test]
+    fn classifies_timed_out() {
+        let e = DbError::new("connection timed out");
+        assert_eq!(e.kind, DbErrorKind::ConnectionRefused);
+    }
+
+    #[test]
+    fn classifies_network_unreachable() {
+        let e = DbError::new("Network unreachable");
+        assert_eq!(e.kind, DbErrorKind::ConnectionRefused);
+    }
+
+    #[test]
+    fn classifies_auth_failed_postgres() {
         let e = DbError::new("password authentication failed for user \"postgres\"");
         assert_eq!(e.kind, DbErrorKind::AuthFailed);
         assert!(e.install_hint().is_some());
     }
 
     #[test]
+    fn classifies_auth_failed_mysql() {
+        let e = DbError::new("Access denied for user 'root'@'localhost'");
+        assert_eq!(e.kind, DbErrorKind::AuthFailed);
+    }
+
+    #[test]
+    fn classifies_invalid_password() {
+        let e = DbError::new("invalid password");
+        assert_eq!(e.kind, DbErrorKind::AuthFailed);
+    }
+
+    #[test]
     fn classifies_database_not_found() {
         let e = DbError::new("database \"mydb\" does not exist");
         assert_eq!(e.kind, DbErrorKind::DatabaseNotFound);
+        assert!(e.install_hint().is_some());
+    }
+
+    #[test]
+    fn classifies_permission_denied() {
+        let e = DbError::new("permission denied for table users");
+        assert_eq!(e.kind, DbErrorKind::PermissionDenied);
+        assert!(e.install_hint().is_some());
     }
 
     #[test]
@@ -111,5 +149,11 @@ mod tests {
         let e = DbError::new("some unexpected internal error");
         assert_eq!(e.kind, DbErrorKind::Other);
         assert!(e.install_hint().is_none());
+    }
+
+    #[test]
+    fn display_shows_message() {
+        let e = DbError::new("something went wrong");
+        assert_eq!(format!("{e}"), "something went wrong");
     }
 }

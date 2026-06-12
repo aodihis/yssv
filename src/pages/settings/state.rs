@@ -153,10 +153,32 @@ mod tests {
 
     #[test]
     fn settings_missing_new_fields_use_defaults() {
-        // Simulate a settings file written before renderer/log_keep_days were added.
         let json = r#"{"theme":"Dark","density":"Regular","sidebar_width":220.0}"#;
         let decoded: SettingsState = serde_json::from_str(json).unwrap();
         assert_eq!(decoded.renderer, RendererPreference::Wgpu);
         assert_eq!(decoded.log_keep_days, 7);
+    }
+
+    #[test]
+    fn renderer_preference_labels() {
+        assert!(!RendererPreference::Wgpu.label().is_empty());
+        assert!(!RendererPreference::Glow.label().is_empty());
+        assert_ne!(RendererPreference::Wgpu.label(), RendererPreference::Glow.label());
+    }
+
+    #[test]
+    fn row_density_labels() {
+        assert_eq!(RowDensity::Compact.label(), "Compact");
+        assert_eq!(RowDensity::Regular.label(), "Regular");
+        assert_eq!(RowDensity::Comfy.label(), "Comfy");
+    }
+
+    #[test]
+    fn settings_default_values() {
+        let s = SettingsState::default();
+        assert_eq!(s.density, RowDensity::Regular);
+        assert_eq!(s.renderer, RendererPreference::Wgpu);
+        assert_eq!(s.log_keep_days, 7);
+        assert_eq!(s.sidebar_width, 220.0);
     }
 }

@@ -1,65 +1,14 @@
 use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 
-use crate::core::{
-    connections::storage::Storage,
-    drivers::ActiveConnection,
-    results::model::{ColumnDef, QueryResult},
-    schema::model::DbInfo,
-};
+use crate::core::{connections::storage::Storage, drivers::ActiveConnection, schema::model::DbInfo};
+use crate::events::{AppEvent, Screen};
 use crate::pages::{
     connections::state::ConnectionsPageState, explorer::state::ExplorerState,
     settings::state::SettingsState,
 };
 use crate::theme;
-
-pub enum AppEvent {
-    Connected {
-        conn_id: String,
-        conn_name: String,
-        default_db: String,
-        databases: Vec<DbInfo>,
-        connection: Arc<dyn ActiveConnection>,
-        conn_config: Box<crate::core::connections::model::Connection>,
-    },
-    ConnectError {
-        conn_id: String,
-        message: String,
-    },
-    TestOk {
-        conn_id: String,
-        latency_ms: u64,
-    },
-    TestError {
-        conn_id: String,
-        message: String,
-    },
-    SchemasLoaded {
-        db: String,
-        schemas: Vec<crate::core::schema::model::SchemaInfo>,
-    },
-    RowsLoaded {
-        tab_id: String,
-        result: QueryResult,
-    },
-    RowLoadError {
-        tab_id: String,
-        message: String,
-    },
-    StructureLoaded {
-        tab_id: String,
-        columns: Vec<ColumnDef>,
-    },
-    DbConnected {
-        db: String,
-        conn: Arc<dyn ActiveConnection>,
-    },
-}
-
-pub enum Screen {
-    Connections,
-    Explorer,
-}
+use crate::utils::data_dir_path;
 
 pub struct YssvApp {
     pub screen: Screen,
@@ -534,18 +483,6 @@ impl YssvApp {
     }
 }
 
-fn data_dir_path() -> String {
-    #[cfg(target_os = "windows")]
-    {
-        let base = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-        format!("{}\\yssv\\connections.db", base)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-        format!("{}/.config/yssv/connections.db", home)
-    }
-}
 
 impl eframe::App for YssvApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

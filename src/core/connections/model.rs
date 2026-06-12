@@ -168,4 +168,44 @@ mod tests {
         let decoded: Connection = serde_json::from_str(&json).unwrap();
         assert_eq!(c, decoded);
     }
+
+    #[test]
+    fn db_engine_labels() {
+        assert_eq!(DbEngine::Postgres.label(), "PostgreSQL");
+        assert_eq!(DbEngine::MySQL.label(), "MySQL");
+    }
+
+    #[test]
+    fn db_engine_short() {
+        assert_eq!(DbEngine::Postgres.short(), "PG");
+        assert_eq!(DbEngine::MySQL.short(), "My");
+    }
+
+    #[test]
+    fn db_engine_default_port() {
+        assert_eq!(DbEngine::Postgres.default_port(), 5432);
+        assert_eq!(DbEngine::MySQL.default_port(), 3306);
+    }
+
+    #[test]
+    fn conn_color_all_has_six_variants() {
+        assert_eq!(ConnColor::all().len(), 6);
+    }
+
+    #[test]
+    fn conn_color_labels() {
+        assert_eq!(ConnColor::Red.label(), "Red");
+        assert_eq!(ConnColor::Amber.label(), "Amber");
+        assert_eq!(ConnColor::Green.label(), "Green");
+        assert_eq!(ConnColor::Blue.label(), "Blue");
+        assert_eq!(ConnColor::Purple.label(), "Purple");
+        assert_eq!(ConnColor::Gray.label(), "Gray");
+    }
+
+    #[test]
+    fn new_postgres_and_mysql_have_unique_ids() {
+        let a = Connection::new_postgres();
+        let b = Connection::new_mysql();
+        assert_ne!(a.id, b.id);
+    }
 }

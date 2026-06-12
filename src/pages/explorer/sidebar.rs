@@ -1,4 +1,4 @@
-use crate::app::Screen;
+use crate::events::Screen;
 use crate::core::schema::model::TableKind;
 use crate::theme::{self, ThemeColors, colors};
 use crate::ui::atoms::icon::Icon;
