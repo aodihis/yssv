@@ -55,3 +55,36 @@ fn is_numeric(dtype: &str) -> bool {
         || dtype == "int4"
         || dtype == "int8"
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_numeric_matches_integer_types() {
+        for t in &["int", "int2", "int4", "int8", "bigint", "smallint", "integer", "tinyint"] {
+            assert!(is_numeric(t), "{t} should be numeric");
+        }
+    }
+
+    #[test]
+    fn is_numeric_matches_float_types() {
+        for t in &["float", "float4", "float8", "double", "double precision", "real"] {
+            assert!(is_numeric(t), "{t} should be numeric");
+        }
+    }
+
+    #[test]
+    fn is_numeric_matches_decimal_types() {
+        for t in &["decimal", "numeric", "decimal(10,2)", "numeric(8,4)"] {
+            assert!(is_numeric(t), "{t} should be numeric");
+        }
+    }
+
+    #[test]
+    fn is_numeric_rejects_non_numeric_types() {
+        for t in &["text", "varchar", "char", "bool", "boolean", "timestamp", "date", "time", "json", "jsonb", "bytea", "uuid"] {
+            assert!(!is_numeric(t), "{t} should not be numeric");
+        }
+    }
+}

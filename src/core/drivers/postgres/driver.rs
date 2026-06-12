@@ -1,8 +1,8 @@
 use crate::core::{
     connections::model::Connection,
-    drivers::{ActiveConnection, DbError},
+    drivers::{ActiveConnection, DbError, table_type_to_kind},
     results::model::{ColumnDef, QueryResult},
-    schema::model::{SchemaInfo, TableInfo, TableKind},
+    schema::model::{SchemaInfo, TableInfo},
 };
 use async_trait::async_trait;
 use sqlx::PgPool;
@@ -12,12 +12,41 @@ pub struct PgConnection {
     pool: PgPool,
 }
 
-pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
-    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "postgres: connecting");
-    let url = format!(
+pub(crate) fn build_connection_url(conn: &Connection) -> String {
+    format!(
         "postgres://{}:{}@{}:{}/{}",
         conn.username, conn.password, conn.host, conn.port, conn.database
-    );
+    )
+}
+
+pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
+    if cols.is_empty() {
+        return "*".to_string();
+    }
+    cols.iter()
+        .map(|c| format!("\"{}\"::text AS \"{}\"", c.name, c.name))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+pub(crate) fn map_column(
+    name: String,
+    data_type: String,
+    nullable: String,
+    pk_flag: Option<String>,
+) -> ColumnDef {
+    ColumnDef {
+        name,
+        data_type,
+        is_pk: pk_flag.is_some(),
+        is_fk: false,
+        nullable: nullable == "YES",
+    }
+}
+
+pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
+    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "postgres: connecting");
+    let url = build_connection_url(conn);
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&url)
@@ -89,17 +118,10 @@ impl ActiveConnection for PgConnection {
 
         let tables: Vec<TableInfo> = rows
             .into_iter()
-            .map(|(name, ttype, row_count)| {
-                let kind = if ttype == "VIEW" {
-                    TableKind::View
-                } else {
-                    TableKind::Table
-                };
-                TableInfo {
-                    name,
-                    kind,
-                    row_count: row_count.map(|n| n as u64),
-                }
+            .map(|(name, ttype, row_count)| TableInfo {
+                kind: table_type_to_kind(&ttype),
+                name,
+                row_count: row_count.map(|n| n as u64),
             })
             .collect();
         tracing::debug!(schema, count = tables.len(), "postgres: list_tables done");
@@ -118,15 +140,7 @@ impl ActiveConnection for PgConnection {
 
         let col_defs = self.describe_table(db, schema, table).await?;
 
-        let select_list = if col_defs.is_empty() {
-            "*".to_string()
-        } else {
-            col_defs
-                .iter()
-                .map(|c| format!("\"{}\"::text AS \"{}\"", c.name, c.name))
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
+        let select_list = build_select_list(&col_defs);
 
         let query = format!(
             "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
@@ -199,13 +213,7 @@ impl ActiveConnection for PgConnection {
 
         let cols: Vec<ColumnDef> = rows
             .into_iter()
-            .map(|(name, data_type, nullable, pk_flag)| ColumnDef {
-                name,
-                data_type,
-                is_pk: pk_flag.is_some(),
-                is_fk: false,
-                nullable: nullable == "YES",
-            })
+            .map(|(name, data_type, nullable, pk_flag)| map_column(name, data_type, nullable, pk_flag))
             .collect();
         tracing::debug!(
             schema,
@@ -220,6 +228,61 @@ impl ActiveConnection for PgConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::{connections::model::Connection, results::model::ColumnDef};
+
+    #[test]
+    fn build_connection_url_format() {
+        let mut conn = Connection::new_postgres();
+        conn.username = "alice".into();
+        conn.password = "secret".into();
+        conn.host = "db.example.com".into();
+        conn.port = 5433;
+        conn.database = "mydb".into();
+        let url = build_connection_url(&conn);
+        assert_eq!(url, "postgres://alice:secret@db.example.com:5433/mydb");
+    }
+
+    #[test]
+    fn build_select_list_empty_cols_returns_star() {
+        assert_eq!(build_select_list(&[]), "*");
+    }
+
+    #[test]
+    fn build_select_list_casts_each_column_to_text() {
+        let cols = vec![
+            ColumnDef { name: "id".into(), data_type: "int4".into(), is_pk: true, is_fk: false, nullable: false },
+            ColumnDef { name: "name".into(), data_type: "text".into(), is_pk: false, is_fk: false, nullable: true },
+        ];
+        let list = build_select_list(&cols);
+        assert_eq!(list, r#""id"::text AS "id", "name"::text AS "name""#);
+    }
+
+    #[test]
+    fn map_column_pk_flag_some_sets_is_pk() {
+        let col = map_column("id".into(), "int4".into(), "NO".into(), Some("PK".into()));
+        assert!(col.is_pk);
+        assert!(!col.is_fk);
+        assert!(!col.nullable);
+    }
+
+    #[test]
+    fn map_column_pk_flag_none_clears_is_pk() {
+        let col = map_column("email".into(), "text".into(), "YES".into(), None);
+        assert!(!col.is_pk);
+        assert!(col.nullable);
+    }
+
+    #[test]
+    fn map_column_nullable_yes_sets_nullable() {
+        let col = map_column("notes".into(), "text".into(), "YES".into(), None);
+        assert!(col.nullable);
+    }
+
+    #[test]
+    fn map_column_nullable_no_clears_nullable() {
+        let col = map_column("code".into(), "text".into(), "NO".into(), None);
+        assert!(!col.nullable);
+    }
 
     #[tokio::test]
     #[ignore = "requires a running PostgreSQL instance; set YSSV_TEST_PG_URL to enable"]

@@ -3,17 +3,12 @@ use egui::{Margin, Response, RichText, TextEdit, Ui, Vec2};
 
 use crate::ui::atoms::icon::{Icon, icon_image};
 
-fn base_input<'a>(value: &'a mut String, placeholder: &str, icon: Option<&str>) -> TextEdit<'a> {
+fn base_input<'a>(value: &'a mut String, placeholder: &str, icon: Option<&str>, right: i8) -> TextEdit<'a> {
     let left: i8 = if icon.is_some() { 28 } else { 11 };
     TextEdit::singleline(value)
         .hint_text(placeholder)
         .desired_width(f32::INFINITY)
-        .margin(Margin {
-            left,
-            right: 11,
-            top: 7,
-            bottom: 7,
-        })
+        .margin(Margin { left, right, top: 7, bottom: 7 })
 }
 
 fn paint_icon(ui: &Ui, resp: &Response, icon: &str) {
@@ -32,7 +27,7 @@ pub fn text_input(
     placeholder: &str,
     icon: Option<&str>,
 ) -> Response {
-    let resp = ui.add(base_input(value, placeholder, icon));
+    let resp = ui.add(base_input(value, placeholder, icon, 11));
     if let Some(ic) = icon {
         paint_icon(ui, &resp, ic);
     }
@@ -49,23 +44,10 @@ pub fn password_input(
 ) -> Response {
     let tc = crate::theme::ThemeColors::from_ui(ui);
 
-    // Stable per-call-site ID derived from layout position (not the TextEdit's own ID)
     let vis_id = egui::Id::new(("pw_vis", ui.id(), ui.next_auto_id()));
     let show = ui.data(|d| d.get_temp::<bool>(vis_id).unwrap_or(false));
 
-    let left: i8 = if icon.is_some() { 28 } else { 11 };
-    let edit = TextEdit::singleline(value)
-        .hint_text(placeholder)
-        .desired_width(f32::INFINITY)
-        .password(!show)
-        .margin(Margin {
-            left,
-            right: 32,  // room for eye button
-            top: 7,
-            bottom: 7,
-        });
-
-    let resp = ui.add(edit);
+    let resp = ui.add(base_input(value, placeholder, icon, 32).password(!show));
 
     if let Some(ic) = icon {
         paint_icon(ui, &resp, ic);
@@ -104,7 +86,7 @@ pub fn mono_input(
     placeholder: &str,
     icon: Option<&str>,
 ) -> Response {
-    let resp = ui.add(base_input(value, placeholder, icon).font(egui::TextStyle::Monospace));
+    let resp = ui.add(base_input(value, placeholder, icon, 11).font(egui::TextStyle::Monospace));
     if let Some(ic) = icon {
         paint_icon(ui, &resp, ic);
     }
@@ -124,19 +106,12 @@ pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
         let text_w = (ui.available_width() - BTN_W - GAP).max(0.0);
         ui.set_width(ui.available_width());
 
-        text_resp = Some(
-            ui.add(
-                TextEdit::singleline(value)
-                    .hint_text(placeholder)
-                    .desired_width(text_w)
-                    .margin(Margin {
-                        left: 11,
-                        right: 11,
-                        top: 7,
-                        bottom: 7,
-                    }),
-            ),
-        );
+        text_resp = Some(ui.add(
+            TextEdit::singleline(value)
+                .hint_text(placeholder)
+                .desired_width(text_w)
+                .margin(Margin { left: 11, right: 11, top: 7, bottom: 7 }),
+        ));
 
         ui.add_space(GAP);
 

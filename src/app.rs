@@ -484,6 +484,269 @@ impl YssvApp {
 }
 
 
+#[cfg(test)]
+impl YssvApp {
+    fn new_for_test() -> Self {
+        let storage = crate::core::connections::storage::Storage::open_in_memory().unwrap();
+        let connections = storage.load_all().unwrap_or_default();
+        let conn_page = crate::pages::connections::state::ConnectionsPageState::new(connections);
+        let (tx, rx) = mpsc::sync_channel(32);
+        let rt = Arc::new(tokio::runtime::Runtime::new().unwrap());
+        Self {
+            screen: Screen::Connections,
+            settings: crate::pages::settings::state::SettingsState::default(),
+            conn_page,
+            explorer: None,
+            error_modal: None,
+            db_conns: HashMap::new(),
+            conn_config: None,
+            storage,
+            rt,
+            event_tx: tx,
+            event_rx: rx,
+        }
+    }
+
+    fn send_and_drain(&mut self, event: AppEvent) {
+        let _ = self.event_tx.send(event);
+        self.drain_events(&egui::Context::default());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::{
+        connections::model::Connection,
+        drivers::DbError,
+        results::model::{ColumnDef, QueryResult},
+        schema::model::{DbInfo, SchemaInfo, TableInfo},
+    };
+    use crate::events::AppEvent;
+    use crate::pages::connections::state::TestStatus;
+    use crate::pages::explorer::state::TableTab;
+
+    struct MockConn;
+
+    #[async_trait::async_trait]
+    impl ActiveConnection for MockConn {
+        async fn current_database(&self) -> Result<String, DbError> {
+            Ok("testdb".into())
+        }
+        async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+            Ok(vec![])
+        }
+        async fn list_schemas(&self, _db: &str) -> Result<Vec<SchemaInfo>, DbError> {
+            Ok(vec![])
+        }
+        async fn list_tables(&self, _db: &str, _schema: &str) -> Result<Vec<TableInfo>, DbError> {
+            Ok(vec![])
+        }
+        async fn fetch_rows(
+            &self, _db: &str, _schema: &str, _table: &str, _limit: u32, _offset: u32,
+        ) -> Result<QueryResult, DbError> {
+            Ok(QueryResult::empty())
+        }
+        async fn describe_table(
+            &self, _db: &str, _schema: &str, _table: &str,
+        ) -> Result<Vec<ColumnDef>, DbError> {
+            Ok(vec![])
+        }
+    }
+
+    fn make_app_with_explorer() -> (YssvApp, String) {
+        let mut app = YssvApp::new_for_test();
+        let db = "testdb".to_string();
+        let databases = vec![DbInfo { name: db.clone(), schemas: vec![] }];
+        app.explorer = Some(crate::pages::explorer::state::ExplorerState::new(
+            "conn1".into(), "Test".into(), &db, databases,
+        ));
+        (app, db)
+    }
+
+    #[test]
+    fn connect_error_sets_modal_and_clears_conns() {
+        let mut app = YssvApp::new_for_test();
+        app.db_conns.insert("db".into(), Arc::new(MockConn));
+        app.send_and_drain(AppEvent::ConnectError {
+            conn_id: "c1".into(),
+            message: "refused".into(),
+        });
+        assert_eq!(app.error_modal.as_deref(), Some("refused"));
+        assert!(app.db_conns.is_empty());
+        assert!(matches!(app.conn_page.test_status, TestStatus::Idle));
+    }
+
+    #[test]
+    fn test_ok_sets_status() {
+        let mut app = YssvApp::new_for_test();
+        app.send_and_drain(AppEvent::TestOk { conn_id: "c1".into(), latency_ms: 42 });
+        assert!(matches!(app.conn_page.test_status, TestStatus::Ok(42)));
+    }
+
+    #[test]
+    fn test_error_sets_status() {
+        let mut app = YssvApp::new_for_test();
+        app.send_and_drain(AppEvent::TestError {
+            conn_id: "c1".into(),
+            message: "bad creds".into(),
+        });
+        assert!(matches!(
+            &app.conn_page.test_status,
+            TestStatus::Failed(m) if m == "bad creds"
+        ));
+    }
+
+    #[test]
+    fn connected_switches_to_explorer_screen() {
+        let mut app = YssvApp::new_for_test();
+        let conn: Arc<dyn ActiveConnection> = Arc::new(MockConn);
+        app.send_and_drain(AppEvent::Connected {
+            conn_id: "c1".into(),
+            conn_name: "Local".into(),
+            default_db: "testdb".into(),
+            databases: vec![DbInfo { name: "testdb".into(), schemas: vec![] }],
+            connection: conn,
+            conn_config: Box::new(Connection::new_postgres()),
+        });
+        assert!(matches!(app.screen, Screen::Explorer));
+        assert!(app.explorer.is_some());
+        assert!(app.db_conns.contains_key("testdb"));
+    }
+
+    #[test]
+    fn rows_loaded_updates_tab_result() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("users", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+
+        let result = QueryResult {
+            columns: vec![],
+            rows: vec![vec![Some("1".into())]],
+            total_rows: Some(1),
+        };
+        app.send_and_drain(AppEvent::RowsLoaded { tab_id: tab_id.clone(), result });
+
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
+        assert!(tab.result.is_some());
+        assert!(!tab.loading);
+    }
+
+    #[test]
+    fn row_load_error_sets_modal_and_clears_tab_result() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("users", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+
+        app.send_and_drain(AppEvent::RowLoadError {
+            tab_id: tab_id.clone(),
+            message: "query failed".into(),
+        });
+
+        assert_eq!(app.error_modal.as_deref(), Some("query failed"));
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
+        assert!(!tab.loading);
+        assert!(tab.result.is_none());
+    }
+
+    #[test]
+    fn schemas_loaded_updates_explorer_database() {
+        let (mut app, db) = make_app_with_explorer();
+        let schemas = vec![SchemaInfo { name: "public".into(), tables: vec![] }];
+        app.send_and_drain(AppEvent::SchemasLoaded { db: db.clone(), schemas });
+
+        let explorer = app.explorer.unwrap();
+        let db_info = explorer.databases.iter().find(|d| d.name == db).unwrap();
+        assert_eq!(db_info.schemas.len(), 1);
+        assert_eq!(db_info.schemas[0].name, "public");
+    }
+
+    #[test]
+    fn schemas_loaded_with_no_explorer_is_noop() {
+        let mut app = YssvApp::new_for_test();
+        app.send_and_drain(AppEvent::SchemasLoaded {
+            db: "ghost".into(),
+            schemas: vec![],
+        });
+        assert!(app.explorer.is_none());
+    }
+
+    #[test]
+    fn structure_loaded_updates_tab() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("orders", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+
+        let columns = vec![ColumnDef {
+            name: "id".into(),
+            data_type: "int4".into(),
+            is_pk: true,
+            is_fk: false,
+            nullable: false,
+        }];
+        app.send_and_drain(AppEvent::StructureLoaded { tab_id: tab_id.clone(), columns });
+
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
+        assert!(!tab.structure_loading);
+        assert_eq!(tab.structure.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn db_connected_caches_connection() {
+        let mut app = YssvApp::new_for_test();
+        let conn: Arc<dyn ActiveConnection> = Arc::new(MockConn);
+        app.send_and_drain(AppEvent::DbConnected { db: "analytics".into(), conn });
+        assert!(app.db_conns.contains_key("analytics"));
+    }
+
+    #[test]
+    fn save_connection_persists_and_updates_page() {
+        let mut app = YssvApp::new_for_test();
+        app.conn_page.form.name = "Prod".into();
+        app.conn_page.form.host = "db.prod.io".into();
+        app.save_connection();
+        assert!(!app.conn_page.connections.is_empty());
+        assert_eq!(app.conn_page.connections[0].name, "Prod");
+    }
+
+    #[test]
+    fn delete_connection_removes_from_page() {
+        let mut app = YssvApp::new_for_test();
+        app.conn_page.form.name = "Dev".into();
+        app.conn_page.form.host = "localhost".into();
+        app.save_connection();
+        let id = app.conn_page.connections[0].id.clone();
+        app.delete_connection(&id);
+        assert!(app.conn_page.connections.is_empty());
+    }
+
+    #[test]
+    fn duplicate_connection_creates_copy_with_new_id() {
+        let mut app = YssvApp::new_for_test();
+        app.conn_page.form.name = "Staging".into();
+        app.conn_page.form.host = "staging.db".into();
+        app.save_connection();
+        let original_id = app.conn_page.connections[0].id.clone();
+        app.conn_page.selected_id = Some(original_id.clone());
+        app.duplicate_connection();
+        assert_eq!(app.conn_page.connections.len(), 2);
+        let copy = app.conn_page.connections.iter().find(|c| c.id != original_id).unwrap();
+        assert!(copy.name.contains("copy"));
+        assert_ne!(copy.id, original_id);
+    }
+
+    #[test]
+    fn duplicate_connection_without_selection_is_noop() {
+        let mut app = YssvApp::new_for_test();
+        app.conn_page.selected_id = None;
+        app.duplicate_connection();
+        assert!(app.conn_page.connections.is_empty());
+    }
+}
+
 impl eframe::App for YssvApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();

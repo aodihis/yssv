@@ -98,3 +98,57 @@ pub fn icon_image(icon: Icon, size: f32, color: Color32) -> egui::Image<'static>
     .fit_to_exact_size(Vec2::splat(size))
     .tint(color)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ALL_ICONS: &[Icon] = &[
+        Icon::ChevronRight,
+        Icon::ChevronDown,
+        Icon::Terminal,
+        Icon::SquareTerminal,
+        Icon::Plug2,
+        Icon::CornerDownLeft,
+        Icon::Trash2,
+        Icon::Database,
+        Icon::Layers,
+        Icon::Table2,
+        Icon::Eye,
+        Icon::EyeOff,
+        Icon::Copy,
+    ];
+
+    #[test]
+    fn all_icons_have_non_empty_bytes() {
+        for icon in ALL_ICONS {
+            let (bytes, _) = icon.data();
+            assert!(!bytes.is_empty(), "Icon has empty bytes: {:?}", std::mem::discriminant(icon));
+        }
+    }
+
+    #[test]
+    fn all_icon_uris_start_with_bytes_scheme() {
+        for icon in ALL_ICONS {
+            let (_, uri) = icon.data();
+            assert!(uri.starts_with("bytes://icon/"), "bad URI: {uri}");
+        }
+    }
+
+    #[test]
+    fn all_icon_uris_are_unique() {
+        use std::collections::HashSet;
+        let uris: HashSet<&str> = ALL_ICONS.iter().map(|i| i.data().1).collect();
+        assert_eq!(uris.len(), ALL_ICONS.len(), "duplicate icon URIs detected");
+    }
+
+    #[test]
+    fn all_icon_bytes_are_valid_svg() {
+        for icon in ALL_ICONS {
+            let (bytes, uri) = icon.data();
+            let text = std::str::from_utf8(bytes)
+                .unwrap_or_else(|_| panic!("{uri} is not valid UTF-8"));
+            assert!(text.contains("<svg"), "{uri} does not contain <svg");
+        }
+    }
+}

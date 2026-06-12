@@ -203,30 +203,6 @@ Connection metadata is stored in a local SQLite database:
 | Windows  | `%APPDATA%\yssv\connections.db` |
 | macOS / Linux | `~/.config/yssv/connections.db` |
 
-## Project structure
-
-```
-src/
-├── main.rs              Entry point — runtime + logging init
-├── app.rs               App state, screen routing, async event loop
-├── theme.rs             Dark/light color tokens and egui Visuals
-├── core/
-│   ├── connections/     Connection model + SQLite storage
-│   ├── drivers/         Database driver trait + Postgres/MySQL impls
-│   ├── schema/          Schema/table type definitions
-│   └── results/         Query result types
-├── pages/
-│   ├── connections/     Connection manager screen
-│   ├── explorer/        Data explorer screen
-│   └── settings/        App settings
-└── ui/
-    ├── atoms/           Primitive components (button, input, badge…)
-    ├── molecules/       Composed components (tab bar, status bar…)
-    └── layouts/         Screen-level containers
-tests/
-├── storage_tests.rs     SQLite CRUD integration tests
-└── driver_tests.rs      DB driver integration tests (#[ignore] by default)
-```
 
 ## License
 

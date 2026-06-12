@@ -5,7 +5,7 @@ pub mod postgres;
 use crate::core::{
     connections::model::Connection,
     results::model::{ColumnDef, QueryResult},
-    schema::model::{SchemaInfo, TableInfo},
+    schema::model::{SchemaInfo, TableInfo, TableKind},
 };
 use async_trait::async_trait;
 pub use error::DbError;
@@ -37,5 +37,30 @@ pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbE
     match conn.engine {
         DbEngine::Postgres => postgres::driver::connect(conn).await,
         DbEngine::MySQL => mysql::driver::connect(conn).await,
+    }
+}
+
+/// Shared helper: map a SQL table_type string to `TableKind`.
+pub(super) fn table_type_to_kind(ttype: &str) -> TableKind {
+    if ttype == "VIEW" { TableKind::View } else { TableKind::Table }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn table_type_view_maps_to_view() {
+        assert_eq!(table_type_to_kind("VIEW"), TableKind::View);
+    }
+
+    #[test]
+    fn table_type_base_table_maps_to_table() {
+        assert_eq!(table_type_to_kind("BASE TABLE"), TableKind::Table);
+    }
+
+    #[test]
+    fn table_type_unknown_maps_to_table() {
+        assert_eq!(table_type_to_kind("MATERIALIZED VIEW"), TableKind::Table);
     }
 }

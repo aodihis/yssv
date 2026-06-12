@@ -151,6 +151,12 @@ fn main() -> eframe::Result<()> {
     let _log_guard = init_logging();
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "YSSV starting");
 
+    // Initialize the platform keystore (Windows Credential Manager / macOS Keychain / etc.)
+    // before any secrets::* calls. keyring v4 requires explicit store setup.
+    if let Err(e) = keyring::use_native_store(false) {
+        tracing::warn!(error = %e, "keyring: failed to initialize native store — passwords will not persist");
+    }
+
     let rt = std::sync::Arc::new(
         tokio::runtime::Runtime::new().expect("failed to create tokio runtime"),
     );

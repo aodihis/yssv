@@ -1,70 +1,65 @@
-use keyring::Entry;
+use keyring_core::{Entry, Error};
 
 const SERVICE: &str = "yssv";
 
-fn entry(account: &str) -> keyring::Result<Entry> {
+fn entry(account: &str) -> keyring_core::Result<Entry> {
     Entry::new(SERVICE, account)
 }
 
-pub fn save_db_password(conn_id: &str, password: &str) {
+fn do_save(conn_id: &str, account: &str, label: &str, password: &str) {
     if password.is_empty() {
-        delete_db_password(conn_id);
+        do_delete(conn_id, account, label);
         return;
     }
-    match entry(conn_id).and_then(|e| e.set_password(password)) {
-        Ok(()) => tracing::debug!(conn_id, "secrets: saved db password"),
-        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to save db password"),
+    match entry(account).and_then(|e| e.set_password(password)) {
+        Ok(()) => tracing::debug!(conn_id, "secrets: saved {label} password"),
+        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to save {label} password"),
     }
 }
 
-pub fn load_db_password(conn_id: &str) -> String {
-    match entry(conn_id).and_then(|e| e.get_password()) {
+fn do_load(conn_id: &str, account: &str, label: &str) -> String {
+    match entry(account).and_then(|e| e.get_password()) {
         Ok(p) => p,
-        Err(keyring::Error::NoEntry) => String::new(),
+        Err(Error::NoEntry) => String::new(),
         Err(e) => {
-            tracing::warn!(conn_id, error = %e, "secrets: failed to load db password");
+            tracing::warn!(conn_id, error = %e, "secrets: failed to load {label} password");
             String::new()
         }
     }
 }
 
-pub fn delete_db_password(conn_id: &str) {
-    match entry(conn_id).and_then(|e| e.delete_credential()) {
-        Ok(()) | Err(keyring::Error::NoEntry) => {}
-        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to delete db password"),
+fn do_delete(conn_id: &str, account: &str, label: &str) {
+    match entry(account).and_then(|e| e.delete_credential()) {
+        Ok(()) | Err(Error::NoEntry) => {}
+        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to delete {label} password"),
     }
+}
+
+pub fn save_db_password(conn_id: &str, password: &str) {
+    do_save(conn_id, conn_id, "db", password);
+}
+
+pub fn load_db_password(conn_id: &str) -> String {
+    do_load(conn_id, conn_id, "db")
+}
+
+pub fn delete_db_password(conn_id: &str) {
+    do_delete(conn_id, conn_id, "db");
 }
 
 pub fn save_ssh_password(conn_id: &str, password: &str) {
     let account = format!("{conn_id}:ssh");
-    if password.is_empty() {
-        delete_ssh_password(conn_id);
-        return;
-    }
-    match entry(&account).and_then(|e| e.set_password(password)) {
-        Ok(()) => tracing::debug!(conn_id, "secrets: saved ssh password"),
-        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to save ssh password"),
-    }
+    do_save(conn_id, &account, "ssh", password);
 }
 
 pub fn load_ssh_password(conn_id: &str) -> String {
     let account = format!("{conn_id}:ssh");
-    match entry(&account).and_then(|e| e.get_password()) {
-        Ok(p) => p,
-        Err(keyring::Error::NoEntry) => String::new(),
-        Err(e) => {
-            tracing::warn!(conn_id, error = %e, "secrets: failed to load ssh password");
-            String::new()
-        }
-    }
+    do_load(conn_id, &account, "ssh")
 }
 
 pub fn delete_ssh_password(conn_id: &str) {
     let account = format!("{conn_id}:ssh");
-    match entry(&account).and_then(|e| e.delete_credential()) {
-        Ok(()) | Err(keyring::Error::NoEntry) => {}
-        Err(e) => tracing::warn!(conn_id, error = %e, "secrets: failed to delete ssh password"),
-    }
+    do_delete(conn_id, &account, "ssh");
 }
 
 pub fn delete_all(conn_id: &str) {

@@ -413,6 +413,8 @@ impl ThemeColors {
 mod tests {
     use super::*;
 
+    // --- build_visuals ---
+
     #[test]
     fn dark_selection_fill_is_correct() {
         let v = build_visuals(Theme::Dark);
@@ -435,5 +437,142 @@ mod tests {
     fn light_foreground_is_set() {
         let v = build_visuals(Theme::Light);
         assert_eq!(v.override_text_color, Some(colors::light::TEXT_PRIMARY));
+    }
+
+    #[test]
+    fn dark_panel_fill_matches_surface() {
+        let v = build_visuals(Theme::Dark);
+        assert_eq!(v.panel_fill, colors::dark::SURFACE);
+    }
+
+    #[test]
+    fn light_panel_fill_matches_surface() {
+        let v = build_visuals(Theme::Light);
+        assert_eq!(v.panel_fill, colors::light::SURFACE);
+    }
+
+    #[test]
+    fn dark_text_edit_bg_is_set() {
+        let v = build_visuals(Theme::Dark);
+        assert_eq!(v.text_edit_bg_color, Some(colors::dark::FIELD_BG));
+    }
+
+    #[test]
+    fn light_text_edit_bg_is_set() {
+        let v = build_visuals(Theme::Light);
+        assert_eq!(v.text_edit_bg_color, Some(colors::light::FIELD_BG));
+    }
+
+    #[test]
+    fn dark_hyperlink_is_primary_button_color() {
+        let v = build_visuals(Theme::Dark);
+        assert_eq!(v.hyperlink_color, colors::dark::BUTTON_PRIMARY_BG);
+    }
+
+    #[test]
+    fn light_hyperlink_is_primary_button_color() {
+        let v = build_visuals(Theme::Light);
+        assert_eq!(v.hyperlink_color, colors::light::BUTTON_PRIMARY_BG);
+    }
+
+    // --- ThemeColors ---
+
+    #[test]
+    fn theme_colors_dark_matches_constants() {
+        let tc = ThemeColors::dark();
+        assert_eq!(tc.text_primary, colors::dark::TEXT_PRIMARY);
+        assert_eq!(tc.text_secondary, colors::dark::TEXT_SECONDARY);
+        assert_eq!(tc.text_disabled, colors::dark::TEXT_DISABLED);
+        assert_eq!(tc.background, colors::dark::BACKGROUND);
+        assert_eq!(tc.surface, colors::dark::SURFACE);
+        assert_eq!(tc.border, colors::dark::BORDER);
+        assert_eq!(tc.button_primary_bg, colors::dark::BUTTON_PRIMARY_BG);
+        assert_eq!(tc.success, colors::SUCCESS);
+        assert_eq!(tc.error, colors::ERROR);
+    }
+
+    #[test]
+    fn theme_colors_light_matches_constants() {
+        let tc = ThemeColors::light();
+        assert_eq!(tc.text_primary, colors::light::TEXT_PRIMARY);
+        assert_eq!(tc.text_secondary, colors::light::TEXT_SECONDARY);
+        assert_eq!(tc.background, colors::light::BACKGROUND);
+        assert_eq!(tc.surface, colors::light::SURFACE);
+        assert_eq!(tc.button_primary_bg, colors::light::BUTTON_PRIMARY_BG);
+        assert_eq!(tc.success, colors::SUCCESS);
+        assert_eq!(tc.error, colors::ERROR);
+    }
+
+    #[test]
+    fn theme_colors_for_theme_dispatches_correctly() {
+        let dark = ThemeColors::for_theme(Theme::Dark);
+        let light = ThemeColors::for_theme(Theme::Light);
+        assert_eq!(dark.text_primary, colors::dark::TEXT_PRIMARY);
+        assert_eq!(light.text_primary, colors::light::TEXT_PRIMARY);
+    }
+
+    #[test]
+    fn dark_and_light_text_primary_differ() {
+        let dark = ThemeColors::dark();
+        let light = ThemeColors::light();
+        assert_ne!(dark.text_primary, light.text_primary);
+    }
+
+    #[test]
+    fn dark_and_light_background_differ() {
+        let dark = ThemeColors::dark();
+        let light = ThemeColors::light();
+        assert_ne!(dark.background, light.background);
+    }
+
+    // --- Theme enum ---
+
+    #[test]
+    fn theme_default_is_dark() {
+        assert_eq!(Theme::default(), Theme::Dark);
+    }
+
+    #[test]
+    fn theme_serializes_correctly() {
+        assert_eq!(serde_json::to_string(&Theme::Dark).unwrap(), "\"Dark\"");
+        assert_eq!(serde_json::to_string(&Theme::Light).unwrap(), "\"Light\"");
+    }
+
+    #[test]
+    fn theme_deserializes_correctly() {
+        let dark: Theme = serde_json::from_str("\"Dark\"").unwrap();
+        let light: Theme = serde_json::from_str("\"Light\"").unwrap();
+        assert_eq!(dark, Theme::Dark);
+        assert_eq!(light, Theme::Light);
+    }
+
+    // --- colors module ---
+
+    #[test]
+    fn success_and_error_colors_are_distinct() {
+        assert_ne!(colors::SUCCESS, colors::ERROR);
+    }
+
+    #[test]
+    fn postgres_and_mysql_brand_colors_are_distinct() {
+        assert_ne!(colors::POSTGRES, colors::MYSQL);
+    }
+
+    #[test]
+    fn all_six_conn_colors_are_distinct() {
+        use std::collections::HashSet;
+        let palette = [
+            colors::RED, colors::AMBER, colors::GREEN,
+            colors::BLUE, colors::PURPLE, colors::GRAY,
+        ];
+        let set: HashSet<[u8; 4]> = palette.iter().map(|c| c.to_array()).collect();
+        assert_eq!(set.len(), 6, "connection palette has duplicate colors");
+    }
+
+    // --- system_font_candidates ---
+
+    #[test]
+    fn system_font_candidates_is_non_empty() {
+        assert!(!system_font_candidates().is_empty());
     }
 }

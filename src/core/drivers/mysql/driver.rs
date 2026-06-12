@@ -1,8 +1,8 @@
 use crate::core::{
     connections::model::Connection,
-    drivers::{ActiveConnection, DbError},
+    drivers::{ActiveConnection, DbError, table_type_to_kind},
     results::model::{ColumnDef, QueryResult},
-    schema::model::{SchemaInfo, TableInfo, TableKind},
+    schema::model::{SchemaInfo, TableInfo},
 };
 use async_trait::async_trait;
 use sqlx::MySqlPool;
@@ -12,12 +12,48 @@ pub struct MyConnection {
     pool: MySqlPool,
 }
 
-pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
-    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "mysql: connecting");
-    let url = format!(
+pub(crate) fn build_connection_url(conn: &Connection) -> String {
+    format!(
         "mysql://{}:{}@{}:{}/{}?charset=utf8mb4",
         conn.username, conn.password, conn.host, conn.port, conn.database
-    );
+    )
+}
+
+pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
+    if cols.is_empty() {
+        return "*".to_string();
+    }
+    cols.iter()
+        .map(|c| {
+            let name = &c.name;
+            if is_temporal(&c.data_type) {
+                format!("CAST(`{name}` AS CHAR) AS `{name}`")
+            } else {
+                format!("`{name}`")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+pub(crate) fn map_column(
+    name: String,
+    data_type: String,
+    nullable: String,
+    key: Option<String>,
+) -> ColumnDef {
+    ColumnDef {
+        is_pk: key.as_deref() == Some("PRI"),
+        is_fk: key.as_deref() == Some("MUL"),
+        nullable: nullable == "YES",
+        name,
+        data_type,
+    }
+}
+
+pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
+    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "mysql: connecting");
+    let url = build_connection_url(conn);
     let pool = MySqlPoolOptions::new()
         .max_connections(5)
         .connect(&url)
@@ -68,17 +104,10 @@ impl ActiveConnection for MyConnection {
 
         let tables: Vec<TableInfo> = rows
             .into_iter()
-            .map(|(name, ttype, row_count)| {
-                let kind = if ttype == "VIEW" {
-                    TableKind::View
-                } else {
-                    TableKind::Table
-                };
-                TableInfo {
-                    name,
-                    kind,
-                    row_count: row_count.map(|n| n as u64),
-                }
+            .map(|(name, ttype, row_count)| TableInfo {
+                kind: table_type_to_kind(&ttype),
+                name,
+                row_count: row_count.map(|n| n as u64),
             })
             .collect();
         tracing::debug!(schema, count = tables.len(), "mysql: list_tables done");
@@ -97,22 +126,7 @@ impl ActiveConnection for MyConnection {
 
         let col_defs = self.describe_table(db, schema, table).await?;
 
-        let select_list = if col_defs.is_empty() {
-            "*".to_string()
-        } else {
-            col_defs
-                .iter()
-                .map(|c| {
-                    let name = &c.name;
-                    if is_temporal(&c.data_type) {
-                        format!("CAST(`{name}` AS CHAR) AS `{name}`")
-                    } else {
-                        format!("`{name}`")
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
-        };
+        let select_list = build_select_list(&col_defs);
 
         let query =
             format!("SELECT {select_list} FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}");
@@ -171,13 +185,7 @@ impl ActiveConnection for MyConnection {
 
         let cols: Vec<ColumnDef> = rows
             .into_iter()
-            .map(|(name, data_type, nullable, key)| ColumnDef {
-                name,
-                data_type,
-                is_pk: key.as_deref() == Some("PRI"),
-                is_fk: key.as_deref() == Some("MUL"),
-                nullable: nullable == "YES",
-            })
+            .map(|(name, data_type, nullable, key)| map_column(name, data_type, nullable, key))
             .collect();
         tracing::debug!(
             schema,
@@ -216,6 +224,102 @@ fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::{connections::model::Connection, results::model::ColumnDef};
+
+    #[test]
+    fn build_connection_url_format() {
+        let mut conn = Connection::new_mysql();
+        conn.username = "bob".into();
+        conn.password = "pass".into();
+        conn.host = "mysql.host".into();
+        conn.port = 3307;
+        conn.database = "shop".into();
+        let url = build_connection_url(&conn);
+        assert_eq!(url, "mysql://bob:pass@mysql.host:3307/shop?charset=utf8mb4");
+    }
+
+    #[test]
+    fn build_select_list_empty_returns_star() {
+        assert_eq!(build_select_list(&[]), "*");
+    }
+
+    #[test]
+    fn build_select_list_non_temporal_uses_backtick() {
+        let cols = vec![
+            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
+            ColumnDef { name: "name".into(), data_type: "varchar".into(), is_pk: false, is_fk: false, nullable: true },
+        ];
+        let list = build_select_list(&cols);
+        assert_eq!(list, "`id`, `name`");
+    }
+
+    #[test]
+    fn build_select_list_temporal_uses_cast() {
+        let cols = vec![
+            ColumnDef { name: "created_at".into(), data_type: "datetime".into(), is_pk: false, is_fk: false, nullable: true },
+        ];
+        let list = build_select_list(&cols);
+        assert_eq!(list, "CAST(`created_at` AS CHAR) AS `created_at`");
+    }
+
+    #[test]
+    fn build_select_list_mixed_temporal_and_regular() {
+        let cols = vec![
+            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
+            ColumnDef { name: "ts".into(), data_type: "timestamp".into(), is_pk: false, is_fk: false, nullable: true },
+        ];
+        let list = build_select_list(&cols);
+        assert_eq!(list, "`id`, CAST(`ts` AS CHAR) AS `ts`");
+    }
+
+    #[test]
+    fn is_temporal_matches_all_date_types() {
+        for t in &["datetime", "DATETIME", "timestamp", "TIMESTAMP", "date", "time", "year"] {
+            assert!(is_temporal(t), "{t} should be temporal");
+        }
+    }
+
+    #[test]
+    fn is_temporal_rejects_non_date_types() {
+        for t in &["int", "varchar", "text", "float", "json"] {
+            assert!(!is_temporal(t), "{t} should not be temporal");
+        }
+    }
+
+    #[test]
+    fn map_column_pri_key_sets_is_pk() {
+        let col = map_column("id".into(), "int".into(), "NO".into(), Some("PRI".into()));
+        assert!(col.is_pk);
+        assert!(!col.is_fk);
+        assert!(!col.nullable);
+    }
+
+    #[test]
+    fn map_column_mul_key_sets_is_fk() {
+        let col = map_column("user_id".into(), "int".into(), "NO".into(), Some("MUL".into()));
+        assert!(!col.is_pk);
+        assert!(col.is_fk);
+    }
+
+    #[test]
+    fn map_column_no_key_clears_pk_and_fk() {
+        let col = map_column("notes".into(), "text".into(), "YES".into(), None);
+        assert!(!col.is_pk);
+        assert!(!col.is_fk);
+        assert!(col.nullable);
+    }
+
+    #[test]
+    fn map_column_nullable_yes_sets_nullable() {
+        let col = map_column("bio".into(), "text".into(), "YES".into(), None);
+        assert!(col.nullable);
+    }
+
+    #[test]
+    fn map_column_nullable_no_clears_nullable() {
+        let col = map_column("email".into(), "varchar".into(), "NO".into(), None);
+        assert!(!col.nullable);
+    }
 
     #[tokio::test]
     #[ignore = "requires a running MySQL instance; set YSSV_TEST_MYSQL_URL to enable"]
