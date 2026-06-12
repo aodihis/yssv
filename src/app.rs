@@ -745,6 +745,74 @@ mod tests {
         app.duplicate_connection();
         assert!(app.conn_page.connections.is_empty());
     }
+
+    // Waits for spawned async tasks to finish then drains the event channel.
+    // load_rows / load_schemas / load_structure are fire-and-forget spawns so
+    // we need a brief yield before reading results.
+    fn drain_after_spawn(app: &mut YssvApp) {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        app.drain_events(&egui::Context::default());
+    }
+
+    #[test]
+    fn load_schemas_with_no_config_sends_no_event() {
+        let app = YssvApp::new_for_test();
+        // conn_config is None — load_schemas returns early without spawning
+        app.load_schemas(egui::Context::default(), "testdb".into());
+        assert!(app.event_rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn load_rows_with_no_conn_and_no_config_emits_row_load_error() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("users", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        // db_conns is empty AND conn_config is None → open_db_conn returns None
+        app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
+        drain_after_spawn(&mut app);
+        assert!(app.error_modal.is_some());
+    }
+
+    #[test]
+    fn load_rows_with_mock_conn_emits_rows_loaded() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("users", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        app.db_conns.insert(db.clone(), Arc::new(MockConn));
+        app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
+        drain_after_spawn(&mut app);
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
+        assert!(tab.result.is_some());
+        assert!(!tab.loading);
+    }
+
+    #[test]
+    fn load_structure_with_mock_conn_emits_structure_loaded() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("orders", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        app.db_conns.insert(db.clone(), Arc::new(MockConn));
+        app.load_structure(egui::Context::default(), tab_id.clone(), db, "public".into(), "orders".into());
+        drain_after_spawn(&mut app);
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
+        assert!(!tab.structure_loading);
+        assert!(tab.structure.is_some());
+    }
+
+    #[test]
+    fn load_structure_with_no_conn_and_no_config_does_not_crash() {
+        let (mut app, db) = make_app_with_explorer();
+        let tab = TableTab::new("orders", "public", &db);
+        let tab_id = tab.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        // db_conns empty, conn_config None → open_db_conn returns None, task exits silently
+        app.load_structure(egui::Context::default(), tab_id, db, "public".into(), "orders".into());
+        drain_after_spawn(&mut app);
+        assert!(app.error_modal.is_none());
+    }
 }
 
 impl eframe::App for YssvApp {
