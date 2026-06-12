@@ -115,7 +115,7 @@ fn mono_input_renders_without_panic() {
 }
 
 // ---------------------------------------------------------------------------
-// Light switch (custom painted — smoke test + state toggle)
+// Light switch (custom painted — smoke tests)
 // ---------------------------------------------------------------------------
 
 #[test]

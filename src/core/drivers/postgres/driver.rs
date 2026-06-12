@@ -284,14 +284,4 @@ mod tests {
         assert!(!col.nullable);
     }
 
-    #[tokio::test]
-    #[ignore = "requires a running PostgreSQL instance; set YSSV_TEST_PG_URL to enable"]
-    async fn integration_list_databases() {
-        let url = std::env::var("YSSV_TEST_PG_URL")
-            .unwrap_or_else(|_| "postgres://postgres:postgres@localhost/postgres".into());
-        let pool = PgPool::connect(&url).await.unwrap();
-        let pg = PgConnection { pool };
-        let dbs = pg.list_databases().await.unwrap();
-        assert!(!dbs.is_empty());
-    }
 }

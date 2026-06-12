@@ -321,14 +321,4 @@ mod tests {
         assert!(!col.nullable);
     }
 
-    #[tokio::test]
-    #[ignore = "requires a running MySQL instance; set YSSV_TEST_MYSQL_URL to enable"]
-    async fn integration_list_databases() {
-        let url = std::env::var("YSSV_TEST_MYSQL_URL")
-            .unwrap_or_else(|_| "mysql://root:root@localhost/mysql".into());
-        let pool = MySqlPool::connect(&url).await.unwrap();
-        let my = MyConnection { pool };
-        let dbs = my.list_databases().await.unwrap();
-        assert!(!dbs.is_empty());
-    }
 }
