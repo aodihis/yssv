@@ -92,15 +92,15 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 
 ---
 
-### Phase 4 — Query Editor
+### Phase 4 — Query Editor ✅
 **Goal**: First-class SQL console tab.
 
-- [ ] New "Query" tab type (alongside table tabs)
+- [x] New "Query" tab type (alongside table tabs)
 - [ ] Syntax-highlighted SQL editor (using `egui_code_editor` or similar)
-- [ ] Run query → display results in grid below editor
-- [ ] Multi-statement support
-- [ ] Error display with line/column highlight
-- [ ] Keyboard shortcut: Ctrl+Enter to run
+- [x] Run query → display results in grid below editor
+- [ ] Multi-statement support (single-statement only; multi-stmt needs simple query protocol)
+- [x] Error display with line/column highlight
+- [x] Keyboard shortcut: Ctrl+Enter to run
 
 ---
 
