@@ -57,7 +57,7 @@ pub fn password_input(
     // button_padding is zeroed in a scope so the image fills the rect exactly,
     // preventing the default padding from pushing the icon off-center.
     let eye_rect = egui::Rect::from_center_size(
-        egui::pos2(resp.rect.right() - 16.0, resp.rect.center().y),
+        egui::pos2(resp.rect.right() - 16.0, resp.rect.center().y -5.5),
         egui::vec2(20.0, 20.0),
     );
     let eye_icon = if show { Icon::EyeOff } else { Icon::Eye };
