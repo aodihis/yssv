@@ -8,7 +8,7 @@ pub fn conn_item(ui: &mut Ui, conn: &Connection, selected: bool) -> Response {
     let item_h = 48.0;
     let (rect, resp) = ui.allocate_exact_size(
         Vec2::new(ui.available_width(), item_h),
-        egui::Sense::click(),
+        egui::Sense::click_and_drag(),
     );
     if !ui.is_rect_visible(rect) {
         return resp;

@@ -37,10 +37,15 @@ impl Storage {
                 database    TEXT NOT NULL DEFAULT '',
                 username    TEXT NOT NULL DEFAULT '',
                 ssh_json    TEXT,
-                is_favorite INTEGER NOT NULL DEFAULT 0
+                is_favorite INTEGER NOT NULL DEFAULT 0,
+                sort_order  INTEGER NOT NULL DEFAULT 0
             );
         ",
         )?;
+        // Idempotent: add sort_order to existing tables that predate the column
+        let _ = self.conn.execute_batch(
+            "ALTER TABLE connections ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+        );
         Ok(())
     }
 
@@ -50,7 +55,7 @@ impl Storage {
         let mut stmt = self.conn.prepare(
             "SELECT id, name, group_name, engine, color, host, port, database,
                     username, ssh_json, is_favorite
-             FROM connections ORDER BY group_name, name",
+             FROM connections ORDER BY sort_order, group_name, name",
         )?;
         tracing::debug!("storage: loading all connections");
         let rows = stmt.query_map([], |row| {
@@ -148,6 +153,17 @@ impl Storage {
         secrets::delete_all(id);
         self.conn
             .execute("DELETE FROM connections WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn save_order(&self, ordered_ids: &[String]) -> SqliteResult<()> {
+        tracing::debug!(count = ordered_ids.len(), "storage: persisting connection sort order");
+        for (i, id) in ordered_ids.iter().enumerate() {
+            self.conn.execute(
+                "UPDATE connections SET sort_order = ?1 WHERE id = ?2",
+                params![i as i64, id],
+            )?;
+        }
         Ok(())
     }
 

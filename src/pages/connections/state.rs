@@ -168,6 +168,8 @@ pub struct ConnectionsPageState {
     pub collapsed_groups: std::collections::HashSet<String>,
     pub is_new: bool,
     pub pending_delete: Option<String>,
+    /// (original_group_name, draft_name) — Some while the user is editing a group header
+    pub renaming_group: Option<(String, String)>,
 }
 
 impl ConnectionsPageState {
@@ -190,6 +192,7 @@ impl ConnectionsPageState {
             collapsed_groups: Default::default(),
             is_new,
             pending_delete: None,
+            renaming_group: None,
         }
     }
 

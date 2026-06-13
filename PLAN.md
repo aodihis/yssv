@@ -81,14 +81,14 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 
 ---
 
-### Phase 3 — Connection UX Polish
+### Phase 3 — Connection UX Polish ✅
 **Goal**: Full connection management workflow.
 
 - [x] Delete connection (with confirmation)
 - [x] Duplicate connection
-- [ ] Drag-and-drop reorder within/across groups
+- [x] Drag-and-drop reorder within/across groups
 - [x] Test Connection button shows real latency
-- [ ] Group rename
+- [x] Group rename
 
 ---
 

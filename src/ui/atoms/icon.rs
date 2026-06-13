@@ -15,6 +15,7 @@ pub enum Icon {
     Eye,
     EyeOff,
     Copy,
+    PencilLine,
 }
 
 impl Icon {
@@ -72,6 +73,10 @@ impl Icon {
                 include_bytes!("../../../assets/icons/copy.svg"),
                 "bytes://icon/copy.svg",
             ),
+            Icon::PencilLine => (
+                include_bytes!("../../../assets/icons/pencil-line.svg"),
+                "bytes://icon/pencil-line.svg",
+            ),
         }
     }
 }
@@ -117,6 +122,7 @@ mod tests {
         Icon::Eye,
         Icon::EyeOff,
         Icon::Copy,
+        Icon::PencilLine,
     ];
 
     #[test]

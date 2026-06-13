@@ -462,6 +462,70 @@ impl YssvApp {
         self.conn_page.remove(id);
     }
 
+    pub fn rename_group(&mut self, old_name: &str, new_name: &str) {
+        tracing::info!(old = %old_name, new = %new_name, "renaming group");
+        let to_save: Vec<_> = {
+            let mut result = Vec::new();
+            for c in self.conn_page.connections.iter_mut() {
+                if c.group == old_name {
+                    c.group = new_name.to_string();
+                    result.push(c.clone());
+                }
+            }
+            result
+        };
+        for c in &to_save {
+            if let Err(e) = self.storage.save(c) {
+                tracing::warn!(conn_id = %c.id, error = %e, "rename_group: save failed");
+            }
+        }
+        if self.conn_page.collapsed_groups.remove(old_name) {
+            self.conn_page.collapsed_groups.insert(new_name.to_string());
+        }
+        self.conn_page.renaming_group = None;
+        tracing::debug!(count = to_save.len(), "group rename persisted");
+    }
+
+    pub fn reorder_connections(&mut self, dragged_id: &str, new_group: &str, before_id: Option<&str>) {
+        tracing::debug!(
+            conn_id = %dragged_id, new_group = %new_group,
+            before = ?before_id, "reorder_connections"
+        );
+        let Some(from_pos) = self.conn_page.connections.iter().position(|c| c.id == dragged_id) else {
+            tracing::warn!(conn_id = %dragged_id, "reorder_connections: dragged conn not found");
+            return;
+        };
+        let mut conn = self.conn_page.connections.remove(from_pos);
+
+        let group_changed = conn.group != new_group;
+        if group_changed {
+            conn.group = new_group.to_string();
+            if let Err(e) = self.storage.save(&conn) {
+                tracing::warn!(conn_id = %conn.id, error = %e, "reorder_connections: save group change failed");
+            }
+            tracing::info!(conn_id = %dragged_id, group = %new_group, "connection moved to group");
+        }
+
+        let insert_pos = match before_id {
+            Some(bid) => self.conn_page.connections.iter().position(|c| c.id == bid)
+                .unwrap_or(self.conn_page.connections.len()),
+            None => {
+                // Append after the last item in target group
+                self.conn_page.connections.iter().rposition(|c| c.group == new_group)
+                    .map(|p| p + 1)
+                    .unwrap_or(self.conn_page.connections.len())
+            }
+        };
+        self.conn_page.connections.insert(insert_pos, conn);
+
+        let ids: Vec<String> = self.conn_page.connections.iter().map(|c| c.id.clone()).collect();
+        if let Err(e) = self.storage.save_order(&ids) {
+            tracing::warn!(error = %e, "reorder_connections: save_order failed");
+        } else {
+            tracing::debug!(count = ids.len(), "connection order persisted");
+        }
+    }
+
     pub fn duplicate_connection(&mut self) {
         let Some(id) = self.conn_page.selected_id.clone() else {
             tracing::warn!("duplicate_connection: no selected connection");
