@@ -29,6 +29,18 @@ pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
         .join(", ")
 }
 
+pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
+    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "postgres: connecting");
+    let url = build_connection_url(conn);
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&url)
+        .await
+        .map_err(DbError::from)?;
+    tracing::info!(host = %conn.host, port = conn.port, "postgres: connection pool established");
+    Ok(Box::new(PgConnection { pool }))
+}
+
 pub(crate) fn map_column(
     name: String,
     data_type: String,
@@ -44,18 +56,6 @@ pub(crate) fn map_column(
     }
 }
 
-pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
-    tracing::debug!(host = %conn.host, port = conn.port, db = %conn.database, "postgres: connecting");
-    let url = build_connection_url(conn);
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&url)
-        .await
-        .map_err(DbError::from)?;
-    tracing::info!(host = %conn.host, port = conn.port, "postgres: connection pool established");
-    Ok(Box::new(PgConnection { pool }))
-}
-
 #[async_trait]
 impl ActiveConnection for PgConnection {
     async fn current_database(&self) -> Result<String, DbError> {
@@ -64,6 +64,167 @@ impl ActiveConnection for PgConnection {
             .await?;
         tracing::debug!(db = %db, "postgres: current_database");
         Ok(db)
+    }
+
+    async fn describe_table(
+        &self,
+        _db: &str,
+        schema: &str,
+        table: &str,
+    ) -> Result<Vec<ColumnDef>, DbError> {
+        tracing::debug!(schema, table, "postgres: describe_table");
+        let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
+            "SELECT
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                (SELECT 'PK' FROM information_schema.table_constraints tc
+                 JOIN information_schema.key_column_usage kcu
+                   ON tc.constraint_name = kcu.constraint_name
+                  AND tc.table_schema = kcu.table_schema
+                 WHERE tc.constraint_type = 'PRIMARY KEY'
+                   AND tc.table_schema = c.table_schema
+                   AND tc.table_name = c.table_name
+                   AND kcu.column_name = c.column_name
+                 LIMIT 1) AS pk_flag
+             FROM information_schema.columns c
+             WHERE c.table_schema = $1 AND c.table_name = $2
+             ORDER BY c.ordinal_position",
+        )
+        .bind(schema)
+        .bind(table)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let cols: Vec<ColumnDef> = rows
+            .into_iter()
+            .map(|(name, data_type, nullable, pk_flag)| map_column(name, data_type, nullable, pk_flag))
+            .collect();
+        tracing::debug!(
+            schema,
+            table,
+            columns = cols.len(),
+            "postgres: describe_table done"
+        );
+        Ok(cols)
+    }
+
+    async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError> {
+        use sqlx::{Column, Row, TypeInfo};
+        tracing::debug!(sql_len = sql.len(), "postgres: execute_query");
+
+        let trimmed = sql.trim().to_uppercase();
+        let is_fetch = trimmed.starts_with("SELECT")
+            || trimmed.starts_with("WITH")
+            || trimmed.starts_with("SHOW")
+            || trimmed.starts_with("EXPLAIN")
+            || trimmed.starts_with("TABLE");
+
+        if !is_fetch {
+            let result = sqlx::query(sql).execute(&self.pool).await?;
+            let affected = result.rows_affected();
+            tracing::info!(rows_affected = affected, "postgres: execute_query (DML)");
+            return Ok(QueryResult {
+                columns: vec![ColumnDef {
+                    name: "result".into(),
+                    data_type: "text".into(),
+                    is_pk: false,
+                    is_fk: false,
+                    nullable: false,
+                }],
+                rows: vec![vec![Some(format!("Query OK, {affected} rows affected"))]],
+                total_rows: Some(1),
+            });
+        }
+
+        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        if rows.is_empty() {
+            tracing::debug!("postgres: execute_query returned 0 rows");
+            return Ok(QueryResult::empty());
+        }
+
+        let columns: Vec<ColumnDef> = rows[0]
+            .columns()
+            .iter()
+            .map(|c| ColumnDef {
+                name: c.name().to_string(),
+                data_type: c.type_info().name().to_string(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            })
+            .collect();
+
+        let data_rows: Vec<Vec<Option<String>>> = rows
+            .iter()
+            .map(|row| {
+                (0..columns.len())
+                    .map(|i| decode_col_pg(row, i))
+                    .collect()
+            })
+            .collect();
+
+        let row_count = data_rows.len() as u64;
+        tracing::info!(rows = row_count, "postgres: execute_query success");
+
+        Ok(QueryResult {
+            columns,
+            rows: data_rows,
+            total_rows: Some(row_count),
+        })
+    }
+
+    async fn fetch_rows(
+        &self,
+        db: &str,
+        schema: &str,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<QueryResult, DbError> {
+        tracing::debug!(schema, table, limit, offset, "postgres: fetch_rows");
+
+        let col_defs = self.describe_table(db, schema, table).await?;
+
+        let select_list = build_select_list(&col_defs);
+
+        let query = format!(
+            "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
+        );
+        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
+
+        if rows.is_empty() {
+            return Ok(QueryResult {
+                columns: col_defs,
+                rows: vec![],
+                total_rows: Some(0),
+            });
+        }
+
+        use sqlx::Row;
+        let data_rows: Vec<Vec<Option<String>>> = rows
+            .iter()
+            .map(|row| {
+                (0..col_defs.len())
+                    .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
+                    .collect()
+            })
+            .collect();
+
+        let count_query = format!("SELECT COUNT(*) FROM \"{schema}\".\"{table}\"");
+        let total: i64 = sqlx::query_scalar(&count_query)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!(schema, table, error = %e, "postgres: COUNT(*) failed, using 0");
+                0
+            });
+
+        Ok(QueryResult {
+            columns: col_defs,
+            rows: data_rows,
+            total_rows: Some(total as u64),
+        })
     }
 
     async fn list_databases(&self) -> Result<Vec<String>, DbError> {
@@ -127,189 +288,32 @@ impl ActiveConnection for PgConnection {
         tracing::debug!(schema, count = tables.len(), "postgres: list_tables done");
         Ok(tables)
     }
+}
 
-    async fn fetch_rows(
-        &self,
-        db: &str,
-        schema: &str,
-        table: &str,
-        limit: u32,
-        offset: u32,
-    ) -> Result<QueryResult, DbError> {
-        tracing::debug!(schema, table, limit, offset, "postgres: fetch_rows");
-
-        let col_defs = self.describe_table(db, schema, table).await?;
-
-        let select_list = build_select_list(&col_defs);
-
-        let query = format!(
-            "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
-        );
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
-
-        if rows.is_empty() {
-            return Ok(QueryResult {
-                columns: col_defs,
-                rows: vec![],
-                total_rows: Some(0),
-            });
-        }
-
-        use sqlx::Row;
-        let data_rows: Vec<Vec<Option<String>>> = rows
-            .iter()
-            .map(|row| {
-                (0..col_defs.len())
-                    .map(|i| row.try_get::<Option<String>, _>(i).ok().flatten())
-                    .collect()
-            })
-            .collect();
-
-        let count_query = format!("SELECT COUNT(*) FROM \"{schema}\".\"{table}\"");
-        let total: i64 = sqlx::query_scalar(&count_query)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(schema, table, error = %e, "postgres: COUNT(*) failed, using 0");
-                0
-            });
-
-        Ok(QueryResult {
-            columns: col_defs,
-            rows: data_rows,
-            total_rows: Some(total as u64),
-        })
+fn decode_col_pg(row: &sqlx::postgres::PgRow, i: usize) -> Option<String> {
+    use sqlx::Row;
+    if let Ok(v) = row.try_get::<Option<String>, _>(i) {
+        return v;
     }
-
-    async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError> {
-        use sqlx::{Column, Row, TypeInfo};
-        tracing::debug!(sql_len = sql.len(), "postgres: execute_query");
-
-        let trimmed = sql.trim().to_uppercase();
-        let is_fetch = trimmed.starts_with("SELECT")
-            || trimmed.starts_with("WITH")
-            || trimmed.starts_with("SHOW")
-            || trimmed.starts_with("EXPLAIN")
-            || trimmed.starts_with("TABLE");
-
-        if !is_fetch {
-            let result = sqlx::query(sql).execute(&self.pool).await?;
-            let affected = result.rows_affected();
-            tracing::info!(rows_affected = affected, "postgres: execute_query (DML)");
-            return Ok(QueryResult {
-                columns: vec![ColumnDef {
-                    name: "result".into(),
-                    data_type: "text".into(),
-                    is_pk: false,
-                    is_fk: false,
-                    nullable: false,
-                }],
-                rows: vec![vec![Some(format!("Query OK, {affected} rows affected"))]],
-                total_rows: Some(1),
-            });
-        }
-
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
-        if rows.is_empty() {
-            tracing::debug!("postgres: execute_query returned 0 rows");
-            return Ok(QueryResult::empty());
-        }
-
-        let columns: Vec<ColumnDef> = rows[0]
-            .columns()
-            .iter()
-            .map(|c| ColumnDef {
-                name: c.name().to_string(),
-                data_type: c.type_info().name().to_string(),
-                is_pk: false,
-                is_fk: false,
-                nullable: true,
-            })
-            .collect();
-
-        let data_rows: Vec<Vec<Option<String>>> = rows
-            .iter()
-            .map(|row| {
-                (0..columns.len())
-                    .map(|i| {
-                        row.try_get::<Option<String>, _>(i)
-                            .ok()
-                            .flatten()
-                            .or_else(|| {
-                                row.try_get::<Option<i64>, _>(i)
-                                    .ok()
-                                    .flatten()
-                                    .map(|v| v.to_string())
-                            })
-                            .or_else(|| {
-                                row.try_get::<Option<f64>, _>(i)
-                                    .ok()
-                                    .flatten()
-                                    .map(|v| v.to_string())
-                            })
-                            .or_else(|| {
-                                row.try_get::<Option<bool>, _>(i)
-                                    .ok()
-                                    .flatten()
-                                    .map(|v| v.to_string())
-                            })
-                    })
-                    .collect()
-            })
-            .collect();
-
-        let row_count = data_rows.len() as u64;
-        tracing::info!(rows = row_count, "postgres: execute_query success");
-
-        Ok(QueryResult {
-            columns,
-            rows: data_rows,
-            total_rows: Some(row_count),
-        })
+    if let Ok(Some(v)) = row.try_get::<Option<i32>, _>(i) {
+        return Some(v.to_string());
     }
-
-    async fn describe_table(
-        &self,
-        _db: &str,
-        schema: &str,
-        table: &str,
-    ) -> Result<Vec<ColumnDef>, DbError> {
-        tracing::debug!(schema, table, "postgres: describe_table");
-        let rows = sqlx::query_as::<_, (String, String, String, Option<String>)>(
-            "SELECT
-                c.column_name,
-                c.data_type,
-                c.is_nullable,
-                (SELECT 'PK' FROM information_schema.table_constraints tc
-                 JOIN information_schema.key_column_usage kcu
-                   ON tc.constraint_name = kcu.constraint_name
-                  AND tc.table_schema = kcu.table_schema
-                 WHERE tc.constraint_type = 'PRIMARY KEY'
-                   AND tc.table_schema = c.table_schema
-                   AND tc.table_name = c.table_name
-                   AND kcu.column_name = c.column_name
-                 LIMIT 1) AS pk_flag
-             FROM information_schema.columns c
-             WHERE c.table_schema = $1 AND c.table_name = $2
-             ORDER BY c.ordinal_position",
-        )
-        .bind(schema)
-        .bind(table)
-        .fetch_all(&self.pool)
-        .await?;
-
-        let cols: Vec<ColumnDef> = rows
-            .into_iter()
-            .map(|(name, data_type, nullable, pk_flag)| map_column(name, data_type, nullable, pk_flag))
-            .collect();
-        tracing::debug!(
-            schema,
-            table,
-            columns = cols.len(),
-            "postgres: describe_table done"
-        );
-        Ok(cols)
+    if let Ok(Some(v)) = row.try_get::<Option<i64>, _>(i) {
+        return Some(v.to_string());
     }
+    if let Ok(Some(v)) = row.try_get::<Option<i16>, _>(i) {
+        return Some(v.to_string());
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<f32>, _>(i) {
+        return Some(v.to_string());
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<f64>, _>(i) {
+        return Some(v.to_string());
+    }
+    if let Ok(Some(v)) = row.try_get::<Option<bool>, _>(i) {
+        return Some(v.to_string());
+    }
+    None
 }
 
 #[cfg(test)]

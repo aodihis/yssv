@@ -35,23 +35,26 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             bottom: 8,
         })
         .show(ui, |ui| {
-            ui.label(
-                RichText::new(&conn_name)
-                    .size(13.0)
-                    .family(egui::FontFamily::Name("SemiBold".into()))
-                    .color(tc.text_primary),
-            );
+            // Header row: connection name + SQL button
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(&conn_name)
+                        .size(13.0)
+                        .family(egui::FontFamily::Name("SemiBold".into()))
+                        .color(tc.text_primary),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if compact_button(ui, "SQL").clicked() {
+                        new_query_clicked = true;
+                    }
+                });
+            });
             ui.add_space(7.0);
             let e = app
                 .explorer
                 .as_mut()
                 .expect("explorer is Some — checked above");
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
-                if compact_button(ui, "SQL").clicked() {
-                    new_query_clicked = true;
-                }
-                text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
-            });
+            text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
         });
 
     if new_query_clicked {

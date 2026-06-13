@@ -16,6 +16,7 @@ pub enum Icon {
     EyeOff,
     Copy,
     PencilLine,
+    X,
 }
 
 impl Icon {
@@ -77,8 +78,22 @@ impl Icon {
                 include_bytes!("../../../assets/icons/pencil-line.svg"),
                 "bytes://icon/pencil-line.svg",
             ),
+            Icon::X => (
+                include_bytes!("../../../assets/icons/x.svg"),
+                "bytes://icon/x.svg",
+            ),
         }
     }
+}
+
+pub fn icon_image(icon: Icon, size: f32, color: Color32) -> egui::Image<'static> {
+    let (bytes, uri) = icon.data();
+    egui::Image::new(egui::ImageSource::Bytes {
+        uri: uri.into(),
+        bytes: egui::load::Bytes::Static(bytes),
+    })
+    .fit_to_exact_size(Vec2::splat(size))
+    .tint(color)
 }
 
 pub fn svg_icon(ui: &mut Ui, icon: Icon, size: f32, color: Color32) -> Response {
@@ -92,16 +107,6 @@ pub fn svg_icon(ui: &mut Ui, icon: Icon, size: f32, color: Color32) -> Response 
             .fit_to_exact_size(Vec2::splat(size))
             .tint(color),
     )
-}
-
-pub fn icon_image(icon: Icon, size: f32, color: Color32) -> egui::Image<'static> {
-    let (bytes, uri) = icon.data();
-    egui::Image::new(egui::ImageSource::Bytes {
-        uri: uri.into(),
-        bytes: egui::load::Bytes::Static(bytes),
-    })
-    .fit_to_exact_size(Vec2::splat(size))
-    .tint(color)
 }
 
 #[cfg(test)]
@@ -123,6 +128,7 @@ mod tests {
         Icon::EyeOff,
         Icon::Copy,
         Icon::PencilLine,
+        Icon::X,
     ];
 
     #[test]

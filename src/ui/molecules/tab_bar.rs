@@ -1,5 +1,6 @@
 use crate::pages::explorer::state::Tab;
 use crate::theme::ThemeColors;
+use crate::ui::atoms::icon::{icon_image, Icon};
 use egui::{Color32, FontId, Ui};
 
 const TAB_H: f32 = 36.0;
@@ -21,13 +22,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         ui.set_height(TAB_H);
         ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
 
-        // "×" is constant — measure once outside the loop
-        let close_font = FontId::proportional(12.0);
-        let close_w = ui
-            .painter()
-            .layout_no_wrap("×".into(), close_font.clone(), tc.text_primary)
-            .size()
-            .x;
+        const CLOSE_W: f32 = 10.0;
 
         for (i, tab) in tabs.iter().enumerate() {
             let is_active = i == active;
@@ -40,7 +35,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
                 .layout_no_wrap(label.clone(), label_font.clone(), tc.text_primary)
                 .size()
                 .x;
-            let tab_w = 12.0 + text_w + 8.0 + close_w + 12.0;
+            let tab_w = 12.0 + text_w + 8.0 + CLOSE_W + 12.0;
 
             let (tab_rect, tab_resp) =
                 ui.allocate_exact_size(egui::vec2(tab_w, TAB_H), egui::Sense::click());
@@ -101,7 +96,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
 
             // Close button hit area
             let close_rect = egui::Rect::from_center_size(
-                egui::pos2(label_x + text_w + 8.0 + close_w / 2.0, center_y),
+                egui::pos2(label_x + text_w + 8.0 + CLOSE_W / 2.0, center_y),
                 egui::vec2(20.0, 20.0),
             );
             let close_resp = ui.interact(
@@ -114,16 +109,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
             } else {
                 tc.text_disabled
             };
-            if close_resp.hovered() {
-                painter.rect_filled(close_rect, egui::CornerRadius::same(4u8), tc.surface_active);
-            }
-            painter.text(
-                close_rect.center(),
-                egui::Align2::CENTER_CENTER,
-                "×",
-                close_font.clone(),
-                close_color,
-            );
+            icon_image(Icon::X, CLOSE_W, close_color).paint_at(ui, close_rect.shrink(5.0));
 
             if close_resp.clicked() {
                 close_req = Some(i);

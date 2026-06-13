@@ -200,6 +200,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                                     (SshAuthMethod::KeyFile, "Key File"),
                                                     (SshAuthMethod::Agent, "SSH Agent"),
                                                 ],
+                                                100.0
                                             );
                                         });
 

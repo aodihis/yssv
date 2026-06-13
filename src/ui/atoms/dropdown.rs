@@ -1,29 +1,27 @@
 use egui::{Response, Ui};
 
-/// Generic dropdown (ComboBox).
-///
-/// `options` is a slice of `(value, label)` pairs. The widget renders the label
-/// of the currently selected value and swaps to whichever item the user picks.
-pub fn dropdown<T: PartialEq + Clone>(
+pub fn dropdown<T: PartialEq + Clone, L: AsRef<str>>(
     ui: &mut Ui,
     id: impl std::hash::Hash,
     selected: &mut T,
-    options: &[(T, &str)],
+    options: &[(T, L)],
+    selector_height: f32,
 ) -> Response {
     let current_label = options
         .iter()
         .find(|(v, _)| v == selected)
-        .map(|(_, l)| *l)
+        .map(|(_, l)| l.as_ref())
         .unwrap_or("—");
 
     egui::ComboBox::from_id_salt(id)
         .selected_text(current_label)
         .width(ui.available_width())
-        .height(100.0)
+        .height(selector_height)
         .show_ui(ui, |ui| {
             for (value, label) in options {
+                let label = label.as_ref();
                 let is_selected = value == selected;
-                if ui.selectable_label(is_selected, *label).clicked() && !is_selected {
+                if ui.selectable_label(is_selected, label).clicked() && !is_selected {
                     *selected = value.clone();
                 }
             }

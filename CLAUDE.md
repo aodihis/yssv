@@ -75,6 +75,33 @@ Named color constants (connection labels, icons) live in `crate::theme::colors`.
 
 ## Code Style
 
+### Function ordering
+
+Within any module or `impl` block, always order functions as follows:
+
+1. **Public before private** — all `pub` / `pub(crate)` functions come before private (`fn`) functions.
+2. **Alphabetical within each visibility group.**
+3. **`new` is always first** inside an `impl` block (before all other methods, regardless of alphabetical order).
+
+```
+// free functions in a module
+pub fn alpha(...)   // public, alphabetical
+pub fn beta(...)
+fn internal_a(...)  // private, alphabetical
+fn internal_b(...)
+
+// impl block
+impl Foo {
+    pub fn new(...) -> Self { ... }   // always first
+    pub fn alpha(...) { ... }          // public, alphabetical
+    pub fn beta(...) { ... }
+    fn helper_a(...) { ... }           // private, alphabetical
+    fn helper_b(...) { ... }
+}
+```
+
+Trait `impl` blocks follow the same alphabetical rule (all methods are effectively public; no `new` convention applies since the trait defines the interface).
+
 - No comments unless the WHY is non-obvious (hidden constraint, workaround, subtle invariant).
 - No docstrings. No `// Added for X flow` comments.
 - Match arms: prefer data-driven `match` to produce a value over multiple `if` blocks.

@@ -69,8 +69,8 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     icon_image(cfg.icon, 13.0, icon_color).paint_at(ui, icon_rect);
     x += 16.0;
 
-    // Right decorations + label via painter
-    let painter = ui.painter();
+    // Right decorations + label via painter — clip to row rect so long names don't bleed
+    let painter = ui.painter().with_clip_rect(rect);
     let right_x = rect.right() - 8.0;
 
     if let Some(pill) = &cfg.pill {
@@ -115,7 +115,21 @@ pub fn tree_row(ui: &mut Ui, cfg: TreeRowConfig) -> Response {
     let label_color = tc.text_primary;
     let label_font = FontId::proportional(12.5);
     let label_max_x = right_x - 28.0;
-    let label_galley = painter.layout(cfg.label.clone(), label_font, label_color, label_max_x - x);
+    let mut job = egui::text::LayoutJob::single_section(
+        cfg.label.clone(),
+        egui::TextFormat {
+            font_id: label_font,
+            color: label_color,
+            ..Default::default()
+        },
+    );
+    job.wrap = egui::text::TextWrapping {
+        max_rows: 1,
+        break_anywhere: true,
+        overflow_character: Some('…'),
+        max_width: label_max_x - x,
+    };
+    let label_galley = painter.layout_job(job);
     painter.galley(
         egui::pos2(x, center_y - label_galley.size().y / 2.0),
         label_galley,

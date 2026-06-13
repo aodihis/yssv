@@ -181,7 +181,7 @@ fn dropdown_with_selection_renders_without_panic() {
     let mut selected = "pg".to_string();
     let options = vec![("pg".to_string(), "PostgreSQL"), ("my".to_string(), "MySQL")];
     let harness = Harness::new_ui(|ui| {
-        dropdown(ui, "test_db_type", &mut selected, &options);
+        dropdown(ui, "test_db_type", &mut selected, &options, 100.0);
     });
     drop(harness);
 }
@@ -191,7 +191,7 @@ fn dropdown_with_no_match_renders_without_panic() {
     let mut selected = "unknown".to_string();
     let options = vec![("pg".to_string(), "PostgreSQL"), ("my".to_string(), "MySQL")];
     let harness = Harness::new_ui(|ui| {
-        dropdown(ui, "test_unmatched", &mut selected, &options);
+        dropdown(ui, "test_unmatched", &mut selected, &options, 100.0);
     });
     drop(harness);
 }
@@ -201,7 +201,7 @@ fn dropdown_empty_options_renders_without_panic() {
     let mut selected = String::new();
     let options: Vec<(String, &str)> = vec![];
     let harness = Harness::new_ui(|ui| {
-        dropdown(ui, "test_empty", &mut selected, &options);
+        dropdown(ui, "test_empty", &mut selected, &options, 100.0);
     });
     drop(harness);
 }
