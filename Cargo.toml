@@ -3,6 +3,9 @@ name = "yssv"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+e2e = []
+
 [dependencies]
 eframe        = { version = "0.34.3", default-features = false, features = ["glow", "wgpu", "default_fonts", "accesskit", "persistence"] }
 egui          = "0.34.3"
