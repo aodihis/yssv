@@ -65,26 +65,110 @@ impl TableTab {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct QueryTab {
+    pub id: String,
+    pub counter: u32,
+    pub sql: String,
+    pub database: String,
+    pub result: Option<QueryResult>,
+    pub error: Option<String>,
+    pub loading: bool,
+    pub selected_row: Option<usize>,
+}
+
+impl QueryTab {
+    pub fn new(database: &str, counter: u32) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            counter,
+            sql: String::new(),
+            database: database.to_string(),
+            result: None,
+            error: None,
+            loading: false,
+            selected_row: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Tab {
+    Table(TableTab),
+    Query(QueryTab),
+}
+
+impl Tab {
+    pub fn id(&self) -> &str {
+        match self {
+            Tab::Table(t) => &t.id,
+            Tab::Query(q) => &q.id,
+        }
+    }
+
+    pub fn label(&self) -> String {
+        match self {
+            Tab::Table(t) => format!("{}.{}", t.schema, t.table),
+            Tab::Query(q) => format!("SQL {}", q.counter),
+        }
+    }
+
+    pub fn as_table(&self) -> Option<&TableTab> {
+        match self {
+            Tab::Table(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    pub fn as_table_mut(&mut self) -> Option<&mut TableTab> {
+        match self {
+            Tab::Table(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    pub fn as_query(&self) -> Option<&QueryTab> {
+        match self {
+            Tab::Query(q) => Some(q),
+            _ => None,
+        }
+    }
+
+    pub fn as_query_mut(&mut self) -> Option<&mut QueryTab> {
+        match self {
+            Tab::Query(q) => Some(q),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct TabState {
-    pub tabs: Vec<TableTab>,
+    pub tabs: Vec<Tab>,
     pub active: usize,
+    next_query_counter: u32,
 }
 
 impl TabState {
-    /// Open a tab for the given table, or activate if already open.
-    pub fn open(&mut self, table: &str, schema: &str, database: &str) -> &mut TableTab {
-        if let Some(pos) = self
-            .tabs
-            .iter()
-            .position(|t| t.table == table && t.schema == schema && t.database == database)
-        {
+    /// Open a table tab, or activate if already open.
+    pub fn open_table(&mut self, table: &str, schema: &str, database: &str) -> &mut TableTab {
+        if let Some(pos) = self.tabs.iter().position(|t| {
+            matches!(t, Tab::Table(tt) if tt.table == table && tt.schema == schema && tt.database == database)
+        }) {
             self.active = pos;
         } else {
-            self.tabs.push(TableTab::new(table, schema, database));
+            self.tabs.push(Tab::Table(TableTab::new(table, schema, database)));
             self.active = self.tabs.len() - 1;
         }
-        &mut self.tabs[self.active]
+        self.tabs[self.active].as_table_mut().unwrap()
+    }
+
+    /// Open a new query tab (always creates a fresh one).
+    pub fn open_query(&mut self, database: &str) -> &mut QueryTab {
+        self.next_query_counter += 1;
+        self.tabs.push(Tab::Query(QueryTab::new(database, self.next_query_counter)));
+        self.active = self.tabs.len() - 1;
+        self.tabs[self.active].as_query_mut().unwrap()
     }
 
     pub fn close(&mut self, index: usize) {
@@ -98,12 +182,28 @@ impl TabState {
         }
     }
 
-    pub fn active_tab(&self) -> Option<&TableTab> {
+    pub fn active_tab(&self) -> Option<&Tab> {
         self.tabs.get(self.active)
     }
 
-    pub fn active_tab_mut(&mut self) -> Option<&mut TableTab> {
+    pub fn active_tab_mut(&mut self) -> Option<&mut Tab> {
         self.tabs.get_mut(self.active)
+    }
+
+    pub fn active_table_tab(&self) -> Option<&TableTab> {
+        self.tabs.get(self.active)?.as_table()
+    }
+
+    pub fn active_table_tab_mut(&mut self) -> Option<&mut TableTab> {
+        self.tabs.get_mut(self.active)?.as_table_mut()
+    }
+
+    pub fn active_query_tab(&self) -> Option<&QueryTab> {
+        self.tabs.get(self.active)?.as_query()
+    }
+
+    pub fn active_query_tab_mut(&mut self) -> Option<&mut QueryTab> {
+        self.tabs.get_mut(self.active)?.as_query_mut()
     }
 }
 
@@ -224,10 +324,10 @@ mod tests {
     #[test]
     fn open_tab_activates_existing() {
         let mut ts = TabState::default();
-        ts.open("users", "public", "mydb");
-        ts.open("orders", "public", "mydb");
+        ts.open_table("users", "public", "mydb");
+        ts.open_table("orders", "public", "mydb");
         assert_eq!(ts.tabs.len(), 2);
-        ts.open("users", "public", "mydb");
+        ts.open_table("users", "public", "mydb");
         assert_eq!(ts.tabs.len(), 2);
         assert_eq!(ts.active, 0);
     }
@@ -235,8 +335,8 @@ mod tests {
     #[test]
     fn close_tab_adjusts_active() {
         let mut ts = TabState::default();
-        ts.open("a", "s", "db");
-        ts.open("b", "s", "db");
+        ts.open_table("a", "s", "db");
+        ts.open_table("b", "s", "db");
         ts.active = 1;
         ts.close(1);
         assert_eq!(ts.tabs.len(), 1);
@@ -257,6 +357,16 @@ mod tests {
         tab.page = 2;
         assert!(!tab.can_go_next());
         assert!(tab.can_go_prev());
+    }
+
+    #[test]
+    fn open_query_tab_increments_counter() {
+        let mut ts = TabState::default();
+        ts.open_query("mydb");
+        ts.open_query("mydb");
+        assert_eq!(ts.tabs.len(), 2);
+        assert_eq!(ts.tabs[0].as_query().unwrap().counter, 1);
+        assert_eq!(ts.tabs[1].as_query().unwrap().counter, 2);
     }
 
     // --- ExplorerState: open_nodes ---

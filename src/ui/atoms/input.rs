@@ -93,6 +93,23 @@ pub fn mono_input(
     resp
 }
 
+/// Full-height multiline monospace text area (SQL editor, etc.).
+pub fn mono_area(
+    ui: &mut Ui,
+    value: &mut String,
+    placeholder: &str,
+    min_rows: usize,
+) -> Response {
+    ui.add(
+        TextEdit::multiline(value)
+            .hint_text(placeholder)
+            .desired_width(f32::INFINITY)
+            .desired_rows(min_rows)
+            .margin(Margin { left: 11, right: 11, top: 8, bottom: 8 })
+            .font(egui::TextStyle::Monospace),
+    )
+}
+
 /// Text input + "Browse" button for selecting a file path.
 /// The text field fills available width; the button opens a native file dialog.
 pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Response {

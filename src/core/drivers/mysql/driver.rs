@@ -165,6 +165,70 @@ impl ActiveConnection for MyConnection {
         })
     }
 
+    async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError> {
+        use sqlx::{Column, Row, TypeInfo};
+        tracing::debug!(sql_len = sql.len(), "mysql: execute_query");
+
+        let trimmed = sql.trim().to_uppercase();
+        let is_fetch = trimmed.starts_with("SELECT")
+            || trimmed.starts_with("WITH")
+            || trimmed.starts_with("SHOW")
+            || trimmed.starts_with("EXPLAIN");
+
+        if !is_fetch {
+            let result = sqlx::query(sql).execute(&self.pool).await?;
+            let affected = result.rows_affected();
+            tracing::info!(rows_affected = affected, "mysql: execute_query (DML)");
+            return Ok(QueryResult {
+                columns: vec![ColumnDef {
+                    name: "result".into(),
+                    data_type: "text".into(),
+                    is_pk: false,
+                    is_fk: false,
+                    nullable: false,
+                }],
+                rows: vec![vec![Some(format!("Query OK, {affected} rows affected"))]],
+                total_rows: Some(1),
+            });
+        }
+
+        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        if rows.is_empty() {
+            tracing::debug!("mysql: execute_query returned 0 rows");
+            return Ok(QueryResult::empty());
+        }
+
+        let columns: Vec<ColumnDef> = rows[0]
+            .columns()
+            .iter()
+            .map(|c| ColumnDef {
+                name: c.name().to_string(),
+                data_type: c.type_info().name().to_string(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            })
+            .collect();
+
+        let data_rows: Vec<Vec<Option<String>>> = rows
+            .iter()
+            .map(|row| {
+                (0..columns.len())
+                    .map(|i| decode_col_mysql(row, i))
+                    .collect()
+            })
+            .collect();
+
+        let row_count = data_rows.len() as u64;
+        tracing::info!(rows = row_count, "mysql: execute_query success");
+
+        Ok(QueryResult {
+            columns,
+            rows: data_rows,
+            total_rows: Some(row_count),
+        })
+    }
+
     async fn describe_table(
         &self,
         _db: &str,

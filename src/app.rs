@@ -123,7 +123,8 @@ impl YssvApp {
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
                     tab.result = Some(result);
                     tab.loading = false;
@@ -132,7 +133,8 @@ impl YssvApp {
             AppEvent::RowLoadError { tab_id, message } => {
                 tracing::warn!(tab_id = %tab_id, error = %message, "row load failed");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
                     tab.loading = false;
                     tab.result = None;
@@ -158,7 +160,8 @@ impl YssvApp {
             AppEvent::StructureLoaded { tab_id, columns } => {
                 tracing::debug!(tab_id = %tab_id, columns = columns.len(), "structure loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab) = explorer.tabs.tabs.iter_mut().find(|t| t.id == tab_id)
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
                     tab.structure = Some(columns);
                     tab.structure_loading = false;
@@ -167,6 +170,28 @@ impl YssvApp {
             AppEvent::DbConnected { db, conn } => {
                 tracing::debug!(db = %db, "db connection cached");
                 self.db_conns.insert(db, conn);
+            }
+            AppEvent::QueryExecuted { tab_id, result } => {
+                tracing::info!(tab_id = %tab_id, rows = result.rows.len(), "query executed");
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Query(tab) = tab_entry
+                {
+                    tab.result = Some(result);
+                    tab.error = None;
+                    tab.loading = false;
+                }
+            }
+            AppEvent::QueryError { tab_id, message } => {
+                tracing::warn!(tab_id = %tab_id, error = %message, "query error");
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Query(tab) = tab_entry
+                {
+                    tab.error = Some(message);
+                    tab.result = None;
+                    tab.loading = false;
+                }
             }
         }
     }
@@ -423,6 +448,40 @@ impl YssvApp {
         });
     }
 
+    pub fn run_query(&self, ctx: egui::Context, tab_id: String, sql: String, database: String) {
+        tracing::debug!(tab_id = %tab_id, db = %database, sql_len = sql.len(), "run_query: requested");
+        let conn = self.db_conns.get(&database).cloned();
+        let base_config = self.conn_config.clone();
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            let conn = match conn {
+                Some(c) => c,
+                None => match Self::open_db_conn(base_config, &database, &tx).await {
+                    Some(c) => c,
+                    None => {
+                        let _ = tx.send(AppEvent::QueryError {
+                            tab_id,
+                            message: format!("no connection available for database '{database}'"),
+                        });
+                        ctx.request_repaint();
+                        return;
+                    }
+                },
+            };
+            match conn.execute_query(&sql).await {
+                Ok(result) => {
+                    tracing::info!(tab_id = %tab_id, rows = result.rows.len(), "run_query: success");
+                    let _ = tx.send(AppEvent::QueryExecuted { tab_id, result });
+                }
+                Err(e) => {
+                    tracing::warn!(tab_id = %tab_id, error = %e.message, "run_query: failed");
+                    let _ = tx.send(AppEvent::QueryError { tab_id, message: e.message });
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
     async fn open_db_conn(
         base_config: Option<crate::core::connections::model::Connection>,
         db: &str,
@@ -588,7 +647,7 @@ mod tests {
     };
     use crate::events::AppEvent;
     use crate::pages::connections::state::TestStatus;
-    use crate::pages::explorer::state::TableTab;
+    use crate::pages::explorer::state::{Tab, TableTab};
 
     struct MockConn;
 
@@ -615,6 +674,9 @@ mod tests {
             &self, _db: &str, _schema: &str, _table: &str,
         ) -> Result<Vec<ColumnDef>, DbError> {
             Ok(vec![])
+        }
+        async fn execute_query(&self, _sql: &str) -> Result<QueryResult, DbError> {
+            Ok(QueryResult::empty())
         }
     }
 
@@ -681,9 +743,9 @@ mod tests {
     #[test]
     fn rows_loaded_updates_tab_result() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("users", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
 
         let result = QueryResult {
             columns: vec![],
@@ -692,17 +754,19 @@ mod tests {
         };
         app.send_and_drain(AppEvent::RowsLoaded { tab_id: tab_id.clone(), result });
 
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
-        assert!(tab.result.is_some());
-        assert!(!tab.loading);
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let tt = tab.as_table().unwrap();
+        assert!(tt.result.is_some());
+        assert!(!tt.loading);
     }
 
     #[test]
     fn row_load_error_sets_modal_and_clears_tab_result() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("users", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
 
         app.send_and_drain(AppEvent::RowLoadError {
             tab_id: tab_id.clone(),
@@ -710,9 +774,11 @@ mod tests {
         });
 
         assert_eq!(app.error_modal.as_deref(), Some("query failed"));
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
-        assert!(!tab.loading);
-        assert!(tab.result.is_none());
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let tt = tab.as_table().unwrap();
+        assert!(!tt.loading);
+        assert!(tt.result.is_none());
     }
 
     #[test]
@@ -740,9 +806,9 @@ mod tests {
     #[test]
     fn structure_loaded_updates_tab() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("orders", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("orders", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
 
         let columns = vec![ColumnDef {
             name: "id".into(),
@@ -753,9 +819,11 @@ mod tests {
         }];
         app.send_and_drain(AppEvent::StructureLoaded { tab_id: tab_id.clone(), columns });
 
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
-        assert!(!tab.structure_loading);
-        assert_eq!(tab.structure.unwrap().len(), 1);
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let tt = tab.as_table().unwrap();
+        assert!(!tt.structure_loading);
+        assert_eq!(tt.structure.as_ref().unwrap().len(), 1);
     }
 
     #[test]
@@ -829,9 +897,9 @@ mod tests {
     #[test]
     fn load_rows_with_no_conn_and_no_config_emits_row_load_error() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("users", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
         // db_conns is empty AND conn_config is None → open_db_conn returns None
         app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
         drain_after_spawn(&mut app);
@@ -841,41 +909,85 @@ mod tests {
     #[test]
     fn load_rows_with_mock_conn_emits_rows_loaded() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("users", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
         app.db_conns.insert(db.clone(), Arc::new(MockConn));
         app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
         drain_after_spawn(&mut app);
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
-        assert!(tab.result.is_some());
-        assert!(!tab.loading);
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let tt = tab_entry.as_table().unwrap();
+        assert!(tt.result.is_some());
+        assert!(!tt.loading);
     }
 
     #[test]
     fn load_structure_with_mock_conn_emits_structure_loaded() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("orders", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("orders", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
         app.db_conns.insert(db.clone(), Arc::new(MockConn));
         app.load_structure(egui::Context::default(), tab_id.clone(), db, "public".into(), "orders".into());
         drain_after_spawn(&mut app);
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter().find(|t| t.id == tab_id).unwrap();
-        assert!(!tab.structure_loading);
-        assert!(tab.structure.is_some());
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let tt = tab_entry.as_table().unwrap();
+        assert!(!tt.structure_loading);
+        assert!(tt.structure.is_some());
     }
 
     #[test]
     fn load_structure_with_no_conn_and_no_config_does_not_crash() {
         let (mut app, db) = make_app_with_explorer();
-        let tab = TableTab::new("orders", "public", &db);
-        let tab_id = tab.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(tab);
+        let inner = TableTab::new("orders", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
         // db_conns empty, conn_config None → open_db_conn returns None, task exits silently
         app.load_structure(egui::Context::default(), tab_id, db, "public".into(), "orders".into());
         drain_after_spawn(&mut app);
         assert!(app.error_modal.is_none());
+    }
+
+    #[test]
+    fn query_executed_updates_query_tab() {
+        let (mut app, db) = make_app_with_explorer();
+        let e = app.explorer.as_mut().unwrap();
+        let tab_id = e.tabs.open_query(&db).id.clone();
+
+        let result = QueryResult {
+            columns: vec![],
+            rows: vec![vec![Some("hello".into())]],
+            total_rows: Some(1),
+        };
+        app.send_and_drain(AppEvent::QueryExecuted { tab_id: tab_id.clone(), result });
+
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let qt = tab_entry.as_query().unwrap();
+        assert!(qt.result.is_some());
+        assert!(qt.error.is_none());
+        assert!(!qt.loading);
+    }
+
+    #[test]
+    fn query_error_sets_error_on_query_tab() {
+        let (mut app, db) = make_app_with_explorer();
+        let e = app.explorer.as_mut().unwrap();
+        let tab_id = e.tabs.open_query(&db).id.clone();
+
+        app.send_and_drain(AppEvent::QueryError {
+            tab_id: tab_id.clone(),
+            message: "syntax error".into(),
+        });
+
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let qt = tab_entry.as_query().unwrap();
+        assert_eq!(qt.error.as_deref(), Some("syntax error"));
+        assert!(qt.result.is_none());
+        assert!(!qt.loading);
     }
 }
 

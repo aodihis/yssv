@@ -1,6 +1,7 @@
 use crate::events::Screen;
 use crate::core::schema::model::TableKind;
 use crate::theme::{self, ThemeColors, colors};
+use crate::ui::atoms::button::compact_button;
 use crate::ui::atoms::icon::Icon;
 use crate::ui::atoms::input::text_input;
 use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
@@ -25,6 +26,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         .conn_name
         .clone();
 
+    let mut new_query_clicked = false;
     egui::Frame::new()
         .inner_margin(egui::Margin {
             left: 10,
@@ -44,8 +46,24 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 .explorer
                 .as_mut()
                 .expect("explorer is Some — checked above");
-            text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Min), |ui| {
+                if compact_button(ui, "SQL").clicked() {
+                    new_query_clicked = true;
+                }
+                text_input(ui, &mut e.filter, "Filter tables…", Some("🔍"));
+            });
         });
+
+    if new_query_clicked {
+        let active_db = app
+            .explorer
+            .as_ref()
+            .map(|e| e.active_db.clone())
+            .unwrap_or_default();
+        if let Some(e) = app.explorer.as_mut() {
+            e.tabs.open_query(&active_db);
+        }
+    }
 
     let sep = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 1.0));
     ui.painter()
@@ -86,7 +104,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                     .map(|t| {
                                         let active = e
                                             .tabs
-                                            .active_tab()
+                                            .active_table_tab()
                                             .map(|tab| {
                                                 tab.table == t.name
                                                     && tab.schema == sc.name
@@ -243,7 +261,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 .explorer
                 .as_mut()
                 .expect("explorer is Some — open_table came from tree_data which borrows explorer");
-            let tab = e.tabs.open(&table, &schema, &db);
+            let tab = e.tabs.open_table(&table, &schema, &db);
             if tab.result.is_none() && !tab.loading {
                 tab.loading = true;
                 Some(super::LoadRequest {

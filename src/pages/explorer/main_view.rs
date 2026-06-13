@@ -1,12 +1,17 @@
 use crate::core::results::model::ColumnDef;
-use crate::pages::explorer::state::TabView;
+use crate::pages::explorer::state::{Tab, TabView};
 use crate::theme::ThemeColors;
+use crate::ui::atoms::button::compact_button;
+use crate::ui::atoms::input::mono_area;
 use crate::ui::molecules::{
     data_cell::render_cell,
     status_bar::{STATUS_H, status_bar},
     tab_bar::tab_bar,
 };
 use egui::RichText;
+
+const EDITOR_H: f32 = 220.0;
+const QUERY_STATUS_H: f32 = 28.0;
 
 pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let ctx = ui.ctx().clone();
@@ -25,7 +30,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         if explorer.tabs.tabs.is_empty() {
             ui.centered_and_justified(|ui| {
                 ui.label(
-                    RichText::new("Select a table from the sidebar")
+                    RichText::new("Select a table or open a SQL query")
                         .size(14.0)
                         .color(ui.visuals().weak_text_color()),
                 );
@@ -45,78 +50,99 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         if let Some(i) = close {
             explorer.tabs.close(i);
         }
-    }
-
-    {
-        let tc = ThemeColors::from_ui(ui);
-        let toolbar_rect =
-            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
-        ui.painter()
-            .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
-
-        let explorer = app
-            .explorer
-            .as_mut()
-            .expect("explorer is Some — checked above");
-        if let Some(tab) = explorer.tabs.active_tab() {
-            let is_data = tab.view == TabView::Data;
-            let mut new_view: Option<TabView> = None;
-            ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
-                ui.horizontal_centered(|ui| {
-                    ui.add_space(12.0);
-                    for (label, view, active) in [
-                        ("Data", TabView::Data, is_data),
-                        ("Structure", TabView::Structure, !is_data),
-                    ] {
-                        let color = if active {
-                            tc.text_primary
-                        } else {
-                            tc.text_secondary
-                        };
-                        let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
-                            .fill(egui::Color32::TRANSPARENT)
-                            .stroke(egui::Stroke::NONE)
-                            .min_size(egui::vec2(0.0, 28.0));
-                        let resp = ui.add(btn);
-                        if active {
-                            ui.painter().rect_filled(
-                                egui::Rect::from_min_size(
-                                    egui::pos2(resp.rect.left(), resp.rect.bottom()),
-                                    egui::vec2(resp.rect.width(), 2.0),
-                                ),
-                                egui::CornerRadius::ZERO,
-                                tc.button_primary_bg,
-                            );
-                        }
-                        if resp.clicked() {
-                            new_view = Some(view);
-                        }
-                        ui.add_space(4.0);
-                    }
-                });
-            });
-
-            ui.painter().hline(
-                toolbar_rect.x_range(),
-                toolbar_rect.bottom(),
-                egui::Stroke::new(1.0, tc.border),
-            );
-
-            if let Some(v) = new_view
-                && let Some(t) = explorer.tabs.active_tab_mut()
-            {
-                t.view = v;
-            }
+        if explorer.tabs.tabs.is_empty() {
+            return;
         }
     }
 
-    // Trigger structure load if needed (after view switch or first open)
+    // Decide which kind of tab is active
+    let is_query = app
+        .explorer
+        .as_ref()
+        .and_then(|e| e.tabs.active_tab())
+        .map(|t| matches!(t, Tab::Query(_)))
+        .unwrap_or(false);
+
+    if is_query {
+        render_query_tab(ui, app, &ctx);
+    } else {
+        render_table_tab(ui, app, &ctx);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Table tab
+// ---------------------------------------------------------------------------
+
+fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+    let tc = ThemeColors::from_ui(ui);
+    let toolbar_rect =
+        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
+    ui.painter()
+        .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
+
+    let explorer = app
+        .explorer
+        .as_mut()
+        .expect("explorer is Some — checked above");
+    if let Some(tab) = explorer.tabs.active_table_tab() {
+        let is_data = tab.view == TabView::Data;
+        let mut new_view: Option<TabView> = None;
+        ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.add_space(12.0);
+                for (label, view, active) in [
+                    ("Data", TabView::Data, is_data),
+                    ("Structure", TabView::Structure, !is_data),
+                ] {
+                    let color = if active {
+                        tc.text_primary
+                    } else {
+                        tc.text_secondary
+                    };
+                    let btn = egui::Button::new(RichText::new(label).size(12.5).color(color))
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(egui::Stroke::NONE)
+                        .min_size(egui::vec2(0.0, 28.0));
+                    let resp = ui.add(btn);
+                    if active {
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(
+                                egui::pos2(resp.rect.left(), resp.rect.bottom()),
+                                egui::vec2(resp.rect.width(), 2.0),
+                            ),
+                            egui::CornerRadius::ZERO,
+                            tc.button_primary_bg,
+                        );
+                    }
+                    if resp.clicked() {
+                        new_view = Some(view);
+                    }
+                    ui.add_space(4.0);
+                }
+            });
+        });
+
+        ui.painter().hline(
+            toolbar_rect.x_range(),
+            toolbar_rect.bottom(),
+            egui::Stroke::new(1.0, tc.border),
+        );
+
+        if let Some(v) = new_view
+            && let Some(t) = explorer.tabs.active_table_tab_mut()
+        {
+            t.view = v;
+        }
+    }
+
+    // Trigger structure load if needed
     let structure_load: Option<(String, String, String, String)> = {
         let explorer = app
             .explorer
             .as_ref()
             .expect("explorer is Some — checked above");
-        if let Some(tab) = explorer.tabs.active_tab() {
+        if let Some(tab) = explorer.tabs.active_table_tab() {
             if tab.view == TabView::Structure && tab.structure.is_none() && !tab.structure_loading {
                 Some((
                     tab.id.clone(),
@@ -137,7 +163,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             .as_mut()
             .expect("explorer is Some — checked above")
             .tabs
-            .active_tab_mut()
+            .active_table_tab_mut()
         {
             tab.structure_loading = true;
         }
@@ -154,13 +180,12 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         egui::vec2(available.width(), STATUS_H),
     );
 
-    // Snapshot the tab state we need for rendering
     let tab_info = {
         let explorer = app
             .explorer
             .as_ref()
             .expect("explorer is Some — checked above");
-        explorer.tabs.active_tab().map(|tab| {
+        explorer.tabs.active_table_tab().map(|tab| {
             (
                 tab.view,
                 tab.loading,
@@ -189,7 +214,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 });
             } else if has_structure
                 && let Some(explorer) = app.explorer.as_ref()
-                && let Some(tab) = explorer.tabs.active_tab()
+                && let Some(tab) = explorer.tabs.active_table_tab()
                 && let Some(cols) = tab.structure.as_deref()
             {
                 render_structure_table(&mut grid_ui, cols, row_height);
@@ -203,10 +228,8 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             } else if has_result {
                 let mut new_selected = selected_row;
 
-                // Borrow explorer immutably for the entire render + copy block,
-                // then drop the borrow before the selection write-back below.
                 if let Some(explorer) = app.explorer.as_ref()
-                    && let Some(tab) = explorer.tabs.active_tab()
+                    && let Some(tab) = explorer.tabs.active_table_tab()
                     && let Some(result) = tab.result.as_ref()
                 {
                     let columns = &result.columns;
@@ -271,7 +294,6 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             });
                     });
 
-                    // Copy selected row (Ctrl+C)
                     if let Some(sel_ri) = new_selected
                         && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
                     {
@@ -284,9 +306,11 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     }
                 }
 
-                // Persist selection change — separate mutable borrow after the immutable block above.
                 if new_selected != selected_row
-                    && let Some(tab) = app.explorer.as_mut().and_then(|e| e.tabs.active_tab_mut())
+                    && let Some(tab) = app
+                        .explorer
+                        .as_mut()
+                        .and_then(|e| e.tabs.active_table_tab_mut())
                 {
                     tab.selected_row = new_selected;
                 }
@@ -301,7 +325,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             .explorer
             .as_ref()
             .expect("explorer is Some — checked above");
-        if let Some(tab) = explorer.tabs.active_tab()
+        if let Some(tab) = explorer.tabs.active_table_tab()
             && tab.view == TabView::Data
         {
             let (prev, next) = status_bar(&mut status_ui, tab);
@@ -330,7 +354,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             .explorer
             .as_mut()
             .expect("explorer is Some — checked above");
-        if let Some(tab) = explorer.tabs.active_tab_mut() {
+        if let Some(tab) = explorer.tabs.active_table_tab_mut() {
             let going_prev = req.offset < tab.offset();
             if going_prev {
                 tab.page -= 1;
@@ -351,6 +375,265 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Query tab
+// ---------------------------------------------------------------------------
+
+fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+    let tc = ThemeColors::from_ui(ui);
+
+    // Snapshot query tab state we need (all immutable reads)
+    let query_snapshot = app
+        .explorer
+        .as_ref()
+        .and_then(|e| e.tabs.active_query_tab())
+        .map(|q| {
+            (
+                q.id.clone(),
+                q.database.clone(),
+                q.loading,
+                q.result.is_some(),
+                q.error.clone(),
+                q.selected_row,
+            )
+        });
+
+    let (tab_id, database, loading, has_result, error, selected_row) = match query_snapshot {
+        Some(s) => s,
+        None => return,
+    };
+
+    // Toolbar: Run button + database indicator
+    let toolbar_rect =
+        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
+    ui.painter()
+        .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
+
+    let mut run_clicked = false;
+    ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
+        ui.horizontal_centered(|ui| {
+            ui.add_space(12.0);
+            if compact_button(ui, "▶ Run").clicked() {
+                run_clicked = true;
+            }
+            ui.add_space(12.0);
+            ui.label(
+                RichText::new(format!("db: {database}"))
+                    .size(11.0)
+                    .color(tc.text_disabled),
+            );
+        });
+    });
+    ui.painter().hline(
+        toolbar_rect.x_range(),
+        toolbar_rect.bottom(),
+        egui::Stroke::new(1.0, tc.border),
+    );
+
+    let available = ui.available_rect_before_wrap();
+    let editor_h = EDITOR_H.min(available.height() * 0.45);
+    let status_h = QUERY_STATUS_H;
+    let results_h = (available.height() - editor_h - status_h - 1.0).max(40.0);
+
+    let editor_rect =
+        egui::Rect::from_min_size(available.min, egui::vec2(available.width(), editor_h));
+    let results_rect = egui::Rect::from_min_size(
+        available.min + egui::vec2(0.0, editor_h + 1.0),
+        egui::vec2(available.width(), results_h),
+    );
+    let status_rect = egui::Rect::from_min_size(
+        available.min + egui::vec2(0.0, editor_h + 1.0 + results_h),
+        egui::vec2(available.width(), status_h),
+    );
+
+    // SQL editor — mutable borrow of tab.sql
+    let ctrl_enter = {
+        let mut triggered = false;
+        if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
+            let mut editor_ui = ui.new_child(egui::UiBuilder::new().max_rect(editor_rect));
+            let resp = mono_area(&mut editor_ui, &mut q.sql, "SELECT * FROM table…", 8);
+            if resp.has_focus()
+                && editor_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Enter))
+            {
+                triggered = true;
+            }
+        }
+        triggered
+    };
+
+    // Separator between editor and results
+    ui.painter().hline(
+        egui::Rangef::new(available.left(), available.right()),
+        available.min.y + editor_h,
+        egui::Stroke::new(1.0, tc.border),
+    );
+
+    // Trigger query execution
+    if (run_clicked || ctrl_enter) && !loading {
+        let sql = app
+            .explorer
+            .as_ref()
+            .and_then(|e| e.tabs.active_query_tab())
+            .map(|q| q.sql.trim().to_string())
+            .unwrap_or_default();
+
+        if !sql.is_empty() {
+            if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
+                q.loading = true;
+                q.result = None;
+                q.error = None;
+            }
+            app.run_query(ctx.clone(), tab_id.clone(), sql, database.clone());
+        }
+    }
+
+    // Results area
+    let mut results_ui = ui.new_child(egui::UiBuilder::new().max_rect(results_rect));
+    let row_height = app.settings.density.row_height();
+
+    if loading {
+        results_ui.centered_and_justified(|ui| {
+            ui.label(RichText::new("Running…").color(ui.visuals().weak_text_color()));
+        });
+    } else if let Some(ref err) = error {
+        let err_clone = err.clone();
+        results_ui.with_layout(egui::Layout::top_down(egui::Align::LEFT), |ui| {
+            ui.add_space(12.0);
+            egui::Frame::new()
+                .inner_margin(egui::Margin::same(12))
+                .corner_radius(egui::CornerRadius::same(6u8))
+                .fill(egui::Color32::from_rgba_unmultiplied(
+                    tc.error.r(),
+                    tc.error.g(),
+                    tc.error.b(),
+                    20,
+                ))
+                .show(ui, |ui| {
+                    ui.label(
+                        RichText::new(&err_clone)
+                            .size(12.0)
+                            .color(tc.error)
+                            .font(egui::FontId::monospace(12.0)),
+                    );
+                });
+        });
+    } else if has_result {
+        let mut new_selected = selected_row;
+
+        if let Some(explorer) = app.explorer.as_ref()
+            && let Some(q) = explorer.tabs.active_query_tab()
+            && let Some(result) = q.result.as_ref()
+        {
+            let columns = &result.columns;
+            let rows = &result.rows;
+
+            egui::ScrollArea::both().show(&mut results_ui, |ui| {
+                egui_extras::TableBuilder::new(ui)
+                    .striped(true)
+                    .resizable(true)
+                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                    .column(egui_extras::Column::auto().at_least(36.0))
+                    .columns(
+                        egui_extras::Column::auto().at_least(80.0).resizable(true),
+                        columns.len(),
+                    )
+                    .header(row_height, |mut header| {
+                        header.col(|ui| {
+                            ui.label(RichText::new("#").size(11.0).weak());
+                        });
+                        for col in columns {
+                            header.col(|ui| {
+                                ui.label(
+                                    RichText::new(&col.name)
+                                        .size(12.0)
+                                        .family(egui::FontFamily::Name("SemiBold".into())),
+                                );
+                                ui.label(RichText::new(&col.data_type).size(10.0).weak());
+                            });
+                        }
+                    })
+                    .body(|body| {
+                        body.rows(row_height, rows.len(), |mut row| {
+                            let ri = row.index();
+                            let is_selected = new_selected == Some(ri);
+                            row.set_selected(is_selected);
+                            row.col(|ui| {
+                                ui.label(
+                                    RichText::new((ri + 1).to_string()).size(11.0).weak(),
+                                );
+                            });
+                            for (ci, col) in columns.iter().enumerate() {
+                                let (_, resp) = row.col(|ui| {
+                                    render_cell(
+                                        ui,
+                                        col,
+                                        &rows[ri].get(ci).cloned().flatten(),
+                                    );
+                                });
+                                if resp.clicked() {
+                                    new_selected = if is_selected { None } else { Some(ri) };
+                                }
+                            }
+                        });
+                    });
+            });
+        }
+
+        if new_selected != selected_row
+            && let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut())
+        {
+            q.selected_row = new_selected;
+        }
+    } else {
+        results_ui.centered_and_justified(|ui| {
+            ui.label(
+                RichText::new("Press ▶ Run or Ctrl+Enter to execute the query")
+                    .size(13.0)
+                    .color(ui.visuals().weak_text_color()),
+            );
+        });
+    }
+
+    // Query status strip
+    let mut status_ui = ui.new_child(egui::UiBuilder::new().max_rect(status_rect));
+    status_ui.painter().hline(
+        status_rect.x_range(),
+        status_rect.top(),
+        egui::Stroke::new(1.0, tc.border),
+    );
+    status_ui.painter().rect_filled(status_rect, egui::CornerRadius::ZERO, tc.surface);
+
+    let status_text = if loading {
+        "Running…".to_string()
+    } else if error.is_some() {
+        "Error".to_string()
+    } else if let Some(explorer) = app.explorer.as_ref()
+        && let Some(q) = explorer.tabs.active_query_tab()
+        && let Some(result) = q.result.as_ref()
+    {
+        format!("{} rows", result.rows.len())
+    } else {
+        String::new()
+    };
+
+    if !status_text.is_empty() {
+        status_ui.scope_builder(egui::UiBuilder::new().max_rect(status_rect), |ui| {
+            ui.horizontal_centered(|ui| {
+                ui.add_space(12.0);
+                ui.label(
+                    RichText::new(&status_text)
+                        .size(11.5)
+                        .color(if error.is_some() { tc.error } else { tc.text_secondary }),
+                );
+            });
+        });
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Structure table renderer (shared)
+// ---------------------------------------------------------------------------
 
 fn render_structure_table(ui: &mut egui::Ui, columns: &[ColumnDef], row_height: f32) {
     let tc = ThemeColors::from_ui(ui);

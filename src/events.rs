@@ -47,6 +47,14 @@ pub enum AppEvent {
         db: String,
         conn: Arc<dyn ActiveConnection>,
     },
+    QueryExecuted {
+        tab_id: String,
+        result: QueryResult,
+    },
+    QueryError {
+        tab_id: String,
+        message: String,
+    },
 }
 
 pub enum Screen {

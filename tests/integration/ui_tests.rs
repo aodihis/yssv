@@ -1,7 +1,7 @@
 use egui_kittest::{Harness, kittest::Queryable};
 use yssv::{
     core::connections::model::{Connection, DbEngine},
-    pages::explorer::state::TableTab,
+    pages::explorer::state::{Tab, TableTab},
     ui::{
         atoms::{
             badge::{count_pill, engine_badge, view_pill},
@@ -220,7 +220,7 @@ fn tab_bar_empty_renders_without_panic() {
 
 #[test]
 fn tab_bar_single_tab_renders_without_panic() {
-    let tabs = vec![TableTab::new("users", "public", "mydb")];
+    let tabs = vec![Tab::Table(TableTab::new("users", "public", "mydb"))];
     let harness = Harness::new_ui(|ui| {
         tab_bar(ui, &tabs, 0);
     });
@@ -230,9 +230,9 @@ fn tab_bar_single_tab_renders_without_panic() {
 #[test]
 fn tab_bar_multiple_tabs_renders_without_panic() {
     let tabs = vec![
-        TableTab::new("users", "public", "mydb"),
-        TableTab::new("orders", "public", "mydb"),
-        TableTab::new("products", "public", "mydb"),
+        Tab::Table(TableTab::new("users", "public", "mydb")),
+        Tab::Table(TableTab::new("orders", "public", "mydb")),
+        Tab::Table(TableTab::new("products", "public", "mydb")),
     ];
     let harness = Harness::new_ui(|ui| {
         tab_bar(ui, &tabs, 1);

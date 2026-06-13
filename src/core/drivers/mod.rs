@@ -30,6 +30,8 @@ pub trait ActiveConnection: Send + Sync {
         schema: &str,
         table: &str,
     ) -> Result<Vec<ColumnDef>, DbError>;
+
+    async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError>;
 }
 
 pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {

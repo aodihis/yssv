@@ -2,7 +2,7 @@ pub mod main_view;
 pub mod sidebar;
 pub mod state;
 
-pub use state::{ExplorerState, TabState, TabView, TableTab};
+pub use state::{ExplorerState, QueryTab, Tab, TabState, TabView, TableTab};
 
 pub(super) struct LoadRequest {
     pub tab_id: String,

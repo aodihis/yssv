@@ -1,11 +1,11 @@
-use crate::pages::explorer::state::TableTab;
+use crate::pages::explorer::state::Tab;
 use crate::theme::ThemeColors;
 use egui::{Color32, FontId, Ui};
 
 const TAB_H: f32 = 36.0;
 
 /// Returns (activate_index, close_index)
-pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>, Option<usize>) {
+pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Option<usize>) {
     let tc = ThemeColors::from_ui(ui);
     let mut close_req: Option<usize> = None;
     let mut activate_req: Option<usize> = None;
@@ -31,7 +31,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[TableTab], active: usize) -> (Option<usize>,
 
         for (i, tab) in tabs.iter().enumerate() {
             let is_active = i == active;
-            let label = format!("{}.{}", tab.schema, tab.table);
+            let label = tab.label();
 
             // Measure label to allocate exact tab width
             let label_font = FontId::proportional(12.5);
