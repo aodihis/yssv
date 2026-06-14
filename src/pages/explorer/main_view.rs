@@ -2,7 +2,7 @@ use crate::core::results::model::ColumnDef;
 use crate::pages::explorer::state::{Tab, TabView};
 use crate::theme::ThemeColors;
 use crate::ui::atoms::button::compact_button;
-use crate::ui::atoms::input::mono_area;
+use crate::ui::atoms::sql_highlight::sql_area;
 use crate::ui::molecules::{
     data_cell::render_cell,
     status_bar::{STATUS_H, status_bar},
@@ -78,6 +78,8 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
     let tc = ThemeColors::from_ui(ui);
 
+    ui.add_space(8.0);
+
     // Snapshot query tab state + available databases
     let query_snapshot = app
         .explorer
@@ -107,7 +109,7 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
 
     // Toolbar: Run button + database indicator
     let toolbar_rect =
-        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 32.0));
+        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(ui.available_width(), 40.0));
     ui.painter()
         .rect_filled(toolbar_rect, egui::CornerRadius::ZERO, tc.surface);
 
@@ -156,16 +158,17 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
     let available = ui.available_rect_before_wrap();
     let editor_h = EDITOR_H.min(available.height() * 0.45);
     let status_h = QUERY_STATUS_H;
-    let results_h = (available.height() - editor_h - status_h - 1.0).max(40.0);
+    const RESULTS_GAP: f32 = 8.0;
+    let results_h = (available.height() - editor_h - status_h - 1.0 - RESULTS_GAP).max(40.0);
 
     let editor_rect =
         egui::Rect::from_min_size(available.min, egui::vec2(available.width(), editor_h));
     let results_rect = egui::Rect::from_min_size(
-        available.min + egui::vec2(0.0, editor_h + 1.0),
+        available.min + egui::vec2(0.0, editor_h + 1.0 + RESULTS_GAP),
         egui::vec2(available.width(), results_h),
     );
     let status_rect = egui::Rect::from_min_size(
-        available.min + egui::vec2(0.0, editor_h + 1.0 + results_h),
+        available.min + egui::vec2(0.0, editor_h + 1.0 + RESULTS_GAP + results_h),
         egui::vec2(available.width(), status_h),
     );
 
@@ -174,7 +177,7 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         let mut triggered = false;
         if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
             let mut editor_ui = ui.new_child(egui::UiBuilder::new().max_rect(editor_rect));
-            let resp = mono_area(&mut editor_ui, &mut q.sql, "SELECT * FROM table…", 8);
+            let resp = sql_area(&mut editor_ui, &mut q.sql, "SELECT * FROM table…", 8);
             if resp.has_focus()
                 && editor_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::Enter))
             {

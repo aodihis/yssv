@@ -308,7 +308,7 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                             app.test_connection(ctx.clone());
                         }
 
-                        let status_msg: Option<(String, egui::Color32)> =
+                        let inline_status: Option<(String, egui::Color32)> =
                             if app.conn_page.save_status == SaveStatus::Saved {
                                 Some(("Saved".into(), tc.success))
                             } else {
@@ -317,19 +317,12 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                         format!("Connected ({}ms)", ms),
                                         tc.success,
                                     )),
-                                    TestStatus::Failed(_) => {
-                                        Some(("Connection failed".into(), tc.error))
-                                    }
                                     _ => None,
                                 }
                             };
-                        if let Some((msg, color)) = status_msg {
+                        if let Some((msg, color)) = inline_status {
                             ui.add_space(6.0);
-                            ui.horizontal(|ui| {
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(RichText::new(msg).size(12.0).color(color));
-                                });
-                            });
+                            ui.label(RichText::new(msg).size(12.0).color(color));
                         }
                     });
                 });

@@ -30,9 +30,11 @@ Atomic-design UI system: atoms → molecules → pages. See PLAN.md for full arc
 | Data grid cell | `render_cell(ui, col, value)` | `crate::ui::molecules::data_cell` |
 | Pagination status bar | `status_bar(ui, tab)` | `crate::ui::molecules::status_bar` |
 | Tab bar | `tab_bar(ui, tabs, active)` | `crate::ui::molecules::tab_bar` |
+| Error/alert dialog | `error_dialog(ui, id, title, message) -> bool` | `crate::ui::molecules::alert_dialog` |
 
 **If an atom/molecule doesn't exist yet for a new need, create it in `src/ui/atoms/` or `src/ui/molecules/` first, then use it.**
 Never inline raw `egui::TextEdit`, `egui::Button`, etc. directly in page code when an atom covers the case.
+Never inline modal/overlay patterns in page code — use `error_dialog` for error popups, or create a dedicated molecule if the pattern differs.
 
 ---
 

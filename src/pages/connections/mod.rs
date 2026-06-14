@@ -26,6 +26,20 @@ pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         });
 
     render_delete_confirm(ui, app);
+    render_test_error(ui, app);
+}
+
+fn render_test_error(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
+    use crate::pages::connections::state::TestStatus;
+    use crate::ui::molecules::alert_dialog::error_dialog;
+
+    let TestStatus::Failed(ref msg) = app.conn_page.test_status else {
+        return;
+    };
+    let msg = msg.clone();
+    if error_dialog(ui, "test_conn_error", "Connection failed", &msg) {
+        app.conn_page.test_status = TestStatus::Idle;
+    }
 }
 
 fn render_delete_confirm(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {

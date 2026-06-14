@@ -1,3 +1,4 @@
+pub mod alert_dialog;
 pub mod color_picker;
 pub mod conn_item;
 pub mod data_cell;

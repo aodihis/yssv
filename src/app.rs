@@ -675,7 +675,7 @@ mod tests {
         ) -> Result<Vec<ColumnDef>, DbError> {
             Ok(vec![])
         }
-        async fn execute_query(&self, _sql: &str) -> Result<QueryResult, DbError> {
+        async fn execute_single(&self, _sql: &str) -> Result<QueryResult, DbError> {
             Ok(QueryResult::empty())
         }
     }

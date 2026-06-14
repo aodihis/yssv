@@ -7,4 +7,5 @@ pub mod icon;
 pub mod input;
 pub mod label_dot;
 pub mod light_switch;
+pub mod sql_highlight;
 pub mod toggle;
