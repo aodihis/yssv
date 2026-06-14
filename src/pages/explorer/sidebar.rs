@@ -292,6 +292,16 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         }
     }
 
+    let tunnel = app
+        .explorer
+        .as_ref()
+        .and_then(|e| e.tunnel_status.as_ref())
+        .and_then(|s| s.lock().ok().map(|g| g.clone()));
+    if tunnel.is_some() {
+        // Tunnel state changes on a background task; keep the indicator fresh.
+        ctx.request_repaint_after(std::time::Duration::from_secs(2));
+    }
+
     let mut footer_ui = ui.new_child(egui::UiBuilder::new().max_rect(footer_rect));
     footer_ui.painter().hline(
         footer_rect.x_range(),
@@ -330,6 +340,18 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             if ui.add(theme_btn).clicked() {
                 app.settings.toggle_theme();
                 theme::apply_theme(&ctx, app.settings.theme);
+            }
+
+            if let Some(status) = &tunnel {
+                use crate::core::ssh::TunnelStatus;
+                let dot = match status {
+                    TunnelStatus::Connected => colors::GREEN,
+                    TunnelStatus::Connecting | TunnelStatus::Reconnecting => colors::AMBER,
+                    TunnelStatus::Failed(_) => colors::RED,
+                };
+                ui.add_space(8.0);
+                ui.label(RichText::new(status.label()).size(11.0).color(tc.text_secondary));
+                crate::ui::atoms::label_dot::colored_dot(ui, dot, 8.0);
             }
         });
     });

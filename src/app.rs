@@ -91,9 +91,11 @@ impl YssvApp {
                     default_db = %default_db, db_count = databases.len(), "connected"
                 );
                 self.db_conns.clear();
+                let tunnel_status = connection.tunnel_status();
                 self.db_conns.insert(default_db.clone(), connection);
                 self.conn_config = Some(*conn_config);
-                let explorer = ExplorerState::new(conn_id, conn_name, &default_db, databases);
+                let mut explorer = ExplorerState::new(conn_id, conn_name, &default_db, databases);
+                explorer.tunnel_status = tunnel_status;
                 let load_db = explorer.active_db.clone();
                 self.explorer = Some(explorer);
                 self.screen = Screen::Explorer;

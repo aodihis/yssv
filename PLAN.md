@@ -104,14 +104,16 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 
 ---
 
-### Phase 5 — SSH Tunneling
+### Phase 5 — SSH Tunneling ✅
 **Goal**: Connect through SSH bastion hosts.
 
-- [ ] SSH tunnel execution using `russh` or `ssh2` crate
-- [ ] Forward local port → remote DB port through tunnel
-- [ ] Key-file auth (PEM / OpenSSH format)
-- [ ] Tunnel status indicator in sidebar footer
-- [ ] Auto-reconnect on tunnel drop
+- [x] SSH tunnel execution using `russh` (pure-Rust, `ring` backend)
+- [x] Forward local port → remote DB port through tunnel (`direct-tcpip` + `copy_bidirectional`)
+- [x] Password + key-file auth (PEM / OpenSSH format via `load_secret_key`)
+- [x] Tunnel status indicator in sidebar footer (color dot + label, auto-refresh)
+- [x] Auto-reconnect on tunnel drop (5 attempts, backoff)
+
+> SSH-agent auth (Pageant/ssh-agent) is stubbed with a clear "not yet supported" error.
 
 ---
 

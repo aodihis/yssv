@@ -216,6 +216,7 @@ pub struct ExplorerState {
     pub active_db: String,
     pub filter: String,
     pub tabs: TabState,
+    pub tunnel_status: Option<crate::core::ssh::TunnelStatusHandle>,
 }
 
 impl ExplorerState {
@@ -251,6 +252,7 @@ impl ExplorerState {
             active_db,
             filter: String::new(),
             tabs: TabState::default(),
+            tunnel_status: None,
         }
     }
 

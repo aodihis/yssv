@@ -6,6 +6,7 @@ use crate::core::{
     connections::model::Connection,
     results::model::{ColumnDef, QueryResult},
     schema::model::{SchemaInfo, TableInfo, TableKind},
+    ssh::{SshTunnel, TunnelStatusHandle},
 };
 use async_trait::async_trait;
 pub use error::DbError;
@@ -45,9 +46,93 @@ pub trait ActiveConnection: Send + Sync {
         }
         Ok(last)
     }
+
+    /// Live SSH tunnel status, when this connection is routed through one.
+    fn tunnel_status(&self) -> Option<TunnelStatusHandle> {
+        None
+    }
+}
+
+/// Wraps a driver connection that is routed through an SSH tunnel, keeping the
+/// tunnel alive for the connection's lifetime and exposing its status.
+pub struct TunneledConnection {
+    inner: Box<dyn ActiveConnection>,
+    tunnel: SshTunnel,
+}
+
+impl TunneledConnection {
+    pub fn new(inner: Box<dyn ActiveConnection>, tunnel: SshTunnel) -> Self {
+        Self { inner, tunnel }
+    }
+}
+
+#[async_trait]
+impl ActiveConnection for TunneledConnection {
+    async fn current_database(&self) -> Result<String, DbError> {
+        self.inner.current_database().await
+    }
+
+    async fn describe_table(
+        &self,
+        db: &str,
+        schema: &str,
+        table: &str,
+    ) -> Result<Vec<ColumnDef>, DbError> {
+        self.inner.describe_table(db, schema, table).await
+    }
+
+    async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError> {
+        self.inner.execute_single(sql).await
+    }
+
+    async fn fetch_rows(
+        &self,
+        db: &str,
+        schema: &str,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<QueryResult, DbError> {
+        self.inner.fetch_rows(db, schema, table, limit, offset).await
+    }
+
+    async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+        self.inner.list_databases().await
+    }
+
+    async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
+        self.inner.list_schemas(db).await
+    }
+
+    async fn list_tables(&self, db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
+        self.inner.list_tables(db, schema).await
+    }
+
+    fn tunnel_status(&self) -> Option<TunnelStatusHandle> {
+        Some(self.tunnel.status_handle())
+    }
 }
 
 pub async fn connect(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
+    match &conn.ssh {
+        Some(ssh) => {
+            let tunnel = SshTunnel::open(ssh, &conn.host, conn.port).await?;
+            let mut effective = conn.clone();
+            effective.host = "127.0.0.1".into();
+            effective.port = tunnel.local_port();
+            effective.ssh = None;
+            tracing::debug!(
+                local_port = tunnel.local_port(),
+                "driver connect: routing through SSH tunnel"
+            );
+            let inner = connect_direct(&effective).await?;
+            Ok(Box::new(TunneledConnection::new(inner, tunnel)))
+        }
+        None => connect_direct(conn).await,
+    }
+}
+
+async fn connect_direct(conn: &Connection) -> Result<Box<dyn ActiveConnection>, DbError> {
     use crate::core::connections::model::DbEngine;
     match conn.engine {
         DbEngine::Postgres => postgres::driver::connect(conn).await,
