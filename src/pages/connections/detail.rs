@@ -239,8 +239,8 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                 ui.add_space(16.0);
 
                 ui.horizontal(|ui| {
-                    // Delete / Duplicate — left side, saved connections only (hidden while testing)
-                    if !app.conn_page.is_new && app.conn_page.test_status != TestStatus::Testing {
+                    // Delete / Duplicate — left side, saved connections only (hidden while busy)
+                    if !app.conn_page.is_new && !app.conn_page.is_busy() {
                         let del_btn = egui::Button::image(
                             icon_image(Icon::Trash2, 14.0, tc.error),
                         )
@@ -267,14 +267,19 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
 
                     // Test / Save / Connect — right side
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let connecting = app.conn_page.connecting;
+                        let testing = app.conn_page.test_status == TestStatus::Testing;
+                        let busy = connecting || testing;
+
+                        let connect_label = if connecting { "Connecting…" } else { "Connect" };
                         let connect_btn = egui::Button::image_and_text(
                             icon_image(Icon::CornerDownLeft, 14.0, egui::Color32::WHITE),
-                            RichText::new("Connect").size(13.0).color(egui::Color32::WHITE),
+                            RichText::new(connect_label).size(13.0).color(egui::Color32::WHITE),
                         )
                         .fill(tc.button_primary_bg)
                         .stroke(egui::Stroke::NONE)
                         .min_size(egui::vec2(0.0, 32.0));
-                        if ui.add(connect_btn).clicked() {
+                        if ui.add_enabled(!busy, connect_btn).clicked() {
                             app.connect(ctx.clone());
                         }
 
@@ -285,15 +290,16 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                 .fill(tc.background)
                                 .stroke(egui::Stroke::new(1.0, tc.field_border))
                                 .min_size(egui::vec2(0.0, 32.0));
-                        if ui.add(save_btn).clicked() {
+                        if ui.add_enabled(!busy, save_btn).clicked() {
                             app.save_connection();
                         }
 
                         ui.add_space(8.0);
 
-                        let (test_label, test_color) = match &app.conn_page.test_status {
-                            TestStatus::Idle | TestStatus::Ok(_) | TestStatus::Failed(_) => ("Test Connection", tc.text_secondary),
-                            TestStatus::Testing => ("Testing…", tc.text_disabled),
+                        let (test_label, test_color) = if testing {
+                            ("Testing…", tc.text_disabled)
+                        } else {
+                            ("Test Connection", tc.text_secondary)
                         };
                         let test_btn = egui::Button::image_and_text(
                             icon_image(Icon::Plug2, 14.0, test_color),
@@ -302,27 +308,30 @@ pub fn render_detail(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         .fill(tc.background)
                         .stroke(egui::Stroke::new(1.0, tc.field_border))
                         .min_size(egui::vec2(0.0, 32.0));
-                        if ui.add(test_btn).clicked()
-                            && app.conn_page.test_status != TestStatus::Testing
-                        {
+                        if ui.add_enabled(!busy, test_btn).clicked() {
                             app.test_connection(ctx.clone());
                         }
 
-                        let inline_status: Option<(String, egui::Color32)> =
-                            if app.conn_page.save_status == SaveStatus::Saved {
-                                Some(("Saved".into(), tc.success))
-                            } else {
-                                match &app.conn_page.test_status {
-                                    TestStatus::Ok(ms) => Some((
-                                        format!("Connected ({}ms)", ms),
-                                        tc.success,
-                                    )),
-                                    _ => None,
-                                }
-                            };
-                        if let Some((msg, color)) = inline_status {
+                        // While busy, a spinner replaces the inline status text.
+                        if busy {
                             ui.add_space(6.0);
-                            ui.label(RichText::new(msg).size(12.0).color(color));
+                            ui.spinner();
+                        } else {
+                            let inline_status: Option<(String, egui::Color32)> =
+                                if app.conn_page.save_status == SaveStatus::Saved {
+                                    Some(("Saved".into(), tc.success))
+                                } else {
+                                    match &app.conn_page.test_status {
+                                        TestStatus::Ok(ms) => {
+                                            Some((format!("Connected ({}ms)", ms), tc.success))
+                                        }
+                                        _ => None,
+                                    }
+                                };
+                            if let Some((msg, color)) = inline_status {
+                                ui.add_space(6.0);
+                                ui.label(RichText::new(msg).size(12.0).color(color));
+                            }
                         }
                     });
                 });

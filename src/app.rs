@@ -107,6 +107,7 @@ impl YssvApp {
                 let load_db = explorer.active_db.clone();
                 self.explorer = Some(explorer);
                 self.screen = Screen::Explorer;
+                self.conn_page.connecting = false;
                 tracing::debug!(db = %load_db, "auto-loading schemas for connected database");
                 self.load_schemas(ctx.clone(), load_db);
             }
@@ -115,6 +116,7 @@ impl YssvApp {
                 self.db_conns.clear();
                 self.conn_config = None;
                 self.error_modal = Some(message);
+                self.conn_page.connecting = false;
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
             }
             AppEvent::TestOk {
@@ -260,13 +262,14 @@ impl YssvApp {
         }
     }
 
-    pub fn connect(&self, ctx: egui::Context) {
+    pub fn connect(&mut self, ctx: egui::Context) {
         let conn = self.conn_page.form.to_connection();
         tracing::debug!(
             conn_id = %conn.id, name = %conn.name,
             host = %conn.host, port = conn.port,
             engine = ?conn.engine, "initiating connection"
         );
+        self.conn_page.connecting = true;
         let tx = self.event_tx.clone();
         self.rt.spawn(async move {
             let conn_id = conn.id.clone();

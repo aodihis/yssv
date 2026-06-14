@@ -164,6 +164,8 @@ pub struct ConnectionsPageState {
     pub form: ConnectionForm,
     pub test_status: TestStatus,
     pub save_status: SaveStatus,
+    /// True while a Connect attempt is in flight (drives the disabled/loading UI).
+    pub connecting: bool,
     pub search_query: String,
     pub collapsed_groups: std::collections::HashSet<String>,
     pub is_new: bool,
@@ -188,12 +190,18 @@ impl ConnectionsPageState {
             form,
             test_status: TestStatus::Idle,
             save_status: SaveStatus::Idle,
+            connecting: false,
             search_query: String::new(),
             collapsed_groups: Default::default(),
             is_new,
             pending_delete: None,
             renaming_group: None,
         }
+    }
+
+    /// True while a test or connect attempt is in flight — Test/Connect disable.
+    pub fn is_busy(&self) -> bool {
+        self.connecting || self.test_status == TestStatus::Testing
     }
 
     pub fn select(&mut self, id: &str) {
@@ -203,6 +211,7 @@ impl ConnectionsPageState {
         }
         self.test_status = TestStatus::Idle;
         self.save_status = SaveStatus::Idle;
+        self.connecting = false;
         self.is_new = false;
     }
 
@@ -212,6 +221,7 @@ impl ConnectionsPageState {
         self.form = ConnectionForm::from_connection(&c);
         self.test_status = TestStatus::Idle;
         self.save_status = SaveStatus::Idle;
+        self.connecting = false;
         self.is_new = true;
     }
 
