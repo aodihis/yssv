@@ -41,21 +41,29 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         avail_w
     };
 
-    // Load persisted scroll offset
+    // Load persisted scroll offset + the active tab from the previous frame.
     let scroll_id = ui.id().with("tab_bar_scroll");
+    let active_id = ui.id().with("tab_bar_active");
     let mut scroll: usize = ui.memory(|m| m.data.get_temp::<usize>(scroll_id).unwrap_or(0));
+    let prev_active: Option<usize> = ui.memory(|m| m.data.get_temp::<usize>(active_id));
     scroll = scroll.min(tabs.len() - 1);
 
-    // Auto-scroll: keep active tab visible
-    if active < scroll {
-        scroll = active;
-    } else {
-        loop {
-            let last = last_visible_from(scroll, &tab_widths, tabs_avail_w);
-            if active <= last || scroll + 1 >= tabs.len() {
-                break;
+    // Reveal the active tab only when it actually changes (opened / switched).
+    // Doing this every frame would pin the scroll to the active tab and silently
+    // undo manual arrow scrolling. When everything fits, reset to the start.
+    if !needs_arrows {
+        scroll = 0;
+    } else if prev_active != Some(active) {
+        if active < scroll {
+            scroll = active;
+        } else {
+            loop {
+                let last = last_visible_from(scroll, &tab_widths, tabs_avail_w);
+                if active <= last || scroll + 1 >= tabs.len() {
+                    break;
+                }
+                scroll += 1;
             }
-            scroll += 1;
         }
     }
 
@@ -137,8 +145,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         );
     }
 
-    // Persist updated scroll
-    ui.memory_mut(|m| m.data.insert_temp(scroll_id, scroll));
+    // Persist updated scroll + active for next frame's change detection.
+    ui.memory_mut(|m| {
+        m.data.insert_temp(scroll_id, scroll);
+        m.data.insert_temp(active_id, active);
+    });
 
     // Render tabs clipped to their allocated area
     let tabs_clip = egui::Rect::from_min_size(strip_rect.min, egui::vec2(tabs_avail_w, TAB_H));
