@@ -80,6 +80,8 @@ impl TableTab {
 
     /// Append a blank insert row, select it, and immediately begin editing its
     /// first cell so the new row is obviously editable. Returns the insert index.
+    /// Insert rows render first, so the new row's display index equals its
+    /// insert index.
     pub fn add_insert_row(&mut self) -> Option<usize> {
         let cols = self.column_count();
         if cols == 0 {
@@ -87,8 +89,7 @@ impl TableTab {
         }
         self.edits.inserts.push(vec![None; cols]);
         let idx = self.edits.inserts.len() - 1;
-        let orig = self.result.as_ref().map(|r| r.rows.len()).unwrap_or(0);
-        self.selected_row = Some(orig + idx);
+        self.selected_row = Some(idx);
         self.editing = Some(EditingCell {
             row: RowRef::Insert(idx),
             col: 0,
@@ -98,18 +99,25 @@ impl TableTab {
         Some(idx)
     }
 
+    /// Maps the selected display row to an original (database) row index, or
+    /// `None` if the selection is a pending insert. Inserts render first, so
+    /// display indices below the insert count are inserts.
+    pub fn selected_original_index(&self) -> Option<usize> {
+        let sel = self.selected_row?;
+        let inserts = self.edits.inserts.len();
+        (sel >= inserts).then(|| sel - inserts)
+    }
+
     /// Toggle deletion of an existing row, or drop an uncommitted insert row.
-    /// `display` is the index as shown in the grid (originals first, then inserts).
+    /// `display` is the index as shown in the grid (inserts first, then originals).
     pub fn toggle_delete_display_row(&mut self, display: usize) {
-        let orig = self.result.as_ref().map(|r| r.rows.len()).unwrap_or(0);
-        if display < orig {
-            if !self.edits.deletes.insert(display) {
-                self.edits.deletes.remove(&display);
-            }
+        let inserts = self.edits.inserts.len();
+        if display < inserts {
+            self.edits.inserts.remove(display);
         } else {
-            let i = display - orig;
-            if i < self.edits.inserts.len() {
-                self.edits.inserts.remove(i);
+            let orig = display - inserts;
+            if !self.edits.deletes.insert(orig) {
+                self.edits.deletes.remove(&orig);
             }
         }
         self.editing = None;
@@ -485,10 +493,22 @@ mod tests {
     fn toggle_delete_drops_insert_row() {
         let mut tab = tab_with_two_rows();
         tab.add_insert_row();
-        // display index 2 = first insert (originals are 0,1)
-        tab.toggle_delete_display_row(2);
+        // Inserts render first, so the lone insert is at display index 0.
+        tab.toggle_delete_display_row(0);
         assert!(tab.edits.inserts.is_empty());
         assert!(tab.edits.deletes.is_empty());
+    }
+
+    #[test]
+    fn selected_original_index_skips_inserts() {
+        let mut tab = tab_with_two_rows();
+        tab.add_insert_row(); // 1 insert at display 0; originals at display 1,2
+        tab.selected_row = Some(0);
+        assert_eq!(tab.selected_original_index(), None, "insert row is not an original");
+        tab.selected_row = Some(1);
+        assert_eq!(tab.selected_original_index(), Some(0), "first original row");
+        tab.selected_row = Some(2);
+        assert_eq!(tab.selected_original_index(), Some(1));
     }
 
     #[test]

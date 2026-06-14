@@ -439,6 +439,9 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         let pending = tab.edits.pending_count();
         let committing = tab.committing;
         let has_cols = tab.column_count() > 0;
+        // While a new row is being entered, hide Add/Delete so the user finishes
+        // it (Commit or Revert) before starting another structural change.
+        let adding = !tab.edits.inserts.is_empty();
         ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
             ui.horizontal_centered(|ui| {
                 ui.add_space(12.0);
@@ -498,12 +501,14 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                                 );
                                 ui.add_space(12.0);
                             }
-                            if secondary_button(ui, "✕ Delete Row").clicked() {
-                                act_delete_row = true;
-                            }
-                            ui.add_space(6.0);
-                            if secondary_button(ui, "＋ Add Row").clicked() {
-                                act_add_row = true;
+                            if !adding {
+                                if secondary_button(ui, "✕ Delete Row").clicked() {
+                                    act_delete_row = true;
+                                }
+                                ui.add_space(6.0);
+                                if secondary_button(ui, "＋ Add Row").clicked() {
+                                    act_add_row = true;
+                                }
                             }
                         }
                     });
@@ -646,11 +651,11 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                 );
 
                 // Ctrl+C copies an existing row; insert rows aren't in `rows`.
-                if let Some(sel) = tab.selected_row
-                    && sel < rows.len()
+                if let Some(orig) = tab.selected_original_index()
+                    && orig < rows.len()
                     && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
                 {
-                    let text = rows[sel]
+                    let text = rows[orig]
                         .iter()
                         .map(|v| v.as_deref().unwrap_or_default())
                         .collect::<Vec<_>>()

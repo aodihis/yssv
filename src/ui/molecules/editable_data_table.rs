@@ -6,6 +6,14 @@ use crate::ui::molecules::data_cell::render_cell;
 use crate::ui::molecules::data_table::results_header;
 use egui::{Color32, RichText};
 
+/// How an in-progress cell edit ended. `CommitNext` (Enter) saves the value and
+/// moves the editor to the next column so a row can be filled keyboard-only.
+enum Finish {
+    Cancel,
+    CommitStop,
+    CommitNext,
+}
+
 /// Editable results grid (DataGrip-style). Renders the loaded page plus any
 /// uncommitted insert rows, tinting modified cells, inserted rows, and rows
 /// marked for deletion. All interaction mutates `edits` / `editing` / `selected`
@@ -21,8 +29,15 @@ pub fn editable_data_table(
     row_height: f32,
 ) {
     let tc = ThemeColors::from_ui(ui);
-    let orig_count = rows.len();
-    let total = orig_count + edits.inserts.len();
+    // egui labels are selectable by default; that text-drag interaction swallows
+    // cell clicks/double-clicks, making row selection and edit-on-double-click
+    // unreliable. Turn it off so a click always lands on the cell.
+    ui.style_mut().interaction.selectable_labels = false;
+
+    // Insert rows render first (pinned at the top) so a freshly added row is
+    // always visible regardless of which page is loaded.
+    let insert_count = edits.inserts.len();
+    let total = insert_count + rows.len();
 
     let modified_bg = tint(colors::WARNING, 30);
     let inserted_bg = tint(tc.success, 26);
@@ -48,10 +63,10 @@ pub fn editable_data_table(
             .body(|body| {
                 body.rows(row_height, total, |mut row| {
                     let display = row.index();
-                    let row_ref = if display < orig_count {
-                        RowRef::Original(display)
+                    let row_ref = if display < insert_count {
+                        RowRef::Insert(display)
                     } else {
-                        RowRef::Insert(display - orig_count)
+                        RowRef::Original(display - insert_count)
                     };
                     let is_insert = matches!(row_ref, RowRef::Insert(_));
                     let is_deleted =
@@ -86,7 +101,7 @@ pub fn editable_data_table(
                             is_modified(edits, row_ref, ci).then_some(modified_bg)
                         });
 
-                        let mut finish: Option<bool> = None;
+                        let mut finish: Option<Finish> = None;
                         let (_, resp) = row.col(|ui| {
                             let rect = ui.max_rect();
                             if editing_this {
@@ -115,8 +130,19 @@ pub fn editable_data_table(
                                         e.request_focus = false;
                                     }
                                     if r.lost_focus() {
-                                        let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
-                                        finish = Some(!esc);
+                                        let (esc, enter) = ui.input(|i| {
+                                            (
+                                                i.key_pressed(egui::Key::Escape),
+                                                i.key_pressed(egui::Key::Enter),
+                                            )
+                                        });
+                                        finish = Some(if esc {
+                                            Finish::Cancel
+                                        } else if enter {
+                                            Finish::CommitNext
+                                        } else {
+                                            Finish::CommitStop
+                                        });
                                     }
                                 }
                             } else if is_deleted {
@@ -132,14 +158,29 @@ pub fn editable_data_table(
                             }
                         });
 
-                        if let Some(commit) = finish {
-                            if commit {
+                        match finish {
+                            Some(Finish::Cancel) => *editing = None,
+                            Some(Finish::CommitStop) => {
                                 if let Some(e) = editing.take() {
                                     apply_edit(edits, rows, e.row, e.col, e.buffer);
                                 }
-                            } else {
-                                *editing = None;
                             }
+                            Some(Finish::CommitNext) => {
+                                if let Some(e) = editing.take() {
+                                    let next = e.col + 1;
+                                    apply_edit(edits, rows, e.row, e.col, e.buffer);
+                                    if next < columns.len() {
+                                        *editing = Some(EditingCell {
+                                            row: e.row,
+                                            col: next,
+                                            buffer: effective_value(rows, edits, e.row, next)
+                                                .unwrap_or_default(),
+                                            request_focus: true,
+                                        });
+                                    }
+                                }
+                            }
+                            None => {}
                         }
 
                         if !editing_this {
