@@ -18,6 +18,7 @@ Atomic-design UI system: atoms → molecules → pages. See PLAN.md for full arc
 | File picker field | `file_input(ui, value, placeholder)` | `crate::ui::atoms::input::file_input` |
 | Primary CTA button | `primary_button(ui, label)` | `crate::ui::atoms::button::primary_button` |
 | Compact inline button | `compact_button(ui, label)` | `crate::ui::atoms::button::compact_button` |
+| Compact secondary button | `secondary_button(ui, label)` | `crate::ui::atoms::button::secondary_button` |
 | Dropdown/select | `dropdown(ui, id, value, options)` | `crate::ui::atoms::dropdown::dropdown` |
 | Toggle switch | `light_switch(ui, value)` | `crate::ui::atoms::light_switch::light_switch` |
 | Color dot label | `label_dot(ui, color)` | `crate::ui::atoms::label_dot` |
@@ -28,10 +29,12 @@ Atomic-design UI system: atoms → molecules → pages. See PLAN.md for full arc
 | Connection list item | `conn_item(...)` | `crate::ui::molecules::conn_item` |
 | Sidebar tree row | `tree_row(ui, TreeRowConfig { ... })` | `crate::ui::molecules::tree_row` |
 | Data grid cell | `render_cell(ui, col, value)` | `crate::ui::molecules::data_cell` |
-| Data results table | `data_table(ui, columns, rows, row_height, selected) -> Option<usize>` | `crate::ui::molecules::data_table` |
+| Data results table (read-only) | `data_table(ui, columns, rows, row_height, selected) -> Option<usize>` | `crate::ui::molecules::data_table` |
+| Editable data grid | `editable_data_table(ui, columns, rows, &mut edits, &mut editing, &mut selected, row_height)` | `crate::ui::molecules::editable_data_table` |
 | Pagination status bar | `status_bar(ui, tab)` | `crate::ui::molecules::status_bar` |
 | Tab bar | `tab_bar(ui, tabs, active)` | `crate::ui::molecules::tab_bar` |
 | Error/alert dialog | `error_dialog(ui, id, title, message) -> bool` | `crate::ui::molecules::alert_dialog` |
+| Commit/diff dialog | `commit_dialog(ui, id, statements) -> CommitChoice` | `crate::ui::molecules::commit_dialog` |
 
 **If an atom/molecule doesn't exist yet for a new need, create it in `src/ui/atoms/` or `src/ui/molecules/` first, then use it.**
 Never inline raw `egui::TextEdit`, `egui::Button`, etc. directly in page code when an atom covers the case.

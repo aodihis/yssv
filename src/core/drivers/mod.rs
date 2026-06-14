@@ -34,6 +34,11 @@ pub trait ActiveConnection: Send + Sync {
 
     async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError>;
 
+    /// Run every statement inside a single transaction, returning the total
+    /// number of affected rows. Any failure rolls the whole batch back. This
+    /// backs the DataGrip-style "commit pending changes" action.
+    async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError>;
+
     async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError> {
         let stmts = split_statements(sql);
         tracing::debug!(stmt_count = stmts.len(), sql_len = sql.len(), "execute_query");
@@ -79,6 +84,10 @@ impl ActiveConnection for TunneledConnection {
         table: &str,
     ) -> Result<Vec<ColumnDef>, DbError> {
         self.inner.describe_table(db, schema, table).await
+    }
+
+    async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+        self.inner.execute_batch(statements).await
     }
 
     async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError> {

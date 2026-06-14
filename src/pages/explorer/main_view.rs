@@ -1,10 +1,13 @@
+use crate::core::edit::build_statements;
 use crate::core::results::model::ColumnDef;
 use crate::pages::explorer::state::{Tab, TabView};
 use crate::theme::ThemeColors;
-use crate::ui::atoms::button::compact_button;
+use crate::ui::atoms::button::{compact_button, secondary_button};
 use crate::ui::atoms::sql_highlight::sql_area;
 use crate::ui::molecules::{
+    commit_dialog::{CommitChoice, commit_dialog},
     data_table::data_table,
+    editable_data_table::editable_data_table,
     status_bar::{STATUS_H, status_bar},
     tab_bar::tab_bar,
 };
@@ -426,9 +429,16 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         .explorer
         .as_mut()
         .expect("explorer is Some — checked above");
+    let mut new_view: Option<TabView> = None;
+    let mut act_add_row = false;
+    let mut act_delete_row = false;
+    let mut act_revert = false;
+    let mut act_commit = false;
     if let Some(tab) = explorer.tabs.active_table_tab() {
         let is_data = tab.view == TabView::Data;
-        let mut new_view: Option<TabView> = None;
+        let pending = tab.edits.pending_count();
+        let committing = tab.committing;
+        let has_cols = tab.column_count() > 0;
         ui.scope_builder(egui::UiBuilder::new().max_rect(toolbar_rect), |ui| {
             ui.horizontal_centered(|ui| {
                 ui.add_space(12.0);
@@ -461,6 +471,43 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                     }
                     ui.add_space(4.0);
                 }
+
+                // Editing actions live on the right, Data view only.
+                if is_data && has_cols {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.add_space(12.0);
+                        if committing {
+                            ui.label(
+                                RichText::new("Committing…").size(12.0).color(tc.text_secondary),
+                            );
+                        } else {
+                            if pending > 0 {
+                                if compact_button(ui, "✓ Commit").clicked() {
+                                    act_commit = true;
+                                }
+                                ui.add_space(6.0);
+                                if secondary_button(ui, "Revert").clicked() {
+                                    act_revert = true;
+                                }
+                                ui.add_space(10.0);
+                                let noun = if pending == 1 { "change" } else { "changes" };
+                                ui.label(
+                                    RichText::new(format!("{pending} pending {noun}"))
+                                        .size(11.5)
+                                        .color(tc.button_primary_bg),
+                                );
+                                ui.add_space(12.0);
+                            }
+                            if secondary_button(ui, "✕ Delete Row").clicked() {
+                                act_delete_row = true;
+                            }
+                            ui.add_space(6.0);
+                            if secondary_button(ui, "＋ Add Row").clicked() {
+                                act_add_row = true;
+                            }
+                        }
+                    });
+                }
             });
         });
 
@@ -469,11 +516,23 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             toolbar_rect.bottom(),
             egui::Stroke::new(1.0, tc.border),
         );
+    }
 
-        if let Some(v) = new_view
-            && let Some(t) = explorer.tabs.active_table_tab_mut()
-        {
+    if let Some(t) = explorer.tabs.active_table_tab_mut() {
+        if let Some(v) = new_view {
             t.view = v;
+        }
+        if act_add_row {
+            t.add_insert_row();
+        }
+        if act_delete_row && let Some(sel) = t.selected_row {
+            t.toggle_delete_display_row(sel);
+        }
+        if act_revert {
+            t.revert_edits();
+        }
+        if act_commit {
+            t.show_commit_dialog = true;
         }
     }
 
@@ -533,15 +592,13 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                 tab.result.is_some(),
                 tab.structure_loading,
                 tab.structure.is_some(),
-                tab.selected_row,
             )
         })
     };
-    let (tab_view, is_loading, has_result, struct_loading, has_structure, selected_row) =
-        match tab_info {
-            Some(t) => t,
-            None => return,
-        };
+    let (tab_view, is_loading, has_result, struct_loading, has_structure) = match tab_info {
+        Some(t) => t,
+        None => return,
+    };
 
     let mut grid_ui = ui.new_child(egui::UiBuilder::new().max_rect(grid_rect));
 
@@ -566,37 +623,39 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                 grid_ui.centered_and_justified(|ui| {
                     ui.label(RichText::new("Loading…").color(ui.visuals().weak_text_color()));
                 });
-            } else if has_result {
-                let mut new_selected = selected_row;
+            } else if has_result
+                && let Some(tab) = app
+                    .explorer
+                    .as_mut()
+                    .and_then(|e| e.tabs.active_table_tab_mut())
+                && let Some(result) = tab.result.as_ref()
+            {
+                // Disjoint field borrows: `result` reads tab.result while the
+                // edit state takes &mut on its own fields.
+                let columns = &result.columns;
+                let rows = &result.rows;
 
-                if let Some(explorer) = app.explorer.as_ref()
-                    && let Some(tab) = explorer.tabs.active_table_tab()
-                    && let Some(result) = tab.result.as_ref()
+                editable_data_table(
+                    &mut grid_ui,
+                    columns,
+                    rows,
+                    &mut tab.edits,
+                    &mut tab.editing,
+                    &mut tab.selected_row,
+                    row_height,
+                );
+
+                // Ctrl+C copies an existing row; insert rows aren't in `rows`.
+                if let Some(sel) = tab.selected_row
+                    && sel < rows.len()
+                    && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
                 {
-                    let columns = &result.columns;
-                    let rows = &result.rows;
-
-                    new_selected = data_table(&mut grid_ui, columns, rows, row_height, new_selected);
-
-                    if let Some(sel_ri) = new_selected
-                        && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))
-                    {
-                        let text = rows[sel_ri]
-                            .iter()
-                            .map(|v| v.as_deref().unwrap_or_default())
-                            .collect::<Vec<_>>()
-                            .join("\t");
-                        grid_ui.ctx().copy_text(text);
-                    }
-                }
-
-                if new_selected != selected_row
-                    && let Some(tab) = app
-                        .explorer
-                        .as_mut()
-                        .and_then(|e| e.tabs.active_table_tab_mut())
-                {
-                    tab.selected_row = new_selected;
+                    let text = rows[sel]
+                        .iter()
+                        .map(|v| v.as_deref().unwrap_or_default())
+                        .collect::<Vec<_>>()
+                        .join("\t");
+                    grid_ui.ctx().copy_text(text);
                 }
             }
         }
@@ -613,7 +672,9 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             && tab.view == TabView::Data
         {
             let (prev, next) = status_bar(&mut status_ui, tab);
-            if (prev && tab.can_go_prev()) || (next && tab.can_go_next()) {
+            // Pagination is disabled while edits are pending — the edit set is
+            // keyed by the current page's row indices.
+            if tab.edits.is_empty() && ((prev && tab.can_go_prev()) || (next && tab.can_go_next())) {
                 Some(super::LoadRequest {
                     tab_id: tab.id.clone(),
                     db: tab.database.clone(),
@@ -657,5 +718,63 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             req.limit,
             req.offset,
         );
+    }
+
+    render_commit_dialog(ui, app, ctx);
+}
+
+// Renders the pending-changes review modal when the active table tab has
+// requested a commit. Building the statement preview here keeps the dialog and
+// the actual commit (in `YssvApp::commit_changes`) driven by the same builder.
+fn render_commit_dialog(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui::Context) {
+    let show = app
+        .explorer
+        .as_ref()
+        .and_then(|e| e.tabs.active_table_tab())
+        .map(|t| t.show_commit_dialog)
+        .unwrap_or(false);
+    if !show {
+        return;
+    }
+
+    let prepared = app.current_engine().and_then(|engine| {
+        app.explorer
+            .as_ref()
+            .and_then(|e| e.tabs.active_table_tab())
+            .map(|tab| {
+                let statements = tab
+                    .result
+                    .as_ref()
+                    .map(|r| {
+                        build_statements(engine, &tab.schema, &tab.table, &r.columns, &r.rows, &tab.edits)
+                    })
+                    .unwrap_or_default();
+                (tab.id.clone(), statements)
+            })
+    });
+
+    // Confirm runs the commit (which closes the dialog itself); every other
+    // terminal outcome — no tab, nothing to commit, or Cancel — just closes it.
+    let mut confirm: Option<String> = None;
+    let close = match prepared {
+        Some((tab_id, statements)) if !statements.is_empty() => {
+            match commit_dialog(ui, "commit_changes_dialog", &statements) {
+                CommitChoice::Confirm => {
+                    confirm = Some(tab_id);
+                    false
+                }
+                CommitChoice::Cancel => true,
+                CommitChoice::Pending => false,
+            }
+        }
+        _ => true,
+    };
+    if close
+        && let Some(t) = app.explorer.as_mut().and_then(|e| e.tabs.active_table_tab_mut())
+    {
+        t.show_commit_dialog = false;
+    }
+    if let Some(tab_id) = confirm {
+        app.commit_changes(ctx.clone(), tab_id);
     }
 }

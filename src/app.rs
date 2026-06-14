@@ -70,6 +70,12 @@ impl YssvApp {
         }
     }
 
+    /// Engine of the currently active connection, if any — used by the data
+    /// grid to build engine-correct SQL for the commit preview.
+    pub fn current_engine(&self) -> Option<crate::core::connections::model::DbEngine> {
+        self.conn_config.as_ref().map(|c| c.engine)
+    }
+
     pub fn drain_events(&mut self, ctx: &egui::Context) {
         while let Ok(event) = self.event_rx.try_recv() {
             self.apply_event(event, ctx);
@@ -128,6 +134,10 @@ impl YssvApp {
                     && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
+                    // Fresh rows invalidate any pending edits keyed by the old
+                    // page's row indices.
+                    tab.edits.clear();
+                    tab.editing = None;
                     tab.result = Some(result);
                     tab.loading = false;
                 }
@@ -194,6 +204,49 @@ impl YssvApp {
                     tab.result = None;
                     tab.loading = false;
                 }
+            }
+            AppEvent::CommitDone {
+                tab_id,
+                rows_affected,
+            } => {
+                tracing::info!(tab_id = %tab_id, rows_affected, "commit applied, reloading page");
+                let reload = if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+                {
+                    tab.edits.clear();
+                    tab.editing = None;
+                    tab.committing = false;
+                    tab.show_commit_dialog = false;
+                    tab.selected_row = None;
+                    tab.loading = true;
+                    tab.result = None;
+                    Some((
+                        tab.id.clone(),
+                        tab.database.clone(),
+                        tab.schema.clone(),
+                        tab.table.clone(),
+                        tab.page_size,
+                        tab.offset(),
+                    ))
+                } else {
+                    tracing::warn!(tab_id = %tab_id, "CommitDone: no matching table tab");
+                    None
+                };
+                if let Some((tid, db, schema, table, limit, offset)) = reload {
+                    self.load_rows(ctx.clone(), tid, db, schema, table, limit, offset);
+                }
+            }
+            AppEvent::CommitFailed { tab_id, message } => {
+                tracing::warn!(tab_id = %tab_id, error = %message, "commit failed");
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+                {
+                    tab.committing = false;
+                    tab.show_commit_dialog = false;
+                }
+                self.error_modal = Some(message);
             }
         }
     }
@@ -484,6 +537,87 @@ impl YssvApp {
         });
     }
 
+    pub fn commit_changes(&mut self, ctx: egui::Context, tab_id: String) {
+        let Some(engine) = self.conn_config.as_ref().map(|c| c.engine) else {
+            tracing::warn!(tab_id = %tab_id, "commit_changes: no connection config");
+            return;
+        };
+        let prepared = self.explorer.as_ref().and_then(|e| {
+            e.tabs
+                .tabs
+                .iter()
+                .find(|t| t.id() == tab_id)
+                .and_then(|t| t.as_table())
+                .map(|tab| {
+                    let statements = tab
+                        .result
+                        .as_ref()
+                        .map(|r| {
+                            crate::core::edit::build_statements(
+                                engine, &tab.schema, &tab.table, &r.columns, &r.rows, &tab.edits,
+                            )
+                        })
+                        .unwrap_or_default();
+                    (tab.database.clone(), statements)
+                })
+        });
+        let Some((db, statements)) = prepared else {
+            tracing::warn!(tab_id = %tab_id, "commit_changes: table tab not found");
+            return;
+        };
+        if statements.is_empty() {
+            tracing::debug!(tab_id = %tab_id, "commit_changes: nothing to commit");
+            return;
+        }
+        tracing::info!(
+            tab_id = %tab_id, db = %db, count = statements.len(),
+            "commit_changes: dispatching transaction"
+        );
+        if let Some(explorer) = &mut self.explorer
+            && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+            && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+        {
+            tab.committing = true;
+            tab.show_commit_dialog = false;
+        }
+        let conn = self.db_conns.get(&db).cloned();
+        let base_config = self.conn_config.clone();
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            let conn = match conn {
+                Some(c) => c,
+                None => match Self::open_db_conn(base_config, &db, &tx).await {
+                    Some(c) => c,
+                    None => {
+                        let _ = tx.send(AppEvent::CommitFailed {
+                            tab_id,
+                            message: format!("no connection available for database '{db}'"),
+                        });
+                        ctx.request_repaint();
+                        return;
+                    }
+                },
+            };
+            match conn.execute_batch(&statements).await {
+                Ok(n) => {
+                    tracing::info!(rows_affected = n, "commit_changes: success");
+                    let _ = tx.send(AppEvent::CommitDone {
+                        tab_id,
+                        rows_affected: n,
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e.message, "commit_changes: failed");
+                    let _ = tx.send(AppEvent::CommitFailed {
+                        tab_id,
+                        message: e.message,
+                    });
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
     async fn open_db_conn(
         base_config: Option<crate::core::connections::model::Connection>,
         db: &str,
@@ -679,6 +813,9 @@ mod tests {
         }
         async fn execute_single(&self, _sql: &str) -> Result<QueryResult, DbError> {
             Ok(QueryResult::empty())
+        }
+        async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+            Ok(statements.len() as u64)
         }
     }
 
@@ -990,6 +1127,55 @@ mod tests {
         assert_eq!(qt.error.as_deref(), Some("syntax error"));
         assert!(qt.result.is_none());
         assert!(!qt.loading);
+    }
+
+    #[test]
+    fn commit_done_clears_edits_on_tab() {
+        let (mut app, db) = make_app_with_explorer();
+        let mut inner = TableTab::new("users", "public", &db);
+        inner.edits.deletes.insert(0);
+        inner.committing = true;
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.db_conns.insert(db.clone(), Arc::new(MockConn));
+
+        app.send_and_drain(AppEvent::CommitDone { tab_id: tab_id.clone(), rows_affected: 1 });
+
+        let explorer = app.explorer.as_ref().unwrap();
+        let tab = explorer.tabs.tabs.iter().find(|t| t.id() == tab_id).unwrap();
+        let tt = tab.as_table().unwrap();
+        assert!(tt.edits.is_empty());
+        assert!(!tt.committing);
+    }
+
+    #[test]
+    fn commit_failed_sets_modal_and_clears_committing() {
+        let (mut app, db) = make_app_with_explorer();
+        let mut inner = TableTab::new("users", "public", &db);
+        inner.committing = true;
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+
+        app.send_and_drain(AppEvent::CommitFailed {
+            tab_id: tab_id.clone(),
+            message: "constraint violation".into(),
+        });
+
+        assert_eq!(app.error_modal.as_deref(), Some("constraint violation"));
+        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        assert!(!tab.as_table().unwrap().committing);
+    }
+
+    #[test]
+    fn commit_changes_without_config_is_noop() {
+        let (mut app, db) = make_app_with_explorer();
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        // conn_config is None → returns early before spawning anything
+        app.commit_changes(egui::Context::default(), tab_id);
+        assert!(app.event_rx.try_recv().is_err());
     }
 }
 

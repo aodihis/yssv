@@ -196,6 +196,20 @@ impl ActiveConnection for MyConnection {
         Ok(tables)
     }
 
+    async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+        tracing::debug!(count = statements.len(), "mysql: execute_batch (transaction begin)");
+        let mut tx = self.pool.begin().await?;
+        let mut affected = 0u64;
+        for stmt in statements {
+            tracing::debug!(stmt = %stmt, "mysql: execute_batch statement");
+            let result = sqlx::query(stmt).execute(&mut *tx).await?;
+            affected += result.rows_affected();
+        }
+        tx.commit().await?;
+        tracing::info!(count = statements.len(), affected, "mysql: execute_batch committed");
+        Ok(affected)
+    }
+
     async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError> {
         use sqlx::{Column, Row, TypeInfo};
         tracing::debug!(sql_len = sql.len(), "mysql: execute_single");
