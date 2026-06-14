@@ -84,7 +84,8 @@ pub fn editable_data_table(
 
                     row.col(|ui| {
                         if let Some(bg) = row_bg {
-                            ui.painter().rect_filled(ui.max_rect(), egui::CornerRadius::ZERO, bg);
+                            ui.painter()
+                                .rect_filled(ui.max_rect(), egui::CornerRadius::ZERO, bg);
                         }
                         let label = match row_ref {
                             RowRef::Original(r) => (r + 1).to_string(),
@@ -97,15 +98,18 @@ pub fn editable_data_table(
                         let editing_this =
                             matches!(editing.as_ref(), Some(e) if e.row == row_ref && e.col == ci);
                         let display_val = effective_value(rows, edits, row_ref, ci);
-                        let cell_bg = row_bg.or_else(|| {
-                            is_modified(edits, row_ref, ci).then_some(modified_bg)
-                        });
+                        let cell_bg = row_bg
+                            .or_else(|| is_modified(edits, row_ref, ci).then_some(modified_bg));
 
                         let mut finish: Option<Finish> = None;
                         let (_, resp) = row.col(|ui| {
                             let rect = ui.max_rect();
                             if editing_this {
-                                ui.painter().rect_filled(rect, egui::CornerRadius::ZERO, tc.background);
+                                ui.painter().rect_filled(
+                                    rect,
+                                    egui::CornerRadius::ZERO,
+                                    tc.background,
+                                );
                                 ui.painter().rect_stroke(
                                     rect,
                                     egui::CornerRadius::ZERO,
@@ -239,7 +243,12 @@ fn effective_value(
             Some(v) => v.clone(),
             None => rows.get(r).and_then(|row| row.get(col)).cloned().flatten(),
         },
-        RowRef::Insert(i) => edits.inserts.get(i).and_then(|row| row.get(col)).cloned().flatten(),
+        RowRef::Insert(i) => edits
+            .inserts
+            .get(i)
+            .and_then(|row| row.get(col))
+            .cloned()
+            .flatten(),
     }
 }
 

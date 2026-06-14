@@ -89,7 +89,9 @@ pub fn build_statements(
             .collect::<Vec<_>>()
             .join(", ");
         let where_clause = identity_where(engine, columns, orig, &ids);
-        stmts.push(format!("UPDATE {target} SET {set_clause} WHERE {where_clause}"));
+        stmts.push(format!(
+            "UPDATE {target} SET {set_clause} WHERE {where_clause}"
+        ));
     }
 
     let mut dels: Vec<usize> = edits.deletes.iter().copied().collect();
@@ -113,7 +115,9 @@ pub fn build_statements(
             })
             .collect::<Vec<_>>()
             .join(", ");
-        stmts.push(format!("INSERT INTO {target} ({col_list}) VALUES ({val_list})"));
+        stmts.push(format!(
+            "INSERT INTO {target} ({col_list}) VALUES ({val_list})"
+        ));
     }
 
     stmts
@@ -169,7 +173,11 @@ fn identity_where(
 }
 
 fn qualified(engine: DbEngine, schema: &str, table: &str) -> String {
-    format!("{}.{}", quote_ident(engine, schema), quote_ident(engine, table))
+    format!(
+        "{}.{}",
+        quote_ident(engine, schema),
+        quote_ident(engine, table)
+    )
 }
 
 #[cfg(test)]
@@ -238,14 +246,31 @@ mod tests {
     #[test]
     fn empty_edits_produce_no_statements() {
         let edits = TableEdits::default();
-        assert!(build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits).is_empty());
+        assert!(
+            build_statements(
+                DbEngine::Postgres,
+                "public",
+                "users",
+                &cols(),
+                &rows(),
+                &edits
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn update_uses_pk_in_where_and_changed_columns_in_set() {
         let mut edits = TableEdits::default();
         edits.updates.insert((0, 1), Some("ALICE".into()));
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
         assert_eq!(
             stmts,
             vec![r#"UPDATE "public"."users" SET "name" = 'ALICE' WHERE "id" = '1'"#]
@@ -268,7 +293,14 @@ mod tests {
     fn update_to_null_renders_null() {
         let mut edits = TableEdits::default();
         edits.updates.insert((1, 2), None);
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
         assert_eq!(
             stmts,
             vec![r#"UPDATE "public"."users" SET "note" = NULL WHERE "id" = '2'"#]
@@ -279,8 +311,18 @@ mod tests {
     fn delete_uses_pk_where() {
         let mut edits = TableEdits::default();
         edits.deletes.insert(0);
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
-        assert_eq!(stmts, vec![r#"DELETE FROM "public"."users" WHERE "id" = '1'"#]);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
+        assert_eq!(
+            stmts,
+            vec![r#"DELETE FROM "public"."users" WHERE "id" = '1'"#]
+        );
     }
 
     #[test]
@@ -288,19 +330,38 @@ mod tests {
         let mut edits = TableEdits::default();
         edits.updates.insert((0, 1), Some("x".into()));
         edits.deletes.insert(0);
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
         // No UPDATE for row 0 — only the DELETE.
-        assert_eq!(stmts, vec![r#"DELETE FROM "public"."users" WHERE "id" = '1'"#]);
+        assert_eq!(
+            stmts,
+            vec![r#"DELETE FROM "public"."users" WHERE "id" = '1'"#]
+        );
     }
 
     #[test]
     fn insert_emits_default_for_untouched_cells() {
         let mut edits = TableEdits::default();
         edits.inserts.push(vec![None, Some("carol".into()), None]);
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
         assert_eq!(
             stmts,
-            vec![r#"INSERT INTO "public"."users" ("id", "name", "note") VALUES (DEFAULT, 'carol', DEFAULT)"#]
+            vec![
+                r#"INSERT INTO "public"."users" ("id", "name", "note") VALUES (DEFAULT, 'carol', DEFAULT)"#
+            ]
         );
     }
 
@@ -322,8 +383,17 @@ mod tests {
         let mut edits = TableEdits::default();
         edits.updates.insert((0, 1), Some("A".into()));
         edits.deletes.insert(1);
-        edits.inserts.push(vec![Some("9".into()), Some("z".into()), None]);
-        let stmts = build_statements(DbEngine::Postgres, "public", "users", &cols(), &rows(), &edits);
+        edits
+            .inserts
+            .push(vec![Some("9".into()), Some("z".into()), None]);
+        let stmts = build_statements(
+            DbEngine::Postgres,
+            "public",
+            "users",
+            &cols(),
+            &rows(),
+            &edits,
+        );
         assert_eq!(stmts.len(), 3);
         assert!(stmts[0].starts_with("UPDATE"));
         assert!(stmts[1].starts_with("DELETE"));

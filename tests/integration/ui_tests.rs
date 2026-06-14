@@ -10,10 +10,7 @@ use yssv::{
             input::{mono_input, password_input, text_input},
             light_switch::light_switch,
         },
-        molecules::{
-            status_bar::status_bar,
-            tab_bar::tab_bar,
-        },
+        molecules::{status_bar::status_bar, tab_bar::tab_bar},
     },
 };
 
@@ -179,7 +176,10 @@ fn count_pill_renders_without_panic() {
 #[test]
 fn dropdown_with_selection_renders_without_panic() {
     let mut selected = "pg".to_string();
-    let options = vec![("pg".to_string(), "PostgreSQL"), ("my".to_string(), "MySQL")];
+    let options = vec![
+        ("pg".to_string(), "PostgreSQL"),
+        ("my".to_string(), "MySQL"),
+    ];
     let harness = Harness::new_ui(|ui| {
         dropdown(ui, "test_db_type", &mut selected, &options, 100.0);
     });
@@ -189,7 +189,10 @@ fn dropdown_with_selection_renders_without_panic() {
 #[test]
 fn dropdown_with_no_match_renders_without_panic() {
     let mut selected = "unknown".to_string();
-    let options = vec![("pg".to_string(), "PostgreSQL"), ("my".to_string(), "MySQL")];
+    let options = vec![
+        ("pg".to_string(), "PostgreSQL"),
+        ("my".to_string(), "MySQL"),
+    ];
     let harness = Harness::new_ui(|ui| {
         dropdown(ui, "test_unmatched", &mut selected, &options, 100.0);
     });

@@ -60,23 +60,35 @@ impl Storage {
         tracing::debug!("storage: loading all connections");
         let rows = stmt.query_map([], |row| {
             Ok((
-                row.get::<_, String>(0)?,  // id
-                row.get::<_, String>(1)?,  // name
-                row.get::<_, String>(2)?,  // group_name
-                row.get::<_, String>(3)?,  // engine
-                row.get::<_, String>(4)?,  // color
-                row.get::<_, String>(5)?,  // host
-                row.get::<_, i64>(6)?,     // port
-                row.get::<_, String>(7)?,  // database
-                row.get::<_, String>(8)?,  // username
-                row.get::<_, Option<String>>(9)?,  // ssh_json
-                row.get::<_, i64>(10)?,    // is_favorite
+                row.get::<_, String>(0)?,         // id
+                row.get::<_, String>(1)?,         // name
+                row.get::<_, String>(2)?,         // group_name
+                row.get::<_, String>(3)?,         // engine
+                row.get::<_, String>(4)?,         // color
+                row.get::<_, String>(5)?,         // host
+                row.get::<_, i64>(6)?,            // port
+                row.get::<_, String>(7)?,         // database
+                row.get::<_, String>(8)?,         // username
+                row.get::<_, Option<String>>(9)?, // ssh_json
+                row.get::<_, i64>(10)?,           // is_favorite
             ))
         })?;
 
         let mut conns = Vec::new();
         for row in rows {
-            let (id, name, group, engine_str, color_str, host, port, database, username, ssh_json, is_fav) = row?;
+            let (
+                id,
+                name,
+                group,
+                engine_str,
+                color_str,
+                host,
+                port,
+                database,
+                username,
+                ssh_json,
+                is_fav,
+            ) = row?;
 
             let password = secrets::load_db_password(&id);
 
@@ -157,7 +169,10 @@ impl Storage {
     }
 
     pub fn save_order(&self, ordered_ids: &[String]) -> SqliteResult<()> {
-        tracing::debug!(count = ordered_ids.len(), "storage: persisting connection sort order");
+        tracing::debug!(
+            count = ordered_ids.len(),
+            "storage: persisting connection sort order"
+        );
         for (i, id) in ordered_ids.iter().enumerate() {
             self.conn.execute(
                 "UPDATE connections SET sort_order = ?1 WHERE id = ?2",
@@ -211,4 +226,3 @@ fn parse_color(s: &str) -> ConnColor {
         _ => ConnColor::Red,
     }
 }
-

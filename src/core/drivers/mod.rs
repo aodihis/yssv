@@ -41,7 +41,11 @@ pub trait ActiveConnection: Send + Sync {
 
     async fn execute_query(&self, sql: &str) -> Result<QueryResult, DbError> {
         let stmts = split_statements(sql);
-        tracing::debug!(stmt_count = stmts.len(), sql_len = sql.len(), "execute_query");
+        tracing::debug!(
+            stmt_count = stmts.len(),
+            sql_len = sql.len(),
+            "execute_query"
+        );
         if stmts.is_empty() {
             return Ok(QueryResult::empty());
         }
@@ -102,7 +106,9 @@ impl ActiveConnection for TunneledConnection {
         limit: u32,
         offset: u32,
     ) -> Result<QueryResult, DbError> {
-        self.inner.fetch_rows(db, schema, table, limit, offset).await
+        self.inner
+            .fetch_rows(db, schema, table, limit, offset)
+            .await
     }
 
     async fn list_databases(&self) -> Result<Vec<String>, DbError> {
@@ -151,7 +157,11 @@ async fn connect_direct(conn: &Connection) -> Result<Box<dyn ActiveConnection>, 
 
 /// Shared helper: map a SQL table_type string to `TableKind`.
 pub(super) fn table_type_to_kind(ttype: &str) -> TableKind {
-    if ttype == "VIEW" { TableKind::View } else { TableKind::Table }
+    if ttype == "VIEW" {
+        TableKind::View
+    } else {
+        TableKind::Table
+    }
 }
 
 /// Split a SQL string into individual statements at `;` boundaries, respecting
@@ -274,10 +284,7 @@ mod tests {
 
     #[test]
     fn split_ignores_semicolon_in_string() {
-        assert_eq!(
-            split_statements("SELECT 'a;b'"),
-            vec!["SELECT 'a;b'"]
-        );
+        assert_eq!(split_statements("SELECT 'a;b'"), vec!["SELECT 'a;b'"]);
     }
 
     #[test]

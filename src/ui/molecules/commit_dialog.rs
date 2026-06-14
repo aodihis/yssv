@@ -83,18 +83,15 @@ pub fn commit_dialog(ui: &mut Ui, id: &str, statements: &[String]) -> CommitChoi
                     ui.add_space(16.0);
 
                     ui.horizontal(|ui| {
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                if primary_button(ui, "Commit").clicked() {
-                                    choice = CommitChoice::Confirm;
-                                }
-                                ui.add_space(8.0);
-                                if secondary_button(ui, "Cancel").clicked() {
-                                    choice = CommitChoice::Cancel;
-                                }
-                            },
-                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if primary_button(ui, "Commit").clicked() {
+                                choice = CommitChoice::Confirm;
+                            }
+                            ui.add_space(8.0);
+                            if secondary_button(ui, "Cancel").clicked() {
+                                choice = CommitChoice::Cancel;
+                            }
+                        });
                     });
                 });
         });

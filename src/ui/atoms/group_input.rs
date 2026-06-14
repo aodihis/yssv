@@ -40,13 +40,11 @@ pub fn group_input(ui: &mut Ui, value: &mut String, groups: &[String]) {
                         let row = ui.add(
                             egui::Button::selectable(
                                 selected,
-                                egui::RichText::new(*group).size(13.0).color(
-                                    if selected {
-                                        tc.button_primary_bg
-                                    } else {
-                                        tc.text_primary
-                                    },
-                                ),
+                                egui::RichText::new(*group).size(13.0).color(if selected {
+                                    tc.button_primary_bg
+                                } else {
+                                    tc.text_primary
+                                }),
                             )
                             .fill(egui::Color32::TRANSPARENT)
                             .min_size(egui::vec2(0.0, 28.0)),

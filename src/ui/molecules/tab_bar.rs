@@ -1,6 +1,6 @@
 use crate::pages::explorer::state::Tab;
 use crate::theme::ThemeColors;
-use crate::ui::atoms::icon::{icon_image, Icon};
+use crate::ui::atoms::icon::{Icon, icon_image};
 use egui::{Color32, FontId, Ui};
 
 const TAB_H: f32 = 36.0;
@@ -18,8 +18,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
     let mut activate_req: Option<usize> = None;
 
     let avail_w = ui.available_width();
-    let strip_rect =
-        egui::Rect::from_min_size(ui.cursor().min, egui::vec2(avail_w, TAB_H));
+    let strip_rect = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(avail_w, TAB_H));
 
     // Pre-compute per-tab label widths; full tab width = padding + label + close icon
     let label_font = FontId::proportional(12.5);
@@ -44,8 +43,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
 
     // Load persisted scroll offset
     let scroll_id = ui.id().with("tab_bar_scroll");
-    let mut scroll: usize =
-        ui.memory(|m| m.data.get_temp::<usize>(scroll_id).unwrap_or(0));
+    let mut scroll: usize = ui.memory(|m| m.data.get_temp::<usize>(scroll_id).unwrap_or(0));
     scroll = scroll.min(tabs.len() - 1);
 
     // Auto-scroll: keep active tab visible
@@ -80,10 +78,8 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
             egui::vec2(ARROW_W, TAB_H),
         );
 
-        let left_resp =
-            ui.interact(left_rect, ui.id().with("tab_left"), egui::Sense::click());
-        let right_resp =
-            ui.interact(right_rect, ui.id().with("tab_right"), egui::Sense::click());
+        let left_resp = ui.interact(left_rect, ui.id().with("tab_left"), egui::Sense::click());
+        let right_resp = ui.interact(right_rect, ui.id().with("tab_right"), egui::Sense::click());
 
         if left_resp.clicked() && can_left {
             scroll -= 1;
@@ -110,7 +106,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
             egui::Align2::CENTER_CENTER,
             "‹",
             FontId::proportional(16.0),
-            if can_left { tc.text_secondary } else { tc.text_disabled },
+            if can_left {
+                tc.text_secondary
+            } else {
+                tc.text_disabled
+            },
         );
 
         // Separator between arrows
@@ -129,7 +129,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
             egui::Align2::CENTER_CENTER,
             "›",
             FontId::proportional(16.0),
-            if can_right { tc.text_secondary } else { tc.text_disabled },
+            if can_right {
+                tc.text_secondary
+            } else {
+                tc.text_disabled
+            },
         );
     }
 
@@ -137,8 +141,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
     ui.memory_mut(|m| m.data.insert_temp(scroll_id, scroll));
 
     // Render tabs clipped to their allocated area
-    let tabs_clip =
-        egui::Rect::from_min_size(strip_rect.min, egui::vec2(tabs_avail_w, TAB_H));
+    let tabs_clip = egui::Rect::from_min_size(strip_rect.min, egui::vec2(tabs_avail_w, TAB_H));
     let painter = ui.painter().with_clip_rect(tabs_clip);
 
     let mut tab_x = strip_rect.left();
@@ -148,25 +151,17 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
             break;
         }
 
-        let tab_rect = egui::Rect::from_min_size(
-            egui::pos2(tab_x, strip_rect.top()),
-            egui::vec2(tw, TAB_H),
-        );
+        let tab_rect =
+            egui::Rect::from_min_size(egui::pos2(tab_x, strip_rect.top()), egui::vec2(tw, TAB_H));
         let is_active = i == active;
         let center_y = tab_rect.center().y;
         let label_x = tab_rect.left() + 12.0;
         let text_w = text_widths[i];
 
-        let close_center =
-            egui::pos2(label_x + text_w + 8.0 + CLOSE_W / 2.0, center_y);
-        let close_rect =
-            egui::Rect::from_center_size(close_center, egui::vec2(20.0, 20.0));
+        let close_center = egui::pos2(label_x + text_w + 8.0 + CLOSE_W / 2.0, center_y);
+        let close_rect = egui::Rect::from_center_size(close_center, egui::vec2(20.0, 20.0));
 
-        let tab_resp = ui.interact(
-            tab_rect,
-            ui.id().with(("tab", i)),
-            egui::Sense::click(),
-        );
+        let tab_resp = ui.interact(tab_rect, ui.id().with(("tab", i)), egui::Sense::click());
         let close_resp = ui.interact(
             close_rect,
             ui.id().with(("tab_close", i)),
@@ -205,7 +200,11 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         }
 
         // Label
-        let text_color = if is_active { tc.text_primary } else { tc.text_secondary };
+        let text_color = if is_active {
+            tc.text_primary
+        } else {
+            tc.text_secondary
+        };
         painter.text(
             egui::pos2(label_x, center_y),
             egui::Align2::LEFT_CENTER,
@@ -251,11 +250,11 @@ fn tab_width(text_w: f32) -> f32 {
 fn last_visible_from(scroll: usize, widths: &[f32], avail: f32) -> usize {
     let mut w = 0.0;
     let mut last = scroll;
-    for i in scroll..widths.len() {
-        if w + widths[i] > avail {
+    for (i, width) in widths.iter().enumerate().skip(scroll) {
+        if w + width > avail {
             break;
         }
-        w += widths[i];
+        w += width;
         last = i;
     }
     last

@@ -252,7 +252,8 @@ impl TabState {
     /// Open a new query tab (always creates a fresh one).
     pub fn open_query(&mut self, database: &str) -> &mut QueryTab {
         self.next_query_counter += 1;
-        self.tabs.push(Tab::Query(QueryTab::new(database, self.next_query_counter)));
+        self.tabs
+            .push(Tab::Query(QueryTab::new(database, self.next_query_counter)));
         self.active = self.tabs.len() - 1;
         self.tabs[self.active].as_query_mut().unwrap()
     }
@@ -453,8 +454,20 @@ mod tests {
         let mut tab = TableTab::new("users", "public", "mydb");
         tab.result = Some(QueryResult {
             columns: vec![
-                ColumnDef { name: "id".into(), data_type: "int4".into(), is_pk: true, is_fk: false, nullable: false },
-                ColumnDef { name: "name".into(), data_type: "text".into(), is_pk: false, is_fk: false, nullable: true },
+                ColumnDef {
+                    name: "id".into(),
+                    data_type: "int4".into(),
+                    is_pk: true,
+                    is_fk: false,
+                    nullable: false,
+                },
+                ColumnDef {
+                    name: "name".into(),
+                    data_type: "text".into(),
+                    is_pk: false,
+                    is_fk: false,
+                    nullable: true,
+                },
             ],
             rows: vec![
                 vec![Some("1".into()), Some("a".into())],
@@ -504,7 +517,11 @@ mod tests {
         let mut tab = tab_with_two_rows();
         tab.add_insert_row(); // 1 insert at display 0; originals at display 1,2
         tab.selected_row = Some(0);
-        assert_eq!(tab.selected_original_index(), None, "insert row is not an original");
+        assert_eq!(
+            tab.selected_original_index(),
+            None,
+            "insert row is not an original"
+        );
         tab.selected_row = Some(1);
         assert_eq!(tab.selected_original_index(), Some(0), "first original row");
         tab.selected_row = Some(2);

@@ -163,7 +163,10 @@ mod tests {
     fn renderer_preference_labels() {
         assert!(!RendererPreference::Wgpu.label().is_empty());
         assert!(!RendererPreference::Glow.label().is_empty());
-        assert_ne!(RendererPreference::Wgpu.label(), RendererPreference::Glow.label());
+        assert_ne!(
+            RendererPreference::Wgpu.label(),
+            RendererPreference::Glow.label()
+        );
     }
 
     #[test]

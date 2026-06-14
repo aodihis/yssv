@@ -3,12 +3,22 @@ use egui::{Margin, Response, RichText, TextEdit, Ui, Vec2};
 
 use crate::ui::atoms::icon::{Icon, icon_image};
 
-fn base_input<'a>(value: &'a mut String, placeholder: &str, icon: Option<&str>, right: i8) -> TextEdit<'a> {
+fn base_input<'a>(
+    value: &'a mut String,
+    placeholder: &str,
+    icon: Option<&str>,
+    right: i8,
+) -> TextEdit<'a> {
     let left: i8 = if icon.is_some() { 28 } else { 11 };
     TextEdit::singleline(value)
         .hint_text(placeholder)
         .desired_width(f32::INFINITY)
-        .margin(Margin { left, right, top: 7, bottom: 7 })
+        .margin(Margin {
+            left,
+            right,
+            top: 7,
+            bottom: 7,
+        })
 }
 
 fn paint_icon(ui: &Ui, resp: &Response, icon: &str) {
@@ -57,7 +67,7 @@ pub fn password_input(
     // button_padding is zeroed in a scope so the image fills the rect exactly,
     // preventing the default padding from pushing the icon off-center.
     let eye_rect = egui::Rect::from_center_size(
-        egui::pos2(resp.rect.right() - 16.0, resp.rect.center().y -5.5),
+        egui::pos2(resp.rect.right() - 16.0, resp.rect.center().y - 5.5),
         egui::vec2(20.0, 20.0),
     );
     let eye_icon = if show { Icon::EyeOff } else { Icon::Eye };
@@ -94,18 +104,18 @@ pub fn mono_input(
 }
 
 /// Full-height multiline monospace text area (SQL editor, etc.).
-pub fn mono_area(
-    ui: &mut Ui,
-    value: &mut String,
-    placeholder: &str,
-    min_rows: usize,
-) -> Response {
+pub fn mono_area(ui: &mut Ui, value: &mut String, placeholder: &str, min_rows: usize) -> Response {
     ui.add(
         TextEdit::multiline(value)
             .hint_text(placeholder)
             .desired_width(f32::INFINITY)
             .desired_rows(min_rows)
-            .margin(Margin { left: 11, right: 11, top: 8, bottom: 8 })
+            .margin(Margin {
+                left: 11,
+                right: 11,
+                top: 8,
+                bottom: 8,
+            })
             .font(egui::TextStyle::Monospace),
     )
 }
@@ -123,12 +133,19 @@ pub fn file_input(ui: &mut Ui, value: &mut String, placeholder: &str) -> Respons
         let text_w = (ui.available_width() - BTN_W - GAP).max(0.0);
         ui.set_width(ui.available_width());
 
-        text_resp = Some(ui.add(
-            TextEdit::singleline(value)
-                .hint_text(placeholder)
-                .desired_width(text_w)
-                .margin(Margin { left: 11, right: 11, top: 7, bottom: 7 }),
-        ));
+        text_resp = Some(
+            ui.add(
+                TextEdit::singleline(value)
+                    .hint_text(placeholder)
+                    .desired_width(text_w)
+                    .margin(Margin {
+                        left: 11,
+                        right: 11,
+                        top: 7,
+                        bottom: 7,
+                    }),
+            ),
+        );
 
         ui.add_space(GAP);
 

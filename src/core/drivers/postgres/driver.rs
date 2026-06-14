@@ -98,7 +98,9 @@ impl ActiveConnection for PgConnection {
 
         let cols: Vec<ColumnDef> = rows
             .into_iter()
-            .map(|(name, data_type, nullable, pk_flag)| map_column(name, data_type, nullable, pk_flag))
+            .map(|(name, data_type, nullable, pk_flag)| {
+                map_column(name, data_type, nullable, pk_flag)
+            })
             .collect();
         tracing::debug!(
             schema,
@@ -225,7 +227,10 @@ impl ActiveConnection for PgConnection {
     }
 
     async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
-        tracing::debug!(count = statements.len(), "postgres: execute_batch (transaction begin)");
+        tracing::debug!(
+            count = statements.len(),
+            "postgres: execute_batch (transaction begin)"
+        );
         let mut tx = self.pool.begin().await?;
         let mut affected = 0u64;
         for stmt in statements {
@@ -234,7 +239,11 @@ impl ActiveConnection for PgConnection {
             affected += result.rows_affected();
         }
         tx.commit().await?;
-        tracing::info!(count = statements.len(), affected, "postgres: execute_batch committed");
+        tracing::info!(
+            count = statements.len(),
+            affected,
+            "postgres: execute_batch committed"
+        );
         Ok(affected)
     }
 
@@ -286,11 +295,7 @@ impl ActiveConnection for PgConnection {
 
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
-            .map(|row| {
-                (0..columns.len())
-                    .map(|i| decode_col_pg(row, i))
-                    .collect()
-            })
+            .map(|row| (0..columns.len()).map(|i| decode_col_pg(row, i)).collect())
             .collect();
 
         let row_count = data_rows.len() as u64;
@@ -355,8 +360,20 @@ mod tests {
     #[test]
     fn build_select_list_casts_each_column_to_text() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int4".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "name".into(), data_type: "text".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int4".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "name".into(),
+                data_type: "text".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, r#""id"::text AS "id", "name"::text AS "name""#);
@@ -388,5 +405,4 @@ mod tests {
         let col = map_column("code".into(), "text".into(), "NO".into(), None);
         assert!(!col.nullable);
     }
-
 }

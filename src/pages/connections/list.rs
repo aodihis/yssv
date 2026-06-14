@@ -66,7 +66,9 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     egui::ScrollArea::vertical().show(&mut scroll_ui, |ui| {
         for (group_name, conn_ids) in &groups_owned {
             let collapsed = app.conn_page.collapsed_groups.contains(group_name);
-            let rename_active = app.conn_page.renaming_group
+            let rename_active = app
+                .conn_page
+                .renaming_group
                 .as_ref()
                 .map(|(orig, _)| orig == group_name)
                 .unwrap_or(false);
@@ -76,19 +78,21 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             // --- Group header ---
             if rename_active {
                 // Inline rename input
-                let (done, cancelled) = ui.horizontal(|ui| {
-                    ui.add_space(14.0);
-                    let r = app.conn_page.renaming_group.as_mut().unwrap();
-                    let resp = text_input(ui, &mut r.1, "", None);
-                    // Auto-focus on first frame
-                    if !resp.has_focus() && !resp.lost_focus() {
-                        resp.request_focus();
-                    }
-                    let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
-                    let escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
-                    let apply = (enter || resp.lost_focus()) && !escape;
-                    (apply, escape)
-                }).inner;
+                let (done, cancelled) = ui
+                    .horizontal(|ui| {
+                        ui.add_space(14.0);
+                        let r = app.conn_page.renaming_group.as_mut().unwrap();
+                        let resp = text_input(ui, &mut r.1, "", None);
+                        // Auto-focus on first frame
+                        if !resp.has_focus() && !resp.lost_focus() {
+                            resp.request_focus();
+                        }
+                        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        let escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
+                        let apply = (enter || resp.lost_focus()) && !escape;
+                        (apply, escape)
+                    })
+                    .inner;
 
                 if done || cancelled {
                     if done {
@@ -105,49 +109,49 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             } else {
                 // Normal header: chevron + name + pencil button (inline)
                 let mut rename_clicked = false;
-                let header_resp = ui.horizontal(|ui| {
-                    ui.add_space(14.0);
-                    let chev = if collapsed {
-                        Icon::ChevronRight
-                    } else {
-                        Icon::ChevronDown
-                    };
-                    svg_icon(ui, chev, 10.0, tc.text_disabled);
-                    ui.add_space(3.0);
-                    ui.label(
-                        RichText::new(group_name.to_uppercase())
-                            .size(11.0)
-                            .color(tc.text_disabled)
-                            .family(egui::FontFamily::Name("SemiBold".into())),
-                    );
-                    ui.add_space(4.0);
-                    let pencil = ui.add(
-                        icon_image(Icon::PencilLine, 10.0, tc.text_disabled)
-                            .sense(egui::Sense::click()),
-                    );
-                    if pencil.clicked() {
-                        rename_clicked = true;
-                    }
-                }).response.interact(egui::Sense::click());
+                let header_resp = ui
+                    .horizontal(|ui| {
+                        ui.add_space(14.0);
+                        let chev = if collapsed {
+                            Icon::ChevronRight
+                        } else {
+                            Icon::ChevronDown
+                        };
+                        svg_icon(ui, chev, 10.0, tc.text_disabled);
+                        ui.add_space(3.0);
+                        ui.label(
+                            RichText::new(group_name.to_uppercase())
+                                .size(11.0)
+                                .color(tc.text_disabled)
+                                .family(egui::FontFamily::Name("SemiBold".into())),
+                        );
+                        ui.add_space(4.0);
+                        let pencil = ui.add(
+                            icon_image(Icon::PencilLine, 10.0, tc.text_disabled)
+                                .sense(egui::Sense::click()),
+                        );
+                        if pencil.clicked() {
+                            rename_clicked = true;
+                        }
+                    })
+                    .response
+                    .interact(egui::Sense::click());
 
                 if rename_clicked {
-                    app.conn_page.renaming_group =
-                        Some((group_name.clone(), group_name.clone()));
-                } else if header_resp.clicked() {
-                    if !app.conn_page.collapsed_groups.remove(group_name) {
-                        app.conn_page.collapsed_groups.insert(group_name.clone());
-                    }
+                    app.conn_page.renaming_group = Some((group_name.clone(), group_name.clone()));
+                } else if header_resp.clicked()
+                    && !app.conn_page.collapsed_groups.remove(group_name)
+                {
+                    app.conn_page.collapsed_groups.insert(group_name.clone());
                 }
 
                 // Group header acts as a drop zone (cross-group move to front of group)
-                if is_dragging {
-                    if let Some(payload) = header_resp.dnd_release_payload::<String>() {
-                        drop_target = Some(DropTarget {
-                            dragged_id: (*payload).clone(),
-                            new_group: group_name.clone(),
-                            before_id: conn_ids.first().cloned(),
-                        });
-                    }
+                if is_dragging && let Some(payload) = header_resp.dnd_release_payload::<String>() {
+                    drop_target = Some(DropTarget {
+                        dragged_id: (*payload).clone(),
+                        new_group: group_name.clone(),
+                        before_id: conn_ids.first().cloned(),
+                    });
                 }
             }
 
@@ -165,11 +169,9 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                         let cursor_pos = ui.ctx().input(|i| i.pointer.hover_pos());
 
                         for (idx, id) in conn_ids.iter().enumerate() {
-                            if let Some(c) =
-                                app.conn_page.connections.iter().find(|x| &x.id == id)
+                            if let Some(c) = app.conn_page.connections.iter().find(|x| &x.id == id)
                             {
-                                let selected =
-                                    app.conn_page.selected_id.as_deref() == Some(id);
+                                let selected = app.conn_page.selected_id.as_deref() == Some(id);
                                 let c_clone = c.clone();
                                 let resp = conn_item(ui, &c_clone, selected);
                                 let item_rect = resp.rect;
@@ -183,38 +185,35 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                 }
 
                                 // Drop indicator line and drop detection
-                                if let Some(ref payload) = drag_payload {
-                                    if payload.as_str() != id.as_str() {
-                                        if let Some(pos) = cursor_pos {
-                                            if item_rect.contains(pos) {
-                                                let line_y = if pos.y < item_rect.center().y {
-                                                    item_rect.top()
-                                                } else {
-                                                    item_rect.bottom()
-                                                };
-                                                ui.painter().hline(
-                                                    egui::Rangef::new(
-                                                        item_rect.left(),
-                                                        item_rect.right(),
-                                                    ),
-                                                    line_y,
-                                                    egui::Stroke::new(2.0, tc.button_primary_bg),
-                                                );
-                                            }
-                                        }
-                                    }
+                                if let Some(ref payload) = drag_payload
+                                    && payload.as_str() != id.as_str()
+                                    && let Some(pos) = cursor_pos
+                                    && item_rect.contains(pos)
+                                {
+                                    let line_y = if pos.y < item_rect.center().y {
+                                        item_rect.top()
+                                    } else {
+                                        item_rect.bottom()
+                                    };
+                                    ui.painter().hline(
+                                        egui::Rangef::new(item_rect.left(), item_rect.right()),
+                                        line_y,
+                                        egui::Stroke::new(2.0, tc.button_primary_bg),
+                                    );
                                 }
 
                                 if let Some(payload) = resp.dnd_release_payload::<String>() {
                                     // Determine before/after based on release position
                                     let release_y =
                                         ui.ctx().input(|i| i.pointer.interact_pos()).map(|p| p.y);
-                                    let before_id =
-                                        if release_y.map(|y| y < item_rect.center().y).unwrap_or(true) {
-                                            Some(id.clone())
-                                        } else {
-                                            conn_ids.get(idx + 1).cloned()
-                                        };
+                                    let before_id = if release_y
+                                        .map(|y| y < item_rect.center().y)
+                                        .unwrap_or(true)
+                                    {
+                                        Some(id.clone())
+                                    } else {
+                                        conn_ids.get(idx + 1).cloned()
+                                    };
                                     drop_target = Some(DropTarget {
                                         dragged_id: (*payload).clone(),
                                         new_group: group_name.clone(),
@@ -230,18 +229,17 @@ pub fn render_list(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                                 ui.cursor().min,
                                 egui::vec2(ui.available_width(), 8.0),
                             );
-                            let zone_resp =
-                                ui.allocate_rect(zone_rect, egui::Sense::hover());
+                            let zone_resp = ui.allocate_rect(zone_rect, egui::Sense::hover());
 
                             // Show indicator at top of zone when hovering
-                            if let Some(pos) = cursor_pos {
-                                if zone_rect.expand(4.0).contains(pos) {
-                                    ui.painter().hline(
-                                        egui::Rangef::new(zone_rect.left(), zone_rect.right()),
-                                        zone_rect.top(),
-                                        egui::Stroke::new(2.0, tc.button_primary_bg),
-                                    );
-                                }
+                            if let Some(pos) = cursor_pos
+                                && zone_rect.expand(4.0).contains(pos)
+                            {
+                                ui.painter().hline(
+                                    egui::Rangef::new(zone_rect.left(), zone_rect.right()),
+                                    zone_rect.top(),
+                                    egui::Stroke::new(2.0, tc.button_primary_bg),
+                                );
                             }
 
                             if let Some(payload) = zone_resp.dnd_release_payload::<String>() {

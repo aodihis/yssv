@@ -3,6 +3,7 @@ use crate::core::results::model::ColumnDef;
 use crate::pages::explorer::state::{Tab, TabView};
 use crate::theme::ThemeColors;
 use crate::ui::atoms::button::{compact_button, secondary_button};
+use crate::ui::atoms::dropdown::dropdown;
 use crate::ui::atoms::sql_highlight::sql_area;
 use crate::ui::molecules::{
     commit_dialog::{CommitChoice, commit_dialog},
@@ -12,7 +13,6 @@ use crate::ui::molecules::{
     tab_bar::tab_bar,
 };
 use egui::RichText;
-use crate::ui::atoms::dropdown::dropdown;
 
 const EDITOR_H: f32 = 220.0;
 const QUERY_STATUS_H: f32 = 28.0;
@@ -84,25 +84,22 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
     ui.add_space(8.0);
 
     // Snapshot query tab state + available databases
-    let query_snapshot = app
-        .explorer
-        .as_ref()
-        .and_then(|e| {
-            e.tabs.active_query_tab().map(|q| {
-                let db_names: Vec<String> = e.databases.iter().map(|d| d.name.clone()).collect();
-                let multi_db = db_names.len() > 1;
-                (
-                    q.id.clone(),
-                    q.database.clone(),
-                    q.loading,
-                    q.result.is_some(),
-                    q.error.clone(),
-                    q.selected_row,
-                    db_names,
-                    multi_db,
-                )
-            })
-        });
+    let query_snapshot = app.explorer.as_ref().and_then(|e| {
+        e.tabs.active_query_tab().map(|q| {
+            let db_names: Vec<String> = e.databases.iter().map(|d| d.name.clone()).collect();
+            let multi_db = db_names.len() > 1;
+            (
+                q.id.clone(),
+                q.database.clone(),
+                q.loading,
+                q.result.is_some(),
+                q.error.clone(),
+                q.selected_row,
+                db_names,
+                multi_db,
+            )
+        })
+    });
 
     let (tab_id, database, loading, has_result, error, selected_row, db_names, multi_db) =
         match query_snapshot {
@@ -126,16 +123,18 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             }
             ui.add_space(12.0);
             if multi_db {
-                ui.label(
-                    RichText::new("db:")
-                        .size(11.0)
-                        .color(tc.text_disabled),
-                );
+                ui.label(RichText::new("db:").size(11.0).color(tc.text_disabled));
                 ui.add_space(4.0);
                 let db_options: Vec<(String, &str)> =
                     db_names.iter().map(|n| (n.clone(), n.as_str())).collect();
                 ui.allocate_ui(egui::vec2(160.0, ui.available_height()), |ui| {
-                    dropdown(ui, "query_db_selector", &mut selected_db, &db_options, 200.0);
+                    dropdown(
+                        ui,
+                        "query_db_selector",
+                        &mut selected_db,
+                        &db_options,
+                        200.0,
+                    );
                 });
             } else {
                 ui.label(
@@ -147,10 +146,13 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         });
     });
     // Persist database selection change back to the tab
-    if selected_db != database {
-        if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
-            q.database = selected_db.clone();
-        }
+    if selected_db != database
+        && let Some(q) = app
+            .explorer
+            .as_mut()
+            .and_then(|e| e.tabs.active_query_tab_mut())
+    {
+        q.database = selected_db.clone();
     }
     ui.painter().hline(
         toolbar_rect.x_range(),
@@ -178,7 +180,11 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
     // SQL editor — mutable borrow of tab.sql
     let ctrl_enter = {
         let mut triggered = false;
-        if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
+        if let Some(q) = app
+            .explorer
+            .as_mut()
+            .and_then(|e| e.tabs.active_query_tab_mut())
+        {
             let mut editor_ui = ui.new_child(egui::UiBuilder::new().max_rect(editor_rect));
             let resp = sql_area(&mut editor_ui, &mut q.sql, "SELECT * FROM table…", 8);
             if resp.has_focus()
@@ -207,7 +213,11 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             .unwrap_or_default();
 
         if !sql.is_empty() {
-            if let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut()) {
+            if let Some(q) = app
+                .explorer
+                .as_mut()
+                .and_then(|e| e.tabs.active_query_tab_mut())
+            {
                 q.loading = true;
                 q.result = None;
                 q.error = None;
@@ -270,7 +280,10 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         }
 
         if new_selected != selected_row
-            && let Some(q) = app.explorer.as_mut().and_then(|e| e.tabs.active_query_tab_mut())
+            && let Some(q) = app
+                .explorer
+                .as_mut()
+                .and_then(|e| e.tabs.active_query_tab_mut())
         {
             q.selected_row = new_selected;
         }
@@ -291,7 +304,9 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
         status_rect.top(),
         egui::Stroke::new(1.0, tc.border),
     );
-    status_ui.painter().rect_filled(status_rect, egui::CornerRadius::ZERO, tc.surface);
+    status_ui
+        .painter()
+        .rect_filled(status_rect, egui::CornerRadius::ZERO, tc.surface);
 
     let status_text = if loading {
         "Running…".to_string()
@@ -313,7 +328,11 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                 ui.label(
                     RichText::new(&status_text)
                         .size(11.5)
-                        .color(if error.is_some() { tc.error } else { tc.text_secondary }),
+                        .color(if error.is_some() {
+                            tc.error
+                        } else {
+                            tc.text_secondary
+                        }),
                 );
             });
         });
@@ -481,7 +500,9 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                         ui.add_space(12.0);
                         if committing {
                             ui.label(
-                                RichText::new("Committing…").size(12.0).color(tc.text_secondary),
+                                RichText::new("Committing…")
+                                    .size(12.0)
+                                    .color(tc.text_secondary),
                             );
                         } else {
                             if pending > 0 {
@@ -679,7 +700,8 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
             let (prev, next) = status_bar(&mut status_ui, tab);
             // Pagination is disabled while edits are pending — the edit set is
             // keyed by the current page's row indices.
-            if tab.edits.is_empty() && ((prev && tab.can_go_prev()) || (next && tab.can_go_next())) {
+            if tab.edits.is_empty() && ((prev && tab.can_go_prev()) || (next && tab.can_go_next()))
+            {
                 Some(super::LoadRequest {
                     tab_id: tab.id.clone(),
                     db: tab.database.clone(),
@@ -751,7 +773,14 @@ fn render_commit_dialog(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &
                     .result
                     .as_ref()
                     .map(|r| {
-                        build_statements(engine, &tab.schema, &tab.table, &r.columns, &r.rows, &tab.edits)
+                        build_statements(
+                            engine,
+                            &tab.schema,
+                            &tab.table,
+                            &r.columns,
+                            &r.rows,
+                            &tab.edits,
+                        )
                     })
                     .unwrap_or_default();
                 (tab.id.clone(), statements)
@@ -775,7 +804,10 @@ fn render_commit_dialog(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &
         _ => true,
     };
     if close
-        && let Some(t) = app.explorer.as_mut().and_then(|e| e.tabs.active_table_tab_mut())
+        && let Some(t) = app
+            .explorer
+            .as_mut()
+            .and_then(|e| e.tabs.active_table_tab_mut())
     {
         t.show_commit_dialog = false;
     }

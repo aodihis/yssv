@@ -135,7 +135,11 @@ mod tests {
     fn all_icons_have_non_empty_bytes() {
         for icon in ALL_ICONS {
             let (bytes, _) = icon.data();
-            assert!(!bytes.is_empty(), "Icon has empty bytes: {:?}", std::mem::discriminant(icon));
+            assert!(
+                !bytes.is_empty(),
+                "Icon has empty bytes: {:?}",
+                std::mem::discriminant(icon)
+            );
         }
     }
 
@@ -158,8 +162,8 @@ mod tests {
     fn all_icon_bytes_are_valid_svg() {
         for icon in ALL_ICONS {
             let (bytes, uri) = icon.data();
-            let text = std::str::from_utf8(bytes)
-                .unwrap_or_else(|_| panic!("{uri} is not valid UTF-8"));
+            let text =
+                std::str::from_utf8(bytes).unwrap_or_else(|_| panic!("{uri} is not valid UTF-8"));
             assert!(text.contains("<svg"), "{uri} does not contain <svg");
         }
     }

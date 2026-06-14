@@ -197,7 +197,10 @@ impl ActiveConnection for MyConnection {
     }
 
     async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
-        tracing::debug!(count = statements.len(), "mysql: execute_batch (transaction begin)");
+        tracing::debug!(
+            count = statements.len(),
+            "mysql: execute_batch (transaction begin)"
+        );
         let mut tx = self.pool.begin().await?;
         let mut affected = 0u64;
         for stmt in statements {
@@ -206,7 +209,11 @@ impl ActiveConnection for MyConnection {
             affected += result.rows_affected();
         }
         tx.commit().await?;
-        tracing::info!(count = statements.len(), affected, "mysql: execute_batch committed");
+        tracing::info!(
+            count = statements.len(),
+            affected,
+            "mysql: execute_batch committed"
+        );
         Ok(affected)
     }
 
@@ -333,8 +340,20 @@ mod tests {
     #[test]
     fn build_select_list_non_temporal_uses_backtick() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "name".into(), data_type: "varchar".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "name".into(),
+                data_type: "varchar".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, "`id`, `name`");
@@ -342,9 +361,13 @@ mod tests {
 
     #[test]
     fn build_select_list_temporal_uses_cast() {
-        let cols = vec![
-            ColumnDef { name: "created_at".into(), data_type: "datetime".into(), is_pk: false, is_fk: false, nullable: true },
-        ];
+        let cols = vec![ColumnDef {
+            name: "created_at".into(),
+            data_type: "datetime".into(),
+            is_pk: false,
+            is_fk: false,
+            nullable: true,
+        }];
         let list = build_select_list(&cols);
         assert_eq!(list, "CAST(`created_at` AS CHAR) AS `created_at`");
     }
@@ -352,8 +375,20 @@ mod tests {
     #[test]
     fn build_select_list_mixed_temporal_and_regular() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "ts".into(), data_type: "timestamp".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "ts".into(),
+                data_type: "timestamp".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, "`id`, CAST(`ts` AS CHAR) AS `ts`");
@@ -361,7 +396,15 @@ mod tests {
 
     #[test]
     fn is_temporal_matches_all_date_types() {
-        for t in &["datetime", "DATETIME", "timestamp", "TIMESTAMP", "date", "time", "year"] {
+        for t in &[
+            "datetime",
+            "DATETIME",
+            "timestamp",
+            "TIMESTAMP",
+            "date",
+            "time",
+            "year",
+        ] {
             assert!(is_temporal(t), "{t} should be temporal");
         }
     }
@@ -383,7 +426,12 @@ mod tests {
 
     #[test]
     fn map_column_mul_key_sets_is_fk() {
-        let col = map_column("user_id".into(), "int".into(), "NO".into(), Some("MUL".into()));
+        let col = map_column(
+            "user_id".into(),
+            "int".into(),
+            "NO".into(),
+            Some("MUL".into()),
+        );
         assert!(!col.is_pk);
         assert!(col.is_fk);
     }
@@ -407,5 +455,4 @@ mod tests {
         let col = map_column("email".into(), "varchar".into(), "NO".into(), None);
         assert!(!col.nullable);
     }
-
 }

@@ -31,8 +31,8 @@ pub fn error_dialog(ui: &mut Ui, id: &str, title: &str, message: &str) -> bool {
                     ui.set_max_width(480.0);
 
                     ui.vertical_centered(|ui| {
-                        let (rect, _) = ui
-                            .allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
+                        let (rect, _) =
+                            ui.allocate_exact_size(egui::vec2(44.0, 44.0), egui::Sense::hover());
                         ui.painter().circle_filled(
                             rect.center(),
                             22.0,
@@ -56,10 +56,8 @@ pub fn error_dialog(ui: &mut Ui, id: &str, title: &str, message: &str) -> bool {
                                 ),
                             ),
                         );
-                        let icon_rect = egui::Rect::from_center_size(
-                            rect.center(),
-                            egui::vec2(20.0, 20.0),
-                        );
+                        let icon_rect =
+                            egui::Rect::from_center_size(rect.center(), egui::vec2(20.0, 20.0));
                         ui.put(icon_rect, icon_image(Icon::X, 20.0, tc.error));
                     });
 
@@ -73,11 +71,7 @@ pub fn error_dialog(ui: &mut Ui, id: &str, title: &str, message: &str) -> bool {
                                 .family(egui::FontFamily::Name("SemiBold".into())),
                         );
                         ui.add_space(6.0);
-                        ui.label(
-                            RichText::new(message)
-                                .size(12.5)
-                                .color(tc.text_secondary),
-                        );
+                        ui.label(RichText::new(message).size(12.5).color(tc.text_secondary));
                     });
 
                     ui.add_space(20.0);
@@ -92,21 +86,18 @@ pub fn error_dialog(ui: &mut Ui, id: &str, title: &str, message: &str) -> bool {
                     ui.add_space(16.0);
 
                     ui.horizontal(|ui| {
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                let btn = egui::Button::new(
-                                    RichText::new("Dismiss").size(13.0).color(tc.text_primary),
-                                )
-                                .fill(tc.background)
-                                .stroke(egui::Stroke::new(1.0, tc.field_border))
-                                .corner_radius(6.0)
-                                .min_size(egui::vec2(80.0, 32.0));
-                                if ui.add(btn).clicked() {
-                                    dismissed = true;
-                                }
-                            },
-                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let btn = egui::Button::new(
+                                RichText::new("Dismiss").size(13.0).color(tc.text_primary),
+                            )
+                            .fill(tc.background)
+                            .stroke(egui::Stroke::new(1.0, tc.field_border))
+                            .corner_radius(6.0)
+                            .min_size(egui::vec2(80.0, 32.0));
+                            if ui.add(btn).clicked() {
+                                dismissed = true;
+                            }
+                        });
                     });
                 });
         });

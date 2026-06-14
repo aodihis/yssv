@@ -22,7 +22,10 @@ async fn pg_list_databases_contains_postgres() {
     conn.password = "postgres".into();
 
     let active = drivers::connect(&conn).await.expect("pg connect failed");
-    let dbs = active.list_databases().await.expect("list_databases failed");
+    let dbs = active
+        .list_databases()
+        .await
+        .expect("list_databases failed");
     assert!(!dbs.is_empty());
     assert!(dbs.contains(&"postgres".to_string()));
 }
@@ -40,7 +43,10 @@ async fn pg_list_schemas_contains_public() {
     conn.password = "postgres".into();
 
     let active = drivers::connect(&conn).await.expect("pg connect failed");
-    let schemas = active.list_schemas("postgres").await.expect("list_schemas failed");
+    let schemas = active
+        .list_schemas("postgres")
+        .await
+        .expect("list_schemas failed");
     let names: Vec<&str> = schemas.iter().map(|s| s.name.as_str()).collect();
     assert!(names.contains(&"public"));
 }
@@ -58,7 +64,10 @@ async fn pg_fetch_rows_from_information_schema() {
     conn.password = "postgres".into();
 
     let active = drivers::connect(&conn).await.expect("pg connect failed");
-    let tables = active.list_tables("postgres", "information_schema").await.expect("list_tables failed");
+    let tables = active
+        .list_tables("postgres", "information_schema")
+        .await
+        .expect("list_tables failed");
     assert!(!tables.is_empty(), "information_schema should have tables");
 }
 
@@ -79,7 +88,10 @@ async fn mysql_list_databases_contains_mysql() {
     conn.password = String::new();
 
     let active = drivers::connect(&conn).await.expect("mysql connect failed");
-    let dbs = active.list_databases().await.expect("list_databases failed");
+    let dbs = active
+        .list_databases()
+        .await
+        .expect("list_databases failed");
     assert!(!dbs.is_empty());
     assert!(dbs.contains(&"mysql".to_string()));
 }
@@ -97,6 +109,9 @@ async fn mysql_list_schemas_returns_results() {
     conn.password = String::new();
 
     let active = drivers::connect(&conn).await.expect("mysql connect failed");
-    let schemas = active.list_schemas("mysql").await.expect("list_schemas failed");
+    let schemas = active
+        .list_schemas("mysql")
+        .await
+        .expect("list_schemas failed");
     assert!(!schemas.is_empty());
 }
