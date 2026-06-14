@@ -78,15 +78,24 @@ impl TableTab {
         self.result.as_ref().map(|r| r.columns.len()).unwrap_or(0)
     }
 
-    /// Append a blank insert row and return its index in `edits.inserts`.
+    /// Append a blank insert row, select it, and immediately begin editing its
+    /// first cell so the new row is obviously editable. Returns the insert index.
     pub fn add_insert_row(&mut self) -> Option<usize> {
         let cols = self.column_count();
         if cols == 0 {
             return None;
         }
         self.edits.inserts.push(vec![None; cols]);
-        self.editing = None;
-        Some(self.edits.inserts.len() - 1)
+        let idx = self.edits.inserts.len() - 1;
+        let orig = self.result.as_ref().map(|r| r.rows.len()).unwrap_or(0);
+        self.selected_row = Some(orig + idx);
+        self.editing = Some(EditingCell {
+            row: RowRef::Insert(idx),
+            col: 0,
+            buffer: String::new(),
+            request_focus: true,
+        });
+        Some(idx)
     }
 
     /// Toggle deletion of an existing row, or drop an uncommitted insert row.

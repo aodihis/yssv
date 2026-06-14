@@ -38,6 +38,9 @@ pub fn data_table(
         egui_extras::TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
+            // Cells default to `Sense::hover()`; click sense is required for the
+            // per-cell `Response` to report `clicked()` (row selection / Ctrl+C).
+            .sense(egui::Sense::click())
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(egui_extras::Column::auto().at_least(36.0))
             .columns(

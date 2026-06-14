@@ -32,6 +32,10 @@ pub fn editable_data_table(
         egui_extras::TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
+            // Cells default to `Sense::hover()`; without click sense the
+            // per-cell `Response` never reports `clicked()` / `double_clicked()`,
+            // so row selection and double-click-to-edit would do nothing.
+            .sense(egui::Sense::click())
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(egui_extras::Column::auto().at_least(36.0))
             .columns(
