@@ -4,7 +4,7 @@ use crate::theme::ThemeColors;
 use crate::ui::atoms::button::compact_button;
 use crate::ui::atoms::sql_highlight::sql_area;
 use crate::ui::molecules::{
-    data_cell::render_cell,
+    data_table::data_table,
     status_bar::{STATUS_H, status_bar},
     tab_bar::tab_bar,
 };
@@ -262,58 +262,8 @@ fn render_query_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                     );
                 });
             } else {
-
-            egui::ScrollArea::both().show(&mut results_ui, |ui| {
-                egui_extras::TableBuilder::new(ui)
-                    .striped(true)
-                    .resizable(true)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(egui_extras::Column::auto().at_least(36.0))
-                    .columns(
-                        egui_extras::Column::auto().at_least(80.0).resizable(true),
-                        columns.len(),
-                    )
-                    .header(row_height, |mut header| {
-                        header.col(|ui| {
-                            ui.label(RichText::new("#").size(11.0).weak());
-                        });
-                        for col in columns {
-                            header.col(|ui| {
-                                ui.label(
-                                    RichText::new(&col.name)
-                                        .size(12.0)
-                                        .family(egui::FontFamily::Name("SemiBold".into())),
-                                );
-                                ui.label(RichText::new(&col.data_type).size(10.0).weak());
-                            });
-                        }
-                    })
-                    .body(|body| {
-                        body.rows(row_height, rows.len(), |mut row| {
-                            let ri = row.index();
-                            let is_selected = new_selected == Some(ri);
-                            row.set_selected(is_selected);
-                            row.col(|ui| {
-                                ui.label(
-                                    RichText::new((ri + 1).to_string()).size(11.0).weak(),
-                                );
-                            });
-                            for (ci, col) in columns.iter().enumerate() {
-                                let (_, resp) = row.col(|ui| {
-                                    render_cell(
-                                        ui,
-                                        col,
-                                        &rows[ri].get(ci).cloned().flatten(),
-                                    );
-                                });
-                                if resp.clicked() {
-                                    new_selected = if is_selected { None } else { Some(ri) };
-                                }
-                            }
-                        });
-                    });
-            });
-            } // end else (rows non-empty)
+                new_selected = data_table(&mut results_ui, columns, rows, row_height, new_selected);
+            }
         }
 
         if new_selected != selected_row
@@ -626,64 +576,7 @@ fn render_table_tab(ui: &mut egui::Ui, app: &mut crate::app::YssvApp, ctx: &egui
                     let columns = &result.columns;
                     let rows = &result.rows;
 
-                    egui::ScrollArea::both().show(&mut grid_ui, |ui| {
-                        egui_extras::TableBuilder::new(ui)
-                            .striped(true)
-                            .resizable(true)
-                            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                            .column(egui_extras::Column::auto().at_least(36.0))
-                            .columns(
-                                egui_extras::Column::auto().at_least(80.0).resizable(true),
-                                columns.len(),
-                            )
-                            .header(row_height, |mut header| {
-                                header.col(|ui| {
-                                    ui.label(RichText::new("#").size(11.0).weak());
-                                });
-                                for col in columns {
-                                    header.col(|ui| {
-                                        ui.horizontal(|ui| {
-                                            if col.is_pk {
-                                                ui.label(RichText::new("🔑").size(10.0));
-                                            }
-                                            ui.label(
-                                                RichText::new(&col.name).size(12.0).family(
-                                                    egui::FontFamily::Name("SemiBold".into()),
-                                                ),
-                                            );
-                                            ui.label(
-                                                RichText::new(&col.data_type).size(10.0).weak(),
-                                            );
-                                        });
-                                    });
-                                }
-                            })
-                            .body(|body| {
-                                body.rows(row_height, rows.len(), |mut row| {
-                                    let ri = row.index();
-                                    let is_selected = new_selected == Some(ri);
-                                    row.set_selected(is_selected);
-                                    row.col(|ui| {
-                                        ui.label(
-                                            RichText::new((ri + 1).to_string()).size(11.0).weak(),
-                                        );
-                                    });
-                                    for (ci, col) in columns.iter().enumerate() {
-                                        let (_, resp) = row.col(|ui| {
-                                            render_cell(
-                                                ui,
-                                                col,
-                                                &rows[ri].get(ci).cloned().flatten(),
-                                            );
-                                        });
-                                        if resp.clicked() {
-                                            new_selected =
-                                                if is_selected { None } else { Some(ri) };
-                                        }
-                                    }
-                                });
-                            });
-                    });
+                    new_selected = data_table(&mut grid_ui, columns, rows, row_height, new_selected);
 
                     if let Some(sel_ri) = new_selected
                         && grid_ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C))

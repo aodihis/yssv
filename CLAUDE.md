@@ -28,6 +28,7 @@ Atomic-design UI system: atoms → molecules → pages. See PLAN.md for full arc
 | Connection list item | `conn_item(...)` | `crate::ui::molecules::conn_item` |
 | Sidebar tree row | `tree_row(ui, TreeRowConfig { ... })` | `crate::ui::molecules::tree_row` |
 | Data grid cell | `render_cell(ui, col, value)` | `crate::ui::molecules::data_cell` |
+| Data results table | `data_table(ui, columns, rows, row_height, selected) -> Option<usize>` | `crate::ui::molecules::data_table` |
 | Pagination status bar | `status_bar(ui, tab)` | `crate::ui::molecules::status_bar` |
 | Tab bar | `tab_bar(ui, tabs, active)` | `crate::ui::molecules::tab_bar` |
 | Error/alert dialog | `error_dialog(ui, id, title, message) -> bool` | `crate::ui::molecules::alert_dialog` |
