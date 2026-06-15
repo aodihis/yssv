@@ -164,9 +164,11 @@ Always include relevant context fields — don't log bare messages:
 ## Testing
 
 ```
-cargo test --lib          # unit tests
-cargo test --test storage_tests   # SQLite integration
-cargo check               # fast compile check before running
+cargo test -- --include-ignored             # all tests including #[ignore] (needs live DB + Docker)
+cargo test --lib                            # unit tests only
+cargo test --test integration               # integration suite only
+cargo test --test e2e --features e2e        # e2e suite — requires Docker
+cargo check                                 # fast compile check before running
 ```
 
 Write unit tests in-module with `#[cfg(test)]`. Test public functions; don't test egui rendering.

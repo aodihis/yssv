@@ -10,8 +10,8 @@ else
     RUN_BIN = ./target/release/yssv
 endif
 
-.PHONY: all build release run run-release run-log watch watch-log test test-lib test-integration \
-        lint fmt fmt-check check clean help
+.PHONY: all build release run run-release run-log watch watch-log test-all test-lib test-integration \
+        test-e2e lint fmt fmt-check check clean help
 
 # ── Default ────────────────────────────────────────────────────────────────────
 all: build
@@ -55,18 +55,22 @@ run-log:
 endif
 
 # ── Test ───────────────────────────────────────────────────────────────────────
-# All tests — skips #[ignore] tests (no live DB needed)
-test:
-	cargo test
+# All tests including #[ignore] — requires live DB servers and Docker.
+# Set YSSV_TEST_PG_URL and/or YSSV_TEST_MYSQL_URL first.
+test-all:
+	cargo test -- --include-ignored
 
 # Unit tests only — fastest, no DB required
 test-lib:
 	cargo test --lib
 
-# Integration tests — requires live DB servers.
-# Set YSSV_TEST_PG_URL and/or YSSV_TEST_MYSQL_URL first.
+# Integration suite only (tests/integration/)
 test-integration:
-	cargo test -- --include-ignored
+	cargo test --test integration
+
+# E2E suite only (tests/e2e/) — requires Docker
+test-e2e:
+	cargo test --test e2e --features e2e
 
 # ── Code quality ───────────────────────────────────────────────────────────────
 check:
@@ -101,9 +105,10 @@ help:
 	@echo   watch                 Auto-rebuild and rerun on file changes (requires cargo-watch)
 	@echo   watch-log LEVEL=X     Watch with YSSV_LOG=X  (e.g. make watch-log LEVEL=debug)
 	@echo.
-	@echo   test                  All tests (unit + integration, skips #[ignore])
+	@echo   test-all              All tests including #[ignore] (needs live DB + Docker)
 	@echo   test-lib              Unit tests only - no database required
-	@echo   test-integration      All tests including #[ignore] (needs live DB)
+	@echo   test-integration      Integration suite only (tests/integration/)
+	@echo   test-e2e              E2E suite only (tests/e2e/) - requires Docker
 	@echo.
 	@echo   check                 Type-check without building
 	@echo   lint                  Clippy with -D warnings

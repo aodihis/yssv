@@ -24,7 +24,10 @@ pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
         return "*".to_string();
     }
     cols.iter()
-        .map(|c| format!("\"{}\"::text AS \"{}\"", c.name, c.name))
+        .map(|c| {
+            let q = quote_ident(&c.name);
+            format!("{}::text AS {}", q, q)
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -125,10 +128,17 @@ impl ActiveConnection for PgConnection {
 
         let select_list = build_select_list(&col_defs);
 
-        let query = format!(
-            "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
+        let fetch_sql = format!(
+            "SELECT {} FROM {}.{} LIMIT $1 OFFSET $2",
+            select_list,
+            quote_ident(schema),
+            quote_ident(table),
         );
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(fetch_sql))
+            .bind(limit as i64)
+            .bind(offset as i64)
+            .fetch_all(&self.pool)
+            .await?;
 
         if rows.is_empty() {
             return Ok(QueryResult {
@@ -148,8 +158,12 @@ impl ActiveConnection for PgConnection {
             })
             .collect();
 
-        let count_query = format!("SELECT COUNT(*) FROM \"{schema}\".\"{table}\"");
-        let total: i64 = sqlx::query_scalar(&count_query)
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {}.{}",
+            quote_ident(schema),
+            quote_ident(table),
+        );
+        let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(count_sql))
             .fetch_one(&self.pool)
             .await
             .unwrap_or_else(|e| {
@@ -235,7 +249,7 @@ impl ActiveConnection for PgConnection {
         let mut affected = 0u64;
         for stmt in statements {
             tracing::debug!(stmt = %stmt, "postgres: execute_batch statement");
-            let result = sqlx::query(stmt).execute(&mut *tx).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned())).execute(&mut *tx).await?;
             affected += result.rows_affected();
         }
         tx.commit().await?;
@@ -259,7 +273,7 @@ impl ActiveConnection for PgConnection {
             || trimmed.starts_with("TABLE");
 
         if !is_fetch {
-            let result = sqlx::query(sql).execute(&self.pool).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).execute(&self.pool).await?;
             let affected = result.rows_affected();
             tracing::info!(rows_affected = affected, "postgres: execute_single (DML)");
             return Ok(QueryResult {
@@ -275,7 +289,7 @@ impl ActiveConnection for PgConnection {
             });
         }
 
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).fetch_all(&self.pool).await?;
         if rows.is_empty() {
             tracing::debug!("postgres: execute_single returned 0 rows");
             return Ok(QueryResult::empty());
@@ -309,6 +323,10 @@ impl ActiveConnection for PgConnection {
     }
 }
 
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
 fn decode_col_pg(row: &sqlx::postgres::PgRow, i: usize) -> Option<String> {
     use sqlx::Row;
     if let Ok(v) = row.try_get::<Option<String>, _>(i) {
@@ -339,6 +357,16 @@ fn decode_col_pg(row: &sqlx::postgres::PgRow, i: usize) -> Option<String> {
 mod tests {
     use super::*;
     use crate::core::{connections::model::Connection, results::model::ColumnDef};
+
+    #[test]
+    fn quote_ident_wraps_in_double_quotes() {
+        assert_eq!(quote_ident("table"), "\"table\"");
+    }
+
+    #[test]
+    fn quote_ident_escapes_embedded_double_quote() {
+        assert_eq!(quote_ident("my\"table"), "\"my\"\"table\"");
+    }
 
     #[test]
     fn build_connection_url_format() {

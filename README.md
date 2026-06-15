@@ -69,24 +69,38 @@ cargo build --release
 ## Testing
 
 ```sh
-# Unit tests only — no database required
-make test-lib
-
-# All tests (skips database tests if servers are not running)
-make test
-
-# Integration tests — requires live database servers
+# All tests including #[ignore] — requires live DB servers and Docker
 export YSSV_TEST_PG_URL=postgres://user:pass@localhost/testdb
 export YSSV_TEST_MYSQL_URL=mysql://user:pass@localhost/testdb
+make test-all
+# or
+cargo test -- --include-ignored
+
+# Unit tests only — fastest, no database required
+make test-lib
+# or
+cargo test --lib
+
+# Integration suite only (tests/integration/)
 make test-integration
+# or
+cargo test --test integration
+
+# E2E suite only (tests/e2e/) — requires Docker
+make test-e2e
+# or
+cargo test --test e2e --features e2e
 ```
 
 On Windows (PowerShell):
 
 ```powershell
+# All tests (needs live DB + Docker)
 $env:YSSV_TEST_PG_URL = "postgres://user:pass@localhost/testdb"
 $env:YSSV_TEST_MYSQL_URL = "mysql://user:pass@localhost/testdb"
-make test-integration
+make test-all
+# or
+cargo test -- --include-ignored
 ```
 
 ## Code quality
