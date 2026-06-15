@@ -1607,6 +1607,7 @@ mod tests {
 impl eframe::App for YssvApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        theme::apply_theme(&ctx, self.settings.theme);
         self.drain_events(&ctx);
 
         crate::ui::error_modal::render(ui, self);

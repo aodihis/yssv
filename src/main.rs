@@ -141,8 +141,7 @@ fn native_options(renderer: eframe::Renderer) -> eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("YSSV")
             .with_inner_size([1320.0, 840.0])
-            .with_min_inner_size([900.0, 600.0])
-            .with_follow_system_theme(false),
+            .with_min_inner_size([900.0, 600.0]),
         renderer,
         ..Default::default()
     }
