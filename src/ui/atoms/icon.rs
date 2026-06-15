@@ -2,6 +2,7 @@ use egui::{Color32, Response, Ui, Vec2};
 
 #[derive(Copy, Clone)]
 pub enum Icon {
+    ChevronLeft,
     ChevronRight,
     ChevronDown,
     Terminal,
@@ -22,6 +23,10 @@ pub enum Icon {
 impl Icon {
     fn data(&self) -> (&'static [u8], &'static str) {
         match self {
+            Icon::ChevronLeft => (
+                include_bytes!("../../../assets/icons/chevron-left.svg"),
+                "bytes://icon/chevron-left.svg",
+            ),
             Icon::ChevronRight => (
                 include_bytes!("../../../assets/icons/chevron-right.svg"),
                 "bytes://icon/chevron-right.svg",
@@ -114,6 +119,7 @@ mod tests {
     use super::*;
 
     const ALL_ICONS: &[Icon] = &[
+        Icon::ChevronLeft,
         Icon::ChevronRight,
         Icon::ChevronDown,
         Icon::Terminal,

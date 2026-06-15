@@ -2,7 +2,7 @@ use crate::core::schema::model::TableKind;
 use crate::events::Screen;
 use crate::theme::{self, ThemeColors, colors};
 use crate::ui::atoms::button::compact_button;
-use crate::ui::atoms::icon::Icon;
+use crate::ui::atoms::icon::{Icon, icon_image};
 use crate::ui::atoms::input::text_input;
 use crate::ui::molecules::tree_row::{TreeRowConfig, tree_row};
 use egui::RichText;
@@ -308,22 +308,34 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         footer_rect.top(),
         egui::Stroke::new(1.0, tc.border_muted),
     );
+    footer_ui.painter().rect_filled(footer_rect, egui::CornerRadius::ZERO, tc.surface);
+
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-        ui.add_space(1.0);
-        let back_btn = egui::Button::new(
-            egui::RichText::new("◀  Connections")
-                .size(11.0)
-                .color(tc.text_secondary),
+        ui.add_space(8.0);
+
+        let back_btn = egui::Button::image_and_text(
+            icon_image(Icon::ChevronLeft, 13.0, tc.text_secondary),
+            RichText::new("Connections").size(12.0).color(tc.text_secondary),
         )
         .fill(egui::Color32::TRANSPARENT)
-        .stroke(egui::Stroke::new(1.0, tc.border_muted))
-        .min_size(egui::vec2(0.0, 22.0));
-        if ui.add(back_btn).clicked() {
+        .stroke(egui::Stroke::NONE)
+        .min_size(egui::vec2(0.0, 28.0));
+
+        let back_resp = ui.add(back_btn);
+        if back_resp.hovered() {
+            ui.painter().rect_filled(
+                back_resp.rect.expand2(egui::vec2(4.0, 2.0)),
+                egui::CornerRadius::same(4u8),
+                tc.surface_secondary,
+            );
+        }
+        if back_resp.clicked() {
             app.screen = Screen::Connections;
         }
 
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.add_space(4.0);
+            ui.add_space(8.0);
+
             let theme_icon = if app.settings.theme == theme::Theme::Dark {
                 "☀"
             } else {
@@ -336,7 +348,7 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
             )
             .fill(egui::Color32::TRANSPARENT)
             .stroke(egui::Stroke::NONE)
-            .min_size(egui::vec2(28.0, 24.0));
+            .min_size(egui::vec2(28.0, 28.0));
             if ui.add(theme_btn).clicked() {
                 app.settings.toggle_theme();
                 theme::apply_theme(&ctx, app.settings.theme);
@@ -349,13 +361,14 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     TunnelStatus::Connecting | TunnelStatus::Reconnecting => colors::AMBER,
                     TunnelStatus::Failed(_) => colors::RED,
                 };
-                ui.add_space(8.0);
+                ui.add_space(4.0);
                 ui.label(
                     RichText::new(status.label())
                         .size(11.0)
                         .color(tc.text_secondary),
                 );
-                crate::ui::atoms::label_dot::colored_dot(ui, dot, 8.0);
+                ui.add_space(2.0);
+                crate::ui::atoms::label_dot::colored_dot(ui, dot, 7.0);
             }
         });
     });
