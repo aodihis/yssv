@@ -91,8 +91,10 @@ pub fn tab_bar(
     ui.painter()
         .rect_filled(strip_rect, egui::CornerRadius::ZERO, tc.surface);
 
-    // Arrow buttons — interact first so hover state is available for painting
-    if needs_arrows {
+    // Arrow buttons — register interactions before the tab loop so hover state
+    // is available, but defer all painting until after the tabs so arrows
+    // always render on top of any overflowing tab content.
+    let arrow_state = if needs_arrows {
         let left_rect = egui::Rect::from_min_size(
             egui::pos2(strip_rect.right() - 2.0 * ARROW_W, strip_rect.top()),
             egui::vec2(ARROW_W, TAB_H),
@@ -112,54 +114,10 @@ pub fn tab_bar(
             scroll += 1;
         }
 
-        let p = ui.painter();
-
-        // Separator before arrow area
-        p.vline(
-            left_rect.left(),
-            strip_rect.top()..=strip_rect.bottom(),
-            egui::Stroke::new(1.0, tc.border),
-        );
-
-        // Left arrow
-        if can_left && left_resp.hovered() {
-            p.rect_filled(left_rect, egui::CornerRadius::ZERO, tc.surface_secondary);
-        }
-        p.text(
-            left_rect.center(),
-            egui::Align2::CENTER_CENTER,
-            "‹",
-            FontId::proportional(16.0),
-            if can_left {
-                tc.text_secondary
-            } else {
-                tc.text_disabled
-            },
-        );
-
-        // Separator between arrows
-        p.vline(
-            right_rect.left(),
-            strip_rect.top()..=strip_rect.bottom(),
-            egui::Stroke::new(1.0, tc.border),
-        );
-
-        // Right arrow
-        if can_right && right_resp.hovered() {
-            p.rect_filled(right_rect, egui::CornerRadius::ZERO, tc.surface_secondary);
-        }
-        p.text(
-            right_rect.center(),
-            egui::Align2::CENTER_CENTER,
-            "›",
-            FontId::proportional(16.0),
-            if can_right {
-                tc.text_secondary
-            } else {
-                tc.text_disabled
-            },
-        );
-    }
+        Some((left_rect, right_rect, left_resp, right_resp))
+    } else {
+        None
+    };
 
     // Persist updated scroll + active for next frame's change detection.
     ui.memory_mut(|m| {
@@ -304,6 +262,53 @@ pub fn tab_bar(
         strip_rect.bottom(),
         egui::Stroke::new(1.0, tc.border),
     );
+
+    // Paint arrow buttons on top of all tab content
+    if let Some((left_rect, right_rect, left_resp, right_resp)) = arrow_state {
+        let p = ui.painter();
+
+        // Separator before arrow area
+        p.vline(
+            left_rect.left(),
+            strip_rect.top()..=strip_rect.bottom(),
+            egui::Stroke::new(1.0, tc.border),
+        );
+
+        // Left arrow
+        p.rect_filled(
+            left_rect,
+            egui::CornerRadius::ZERO,
+            if can_left && left_resp.hovered() { tc.surface_secondary } else { tc.surface },
+        );
+        p.text(
+            left_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "‹",
+            FontId::proportional(16.0),
+            if can_left { tc.text_secondary } else { tc.text_disabled },
+        );
+
+        // Separator between arrows
+        p.vline(
+            right_rect.left(),
+            strip_rect.top()..=strip_rect.bottom(),
+            egui::Stroke::new(1.0, tc.border),
+        );
+
+        // Right arrow
+        p.rect_filled(
+            right_rect,
+            egui::CornerRadius::ZERO,
+            if can_right && right_resp.hovered() { tc.surface_secondary } else { tc.surface },
+        );
+        p.text(
+            right_rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "›",
+            FontId::proportional(16.0),
+            if can_right { tc.text_secondary } else { tc.text_disabled },
+        );
+    }
 
     // Advance the layout cursor past the strip
     let _ = ui.allocate_rect(strip_rect, egui::Sense::hover());
