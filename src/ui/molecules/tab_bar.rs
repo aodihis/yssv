@@ -3,18 +3,31 @@ use crate::theme::ThemeColors;
 use crate::ui::atoms::icon::{Icon, icon_image};
 use egui::{Color32, FontId, Ui};
 
-const TAB_H: f32 = 36.0;
+const TAB_H: f32 = 38.0;
 const CLOSE_W: f32 = 10.0;
 const ARROW_W: f32 = 28.0;
 
-/// Returns (activate_index, close_index)
-pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Option<usize>) {
+#[derive(Debug, Clone)]
+pub enum TabContextAction {
+    Close(usize),
+    CloseAll,
+    CloseOthers(usize),
+    CloseToLeft(usize),
+    CloseToRight(usize),
+}
+
+/// Returns (activate_index, tab_action)
+pub fn tab_bar(
+    ui: &mut Ui,
+    tabs: &[Tab],
+    active: usize,
+) -> (Option<usize>, Option<TabContextAction>) {
     if tabs.is_empty() {
         return (None, None);
     }
 
     let tc = ThemeColors::from_ui(ui);
-    let mut close_req: Option<usize> = None;
+    let mut tab_action: Option<TabContextAction> = None;
     let mut activate_req: Option<usize> = None;
 
     let avail_w = ui.available_width();
@@ -22,11 +35,14 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
 
     // Pre-compute per-tab label widths; full tab width = padding + label + close icon
     let label_font = FontId::proportional(12.5);
+    let active_font = FontId::new(12.5, egui::FontFamily::Name("SemiBold".into()));
     let text_widths: Vec<f32> = tabs
         .iter()
-        .map(|tab| {
+        .enumerate()
+        .map(|(i, tab)| {
+            let font = if i == active { active_font.clone() } else { label_font.clone() };
             ui.painter()
-                .layout_no_wrap(tab.label(), label_font.clone(), Color32::WHITE)
+                .layout_no_wrap(tab.label(), font, Color32::WHITE)
                 .size()
                 .x
         })
@@ -155,8 +171,9 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
     let tabs_clip = egui::Rect::from_min_size(strip_rect.min, egui::vec2(tabs_avail_w, TAB_H));
     let painter = ui.painter().with_clip_rect(tabs_clip);
 
+    let tab_count = tabs.len();
     let mut tab_x = strip_rect.left();
-    for i in scroll..tabs.len() {
+    for i in scroll..tab_count {
         let tw = tab_widths[i];
         if tab_x + tw > tabs_clip.right() {
             break;
@@ -216,11 +233,12 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         } else {
             tc.text_secondary
         };
+        let draw_font = if is_active { active_font.clone() } else { label_font.clone() };
         painter.text(
             egui::pos2(label_x, center_y),
             egui::Align2::LEFT_CENTER,
             tabs[i].label(),
-            label_font.clone(),
+            draw_font,
             text_color,
         );
 
@@ -233,10 +251,41 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
         icon_image(Icon::X, CLOSE_W, close_color).paint_at(ui, close_rect.shrink(5.0));
 
         if close_resp.clicked() {
-            close_req = Some(i);
+            tab_action = Some(TabContextAction::Close(i));
         } else if tab_resp.clicked() {
             activate_req = Some(i);
         }
+
+        // Right-click context menu
+        let action_ref = &mut tab_action;
+        tab_resp.context_menu(|ui| {
+            if ui.button("Close").clicked() {
+                *action_ref = Some(TabContextAction::Close(i));
+                ui.close();
+            }
+            if ui.button("Close All").clicked() {
+                *action_ref = Some(TabContextAction::CloseAll);
+                ui.close();
+            }
+            let others_resp =
+                ui.add_enabled(tab_count > 1, egui::Button::new("Close Others"));
+            if others_resp.clicked() {
+                *action_ref = Some(TabContextAction::CloseOthers(i));
+                ui.close();
+            }
+            ui.separator();
+            let left_resp = ui.add_enabled(i > 0, egui::Button::new("Close to the Left"));
+            if left_resp.clicked() {
+                *action_ref = Some(TabContextAction::CloseToLeft(i));
+                ui.close();
+            }
+            let right_resp =
+                ui.add_enabled(i + 1 < tab_count, egui::Button::new("Close to the Right"));
+            if right_resp.clicked() {
+                *action_ref = Some(TabContextAction::CloseToRight(i));
+                ui.close();
+            }
+        });
 
         tab_x += tw;
     }
@@ -251,7 +300,7 @@ pub fn tab_bar(ui: &mut Ui, tabs: &[Tab], active: usize) -> (Option<usize>, Opti
     // Advance the layout cursor past the strip
     let _ = ui.allocate_rect(strip_rect, egui::Sense::hover());
 
-    (activate_req, close_req)
+    (activate_req, tab_action)
 }
 
 fn tab_width(text_w: f32) -> f32 {

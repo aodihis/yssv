@@ -36,7 +36,7 @@ pub fn data_table(
     let mut new_selected = selected;
     egui::ScrollArea::both().show(ui, |ui| {
         egui_extras::TableBuilder::new(ui)
-            .striped(true)
+            .striped(false)
             .resizable(true)
             // Cells default to `Sense::hover()`; click sense is required for the
             // per-cell `Response` to report `clicked()` (row selection / Ctrl+C).

@@ -45,7 +45,7 @@ pub fn editable_data_table(
 
     egui::ScrollArea::both().show(ui, |ui| {
         egui_extras::TableBuilder::new(ui)
-            .striped(true)
+            .striped(false)
             .resizable(true)
             // Cells default to `Sense::hover()`; without click sense the
             // per-cell `Response` never reports `clicked()` / `double_clicked()`,

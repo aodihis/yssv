@@ -10,7 +10,7 @@ use crate::ui::molecules::{
     data_table::data_table,
     editable_data_table::editable_data_table,
     status_bar::{STATUS_H, status_bar},
-    tab_bar::tab_bar,
+    tab_bar::{TabContextAction, tab_bar},
 };
 use egui::RichText;
 
@@ -26,7 +26,7 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         return;
     }
 
-    let (activate, close) = {
+    let (activate, tab_action) = {
         let explorer = app
             .explorer
             .as_ref()
@@ -51,8 +51,14 @@ pub fn render_main(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         if let Some(i) = activate {
             explorer.tabs.active = i;
         }
-        if let Some(i) = close {
-            explorer.tabs.close(i);
+        if let Some(action) = tab_action {
+            match action {
+                TabContextAction::Close(i) => explorer.tabs.close(i),
+                TabContextAction::CloseAll => explorer.tabs.close_all(),
+                TabContextAction::CloseOthers(i) => explorer.tabs.close_others(i),
+                TabContextAction::CloseToLeft(i) => explorer.tabs.close_to_left(i),
+                TabContextAction::CloseToRight(i) => explorer.tabs.close_to_right(i),
+            }
         }
         if explorer.tabs.tabs.is_empty() {
             return;

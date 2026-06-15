@@ -194,7 +194,7 @@ impl Tab {
 
     pub fn label(&self) -> String {
         match self {
-            Tab::Table(t) => format!("{}.{}", t.schema, t.table),
+            Tab::Table(t) => format!("{}.{}", t.database, t.table),
             Tab::Query(q) => format!("SQL {}", q.counter),
         }
     }
@@ -266,6 +266,43 @@ impl TabState {
             } else if self.tabs.is_empty() {
                 self.active = 0;
             }
+        }
+    }
+
+    pub fn close_all(&mut self) {
+        self.tabs.clear();
+        self.active = 0;
+    }
+
+    pub fn close_others(&mut self, index: usize) {
+        if index < self.tabs.len() {
+            let tab = self.tabs.remove(index);
+            self.tabs.clear();
+            self.tabs.push(tab);
+        }
+        self.active = 0;
+    }
+
+    pub fn close_to_left(&mut self, index: usize) {
+        if index == 0 {
+            return;
+        }
+        let count = index.min(self.tabs.len());
+        self.tabs.drain(0..count);
+        self.active = if self.active >= count {
+            (self.active - count).min(self.tabs.len().saturating_sub(1))
+        } else {
+            0
+        };
+    }
+
+    pub fn close_to_right(&mut self, index: usize) {
+        if index + 1 >= self.tabs.len() {
+            return;
+        }
+        self.tabs.truncate(index + 1);
+        if self.active > index {
+            self.active = index;
         }
     }
 
