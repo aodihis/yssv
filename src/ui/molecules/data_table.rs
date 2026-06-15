@@ -20,7 +20,6 @@ pub(crate) fn results_header(header: &mut egui_extras::TableRow<'_, '_>, columns
                         .size(12.0)
                         .family(egui::FontFamily::Name("SemiBold".into())),
                 );
-                ui.label(RichText::new(&col.data_type).size(10.0).weak());
             });
         });
     }
