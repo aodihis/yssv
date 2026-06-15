@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            asset_name: yssv-windows-x86_64.exe
+            binary: target/x86_64-pc-windows-msvc/release/yssv.exe
+
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+            asset_name: yssv-macos-x86_64
+            binary: target/x86_64-apple-darwin/release/yssv
+
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            asset_name: yssv-macos-aarch64
+            binary: target/aarch64-apple-darwin/release/yssv
+
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            asset_name: yssv-linux-x86_64
+            binary: target/x86_64-unknown-linux-gnu/release/yssv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libxkbcommon-dev libssl-dev
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        shell: bash
+        run: cp ${{ matrix.binary }} ${{ matrix.asset_name }}
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
