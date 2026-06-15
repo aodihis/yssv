@@ -147,6 +147,193 @@ fn native_options(renderer: eframe::Renderer) -> eframe::NativeOptions {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use yssv::pages::settings::{RendererPreference, SettingsState};
+
+    // Serialize all tests that mutate YSSV_RENDERER so they don't race.
+    static RENDERER_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    // --- log_dir ---
+
+    #[test]
+    fn log_dir_contains_yssv() {
+        let dir = log_dir();
+        assert!(dir.contains("yssv"), "log dir should contain 'yssv': {dir}");
+    }
+
+    #[test]
+    fn log_dir_is_non_empty() {
+        assert!(!log_dir().is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn log_dir_uses_appdata_or_dot() {
+        let dir = log_dir();
+        // Must end with the yssv\logs suffix on Windows.
+        assert!(dir.ends_with("yssv\\logs"), "unexpected suffix: {dir}");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn log_dir_uses_home_or_dot() {
+        let dir = log_dir();
+        assert!(dir.ends_with("yssv/logs"), "unexpected suffix: {dir}");
+    }
+
+    // --- cleanup_old_logs ---
+
+    #[test]
+    fn cleanup_old_logs_missing_dir_does_not_panic() {
+        cleanup_old_logs("/nonexistent/path/that/cannot/exist/yssv_test", 7);
+    }
+
+    #[test]
+    fn cleanup_old_logs_skips_non_log_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let other = dir.path().join("other.txt");
+        std::fs::write(&other, b"keep me").unwrap();
+
+        cleanup_old_logs(dir.path().to_str().unwrap(), 0);
+
+        assert!(other.exists(), "non-log file should not be deleted");
+    }
+
+    #[test]
+    fn cleanup_old_logs_keeps_recent_yssv_logs() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("yssv.log.2026-06-15");
+        std::fs::write(&log, b"recent").unwrap();
+
+        // keep_days = 36500 (~100 years) → cutoff is far in the past, nothing is old enough.
+        cleanup_old_logs(dir.path().to_str().unwrap(), 36_500);
+
+        assert!(log.exists(), "recent log should be kept");
+    }
+
+    #[test]
+    fn cleanup_old_logs_deletes_expired_yssv_logs() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("yssv.log.2020-01-01");
+        std::fs::write(&log, b"old").unwrap();
+
+        // Set mtime to Unix epoch (well before any keep_days cutoff).
+        let epoch = std::time::SystemTime::UNIX_EPOCH;
+        let times = std::fs::FileTimes::new().set_modified(epoch);
+        std::fs::File::options()
+            .write(true)
+            .open(&log)
+            .unwrap()
+            .set_times(times)
+            .unwrap();
+
+        cleanup_old_logs(dir.path().to_str().unwrap(), 7);
+
+        assert!(!log.exists(), "expired log should be deleted");
+    }
+
+    #[test]
+    fn cleanup_old_logs_only_deletes_yssv_prefixed_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("yssv.log.old");
+        let other = dir.path().join("app.log.old");
+        std::fs::write(&log, b"old log").unwrap();
+        std::fs::write(&other, b"other log").unwrap();
+
+        let epoch = std::time::SystemTime::UNIX_EPOCH;
+        let times = std::fs::FileTimes::new().set_modified(epoch);
+        for path in [&log, &other] {
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_times(times)
+                .unwrap();
+        }
+
+        cleanup_old_logs(dir.path().to_str().unwrap(), 7);
+
+        assert!(!log.exists(), "yssv.log.* should be deleted");
+        assert!(other.exists(), "app.log.* should be kept");
+    }
+
+    // --- pick_renderer ---
+
+    fn settings_wgpu() -> SettingsState {
+        SettingsState { renderer: RendererPreference::Wgpu, ..Default::default() }
+    }
+
+    fn settings_glow() -> SettingsState {
+        SettingsState { renderer: RendererPreference::Glow, ..Default::default() }
+    }
+
+    #[test]
+    fn pick_renderer_falls_back_to_settings_wgpu() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(pick_renderer(&settings_wgpu()), eframe::Renderer::Wgpu);
+    }
+
+    #[test]
+    fn pick_renderer_falls_back_to_settings_glow() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(pick_renderer(&settings_glow()), eframe::Renderer::Glow);
+    }
+
+    #[test]
+    fn pick_renderer_env_glow_overrides_settings() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("YSSV_RENDERER", "glow"); }
+        let r = pick_renderer(&settings_wgpu());
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(r, eframe::Renderer::Glow);
+    }
+
+    #[test]
+    fn pick_renderer_env_wgpu_overrides_settings() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("YSSV_RENDERER", "wgpu"); }
+        let r = pick_renderer(&settings_glow());
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(r, eframe::Renderer::Wgpu);
+    }
+
+    #[test]
+    fn pick_renderer_unknown_env_falls_back_to_settings_glow() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("YSSV_RENDERER", "vulkan"); }
+        let r = pick_renderer(&settings_glow());
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(r, eframe::Renderer::Glow);
+    }
+
+    #[test]
+    fn pick_renderer_unknown_env_falls_back_to_settings_wgpu() {
+        let _g = RENDERER_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("YSSV_RENDERER", "vulkan"); }
+        let r = pick_renderer(&settings_wgpu());
+        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        assert_eq!(r, eframe::Renderer::Wgpu);
+    }
+
+    // --- native_options ---
+
+    #[test]
+    fn native_options_wgpu_sets_renderer() {
+        let opts = native_options(eframe::Renderer::Wgpu);
+        assert_eq!(opts.renderer, eframe::Renderer::Wgpu);
+    }
+
+    #[test]
+    fn native_options_glow_sets_renderer() {
+        let opts = native_options(eframe::Renderer::Glow);
+        assert_eq!(opts.renderer, eframe::Renderer::Glow);
+    }
+}
+
 fn main() -> eframe::Result<()> {
     let _log_guard = init_logging();
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "YSSV starting");

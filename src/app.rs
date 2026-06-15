@@ -1402,6 +1402,162 @@ mod tests {
         app.commit_changes(egui::Context::default(), tab_id);
         assert!(app.event_rx.try_recv().is_err());
     }
+
+    // --- current_engine ---
+
+    #[test]
+    fn current_engine_returns_none_without_config() {
+        let app = YssvApp::new_for_test();
+        assert!(app.current_engine().is_none());
+    }
+
+    #[test]
+    fn current_engine_returns_engine_when_config_is_set() {
+        let mut app = YssvApp::new_for_test();
+        app.set_conn_config_for_test(Connection::new_postgres());
+        assert_eq!(
+            app.current_engine(),
+            Some(crate::core::connections::model::DbEngine::Postgres)
+        );
+    }
+
+    // --- rename_group ---
+
+    #[test]
+    fn rename_group_updates_all_matching_connections() {
+        let mut app = YssvApp::new_for_test();
+        let mut a = Connection::new_postgres(); a.name = "A".into(); a.group = "Old".into();
+        let mut b = Connection::new_postgres(); b.name = "B".into(); b.group = "Old".into();
+        let mut c = Connection::new_postgres(); c.name = "C".into(); c.group = "Other".into();
+        app.conn_page.connections.extend([a, b, c]);
+
+        app.rename_group("Old", "New");
+
+        let groups: Vec<&str> = app.conn_page.connections.iter().map(|c| c.group.as_str()).collect();
+        assert_eq!(groups[0], "New");
+        assert_eq!(groups[1], "New");
+        assert_eq!(groups[2], "Other");
+        assert!(app.conn_page.renaming_group.is_none());
+    }
+
+    #[test]
+    fn rename_group_updates_collapsed_groups_tracking() {
+        let mut app = YssvApp::new_for_test();
+        let mut c = Connection::new_postgres(); c.group = "Staging".into();
+        app.conn_page.connections.push(c);
+        app.conn_page.collapsed_groups.insert("Staging".into());
+
+        app.rename_group("Staging", "QA");
+
+        assert!(!app.conn_page.collapsed_groups.contains("Staging"));
+        assert!(app.conn_page.collapsed_groups.contains("QA"));
+    }
+
+    #[test]
+    fn rename_group_with_no_matches_clears_renaming_state() {
+        let mut app = YssvApp::new_for_test();
+        app.conn_page.renaming_group = Some(("Ghost".into(), "Whatever".into()));
+        app.rename_group("Ghost", "Whatever");
+        assert!(app.conn_page.renaming_group.is_none());
+    }
+
+    // --- reorder_connections ---
+
+    fn push_conn(app: &mut YssvApp, name: &str, group: &str) -> String {
+        let mut c = Connection::new_postgres();
+        c.name = name.into();
+        c.group = group.into();
+        let id = c.id.clone();
+        app.conn_page.connections.push(c);
+        id
+    }
+
+    #[test]
+    fn reorder_connections_inserts_before_target() {
+        let mut app = YssvApp::new_for_test();
+        let a_id = push_conn(&mut app, "A", "G");
+        let _b_id = push_conn(&mut app, "B", "G");
+        let c_id = push_conn(&mut app, "C", "G");
+
+        // Move C before A → expected order: C, A, B
+        app.reorder_connections(&c_id, "G", Some(&a_id));
+
+        let names: Vec<&str> = app.conn_page.connections.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["C", "A", "B"]);
+    }
+
+    #[test]
+    fn reorder_connections_to_end_of_group_when_before_id_is_none() {
+        let mut app = YssvApp::new_for_test();
+        let a_id = push_conn(&mut app, "A", "G");
+        push_conn(&mut app, "B", "G");
+        push_conn(&mut app, "C", "G");
+
+        // Move A to end of G → expected: B, C, A
+        app.reorder_connections(&a_id, "G", None);
+
+        let names: Vec<&str> = app.conn_page.connections.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["B", "C", "A"]);
+    }
+
+    #[test]
+    fn reorder_connections_changes_group_field() {
+        let mut app = YssvApp::new_for_test();
+        let a_id = push_conn(&mut app, "A", "GroupA");
+
+        app.reorder_connections(&a_id, "GroupB", None);
+
+        assert_eq!(app.conn_page.connections[0].group, "GroupB");
+    }
+
+    #[test]
+    fn reorder_connections_unknown_id_is_noop() {
+        let mut app = YssvApp::new_for_test();
+        push_conn(&mut app, "A", "G");
+
+        app.reorder_connections("no-such-id", "G", None);
+
+        assert_eq!(app.conn_page.connections.len(), 1);
+        assert_eq!(app.conn_page.connections[0].name, "A");
+    }
+
+    // --- run_query ---
+
+    #[test]
+    fn run_query_with_mock_conn_emits_query_executed() {
+        let (mut app, db) = make_app_with_explorer();
+        let e = app.explorer.as_mut().unwrap();
+        let tab_id = e.tabs.open_query(&db).id.clone();
+        app.db_conns.insert(db.clone(), Arc::new(MockConn));
+
+        app.run_query(egui::Context::default(), tab_id.clone(), "SELECT 1".into(), db);
+        drain_after_spawn(&mut app);
+
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let qt = tab_entry.as_query().unwrap();
+        assert!(qt.result.is_some());
+        assert!(qt.error.is_none());
+        assert!(!qt.loading);
+    }
+
+    #[test]
+    fn run_query_with_no_conn_and_no_config_emits_query_error() {
+        let (mut app, db) = make_app_with_explorer();
+        let e = app.explorer.as_mut().unwrap();
+        let tab_id = e.tabs.open_query(&db).id.clone();
+        // db_conns is empty and conn_config is None
+
+        app.run_query(egui::Context::default(), tab_id.clone(), "SELECT 1".into(), db);
+        drain_after_spawn(&mut app);
+
+        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
+            .find(|t| t.id() == tab_id).unwrap();
+        let qt = tab_entry.as_query().unwrap();
+        assert!(qt.error.is_some());
+        assert!(qt.result.is_none());
+        assert!(!qt.loading);
+    }
 }
 
 impl eframe::App for YssvApp {

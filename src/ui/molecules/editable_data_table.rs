@@ -259,3 +259,146 @@ fn is_modified(edits: &TableEdits, row_ref: RowRef, col: usize) -> bool {
 fn tint(color: Color32, alpha: u8) -> Color32 {
     Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), alpha)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn base_rows() -> Vec<Vec<Option<String>>> {
+        vec![
+            vec![Some("1".into()), Some("alice".into())],
+            vec![Some("2".into()), None],
+        ]
+    }
+
+    fn empty_edits() -> TableEdits {
+        TableEdits::default()
+    }
+
+    // --- tint ---
+
+    #[test]
+    fn tint_preserves_rgb_sets_alpha() {
+        // Use a fully-opaque source so premultiplied r/g/b == original r/g/b.
+        let src = Color32::from_rgb(100, 150, 200);
+        let c = tint(src, 255);
+        assert_eq!(c.r(), src.r());
+        assert_eq!(c.g(), src.g());
+        assert_eq!(c.b(), src.b());
+        assert_eq!(c.a(), 255);
+    }
+
+    #[test]
+    fn tint_reduces_alpha() {
+        let src = Color32::from_rgb(200, 100, 50);
+        let c = tint(src, 30);
+        assert_eq!(c.a(), 30);
+    }
+
+    #[test]
+    fn tint_zero_alpha_is_transparent() {
+        let c = tint(Color32::RED, 0);
+        assert_eq!(c.a(), 0);
+    }
+
+    // --- is_modified ---
+
+    #[test]
+    fn is_modified_false_when_no_updates() {
+        let edits = empty_edits();
+        assert!(!is_modified(&edits, RowRef::Original(0), 1));
+    }
+
+    #[test]
+    fn is_modified_true_when_update_present() {
+        let mut edits = empty_edits();
+        edits.updates.insert((0, 1), Some("x".into()));
+        assert!(is_modified(&edits, RowRef::Original(0), 1));
+    }
+
+    #[test]
+    fn is_modified_false_for_insert_row() {
+        let mut edits = empty_edits();
+        edits.updates.insert((0, 1), Some("x".into()));
+        // Insert rows are never tracked in `updates`
+        assert!(!is_modified(&edits, RowRef::Insert(0), 1));
+    }
+
+    // --- effective_value ---
+
+    #[test]
+    fn effective_value_original_no_edit() {
+        let rows = base_rows();
+        let edits = empty_edits();
+        assert_eq!(effective_value(&rows, &edits, RowRef::Original(0), 1), Some("alice".into()));
+    }
+
+    #[test]
+    fn effective_value_original_null_no_edit() {
+        let rows = base_rows();
+        let edits = empty_edits();
+        assert_eq!(effective_value(&rows, &edits, RowRef::Original(1), 1), None);
+    }
+
+    #[test]
+    fn effective_value_original_with_update() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        edits.updates.insert((0, 1), Some("bob".into()));
+        assert_eq!(effective_value(&rows, &edits, RowRef::Original(0), 1), Some("bob".into()));
+    }
+
+    #[test]
+    fn effective_value_original_update_to_null() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        edits.updates.insert((0, 1), None);
+        assert_eq!(effective_value(&rows, &edits, RowRef::Original(0), 1), None);
+    }
+
+    #[test]
+    fn effective_value_insert_row() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        edits.inserts.push(vec![Some("99".into()), None]);
+        assert_eq!(effective_value(&rows, &edits, RowRef::Insert(0), 0), Some("99".into()));
+        assert_eq!(effective_value(&rows, &edits, RowRef::Insert(0), 1), None);
+    }
+
+    // --- apply_edit ---
+
+    #[test]
+    fn apply_edit_original_changed_value_inserts_update() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        apply_edit(&mut edits, &rows, RowRef::Original(0), 1, "bob".into());
+        assert_eq!(edits.updates.get(&(0, 1)), Some(&Some("bob".into())));
+    }
+
+    #[test]
+    fn apply_edit_original_same_value_removes_update() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        // Pre-insert a stale edit, then apply the original value back.
+        edits.updates.insert((0, 1), Some("stale".into()));
+        apply_edit(&mut edits, &rows, RowRef::Original(0), 1, "alice".into());
+        assert!(!edits.updates.contains_key(&(0, 1)));
+    }
+
+    #[test]
+    fn apply_edit_original_null_cell_tracks_new_value() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        // row 1 col 1 is NULL — any non-null edit is a change
+        apply_edit(&mut edits, &rows, RowRef::Original(1), 1, "filled".into());
+        assert_eq!(edits.updates.get(&(1, 1)), Some(&Some("filled".into())));
+    }
+
+    #[test]
+    fn apply_edit_insert_row_sets_cell() {
+        let rows = base_rows();
+        let mut edits = empty_edits();
+        edits.inserts.push(vec![None, None]);
+        apply_edit(&mut edits, &rows, RowRef::Insert(0), 1, "typed".into());
+        assert_eq!(edits.inserts[0][1], Some("typed".into()));
+    }
+}

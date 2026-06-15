@@ -156,4 +156,17 @@ mod tests {
         let e = DbError::new("something went wrong");
         assert_eq!(format!("{e}"), "something went wrong");
     }
+
+    #[test]
+    fn from_sqlx_error_converts_to_dberror() {
+        let e = DbError::from(sqlx::Error::RowNotFound);
+        assert!(e.message.contains("no rows"));
+        assert_eq!(e.kind, DbErrorKind::Other);
+    }
+
+    #[test]
+    fn dberror_implements_std_error() {
+        let e = DbError::new("oops");
+        let _: &dyn std::error::Error = &e;
+    }
 }

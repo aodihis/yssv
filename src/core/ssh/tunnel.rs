@@ -37,6 +37,7 @@ impl TunnelStatus {
 
 /// A live SSH tunnel forwarding `127.0.0.1:local_port` → `remote_host:remote_port`
 /// through the configured bastion. The background accept loop is aborted on drop.
+#[derive(Debug)]
 pub struct SshTunnel {
     local_port: u16,
     status: TunnelStatusHandle,
@@ -279,8 +280,19 @@ impl client::Handler for ClientHandler {
 }
 
 #[cfg(test)]
+impl SshTunnel {
+    /// Construct a fake tunnel for unit tests — no real SSH connection.
+    pub(crate) async fn new_for_test(local_port: u16) -> Self {
+        let status = Arc::new(Mutex::new(TunnelStatus::Connected));
+        let task = tokio::spawn(std::future::ready(()));
+        Self { local_port, status, task }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::ssh::model::{SshAuth, SshConfig};
 
     #[test]
     fn status_labels() {
@@ -291,9 +303,102 @@ mod tests {
     }
 
     #[test]
+    fn tunnel_status_failed_equality_checks_inner_message() {
+        assert_eq!(TunnelStatus::Failed("a".into()), TunnelStatus::Failed("a".into()));
+        assert_ne!(TunnelStatus::Failed("a".into()), TunnelStatus::Failed("b".into()));
+        assert_ne!(TunnelStatus::Failed("x".into()), TunnelStatus::Connected);
+    }
+
+    #[test]
+    fn tunnel_status_clone_preserves_failed_message() {
+        let orig = TunnelStatus::Failed("reason".into());
+        assert_eq!(orig.clone(), orig);
+    }
+
+    #[test]
     fn set_status_updates_shared_state() {
         let status = Arc::new(Mutex::new(TunnelStatus::Connecting));
         set_status(&status, TunnelStatus::Connected);
         assert_eq!(*status.lock().unwrap(), TunnelStatus::Connected);
+    }
+
+    #[test]
+    fn set_status_to_failed_stores_message() {
+        let status = Arc::new(Mutex::new(TunnelStatus::Connecting));
+        set_status(&status, TunnelStatus::Failed("network error".into()));
+        assert_eq!(
+            *status.lock().unwrap(),
+            TunnelStatus::Failed("network error".into())
+        );
+    }
+
+    #[test]
+    fn set_status_sequence_last_write_wins() {
+        let status = Arc::new(Mutex::new(TunnelStatus::Connecting));
+        set_status(&status, TunnelStatus::Connected);
+        set_status(&status, TunnelStatus::Reconnecting);
+        set_status(&status, TunnelStatus::Failed("oops".into()));
+        assert_eq!(*status.lock().unwrap(), TunnelStatus::Failed("oops".into()));
+    }
+
+    #[tokio::test]
+    async fn open_returns_error_for_unreachable_host() {
+        let ssh = SshConfig {
+            host: "127.0.0.1".into(),
+            port: 1,
+            username: "user".into(),
+            auth: SshAuth::Password("pass".into()),
+        };
+        let err = SshTunnel::open(&ssh, "127.0.0.1", 5432).await.unwrap_err();
+        assert!(
+            err.message.contains("SSH connect"),
+            "unexpected error: {}",
+            err.message
+        );
+    }
+
+    // Construct a SshTunnel directly (private-field access is allowed here) to
+    // cover the Drop impl and the two infallible accessors without a real SSH server.
+    #[tokio::test]
+    async fn tunnel_accessors_and_drop() {
+        let status = Arc::new(Mutex::new(TunnelStatus::Connecting));
+        let task = tokio::spawn(async {
+            tokio::time::sleep(Duration::from_secs(3600)).await;
+        });
+        let tunnel = SshTunnel { local_port: 9999, status, task };
+        assert_eq!(tunnel.local_port(), 9999);
+        let handle = tunnel.status_handle();
+        assert_eq!(*handle.lock().unwrap(), TunnelStatus::Connecting);
+        drop(tunnel); // exercises Drop: logs + task.abort()
+        tokio::task::yield_now().await;
+    }
+
+    // Drive reconnect() with an unreachable host so all 5 attempts exhaust and
+    // the error path fires. Paused time means the inter-attempt sleeps cost 0 ms.
+    #[tokio::test(start_paused = true)]
+    async fn reconnect_exhausts_all_attempts_and_fails() {
+        let ssh = SshConfig {
+            host: "127.0.0.1".into(),
+            port: 1, // connection refused instantly
+            username: "u".into(),
+            auth: SshAuth::Password("p".into()),
+        };
+        let status = Arc::new(Mutex::new(TunnelStatus::Connecting));
+        let s = status.clone();
+        let handle = tokio::spawn(async move { reconnect(&ssh, &s).await });
+        // Total sleep time across 5 attempts: 2+4+6+8+10 = 30s.
+        // Advancing 31s wakes every pending sleep; tokio yields between timer fires
+        // so the async TCP connects (which fail instantly on loopback) also complete.
+        tokio::time::advance(Duration::from_secs(31)).await;
+        let result = handle.await.unwrap();
+        match result {
+            Err(e) => assert!(
+                e.message.contains("reconnect failed after 5"),
+                "unexpected error: {}",
+                e.message
+            ),
+            Ok(_) => panic!("reconnect should have failed"),
+        }
+        assert_eq!(*status.lock().unwrap(), TunnelStatus::Reconnecting);
     }
 }

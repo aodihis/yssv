@@ -295,4 +295,132 @@ mod tests {
         let s2 = Storage::open(&path_str).unwrap();
         assert_eq!(s2.load_all().unwrap().len(), 1);
     }
+
+    #[test]
+    fn load_all_empty_when_no_connections_saved() {
+        let s = Storage::open_in_memory().unwrap();
+        assert!(s.load_all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn save_and_load_preserves_all_basic_fields() {
+        let s = Storage::open_in_memory().unwrap();
+        let mut c = Connection::new_mysql();
+        c.name = "Production".into();
+        c.host = "db.prod.io".into();
+        c.port = 3307;
+        c.database = "app".into();
+        c.username = "root".into();
+        c.group = "Prod Group".into();
+        c.is_favorite = true;
+        let orig_id = c.id.clone();
+        s.save(&c).unwrap();
+
+        let loaded = s.load_all().unwrap();
+        assert_eq!(loaded.len(), 1);
+        let l = &loaded[0];
+        assert_eq!(l.id, orig_id);
+        assert_eq!(l.name, "Production");
+        assert_eq!(l.host, "db.prod.io");
+        assert_eq!(l.port, 3307);
+        assert_eq!(l.database, "app");
+        assert_eq!(l.username, "root");
+        assert_eq!(l.group, "Prod Group");
+        assert_eq!(l.engine, DbEngine::MySQL);
+        assert!(l.is_favorite);
+    }
+
+    #[test]
+    fn save_updates_existing_connection_without_duplication() {
+        let s = Storage::open_in_memory().unwrap();
+        let mut c = conn("original");
+        let id = c.id.clone();
+        s.save(&c).unwrap();
+
+        c.name = "updated".into();
+        s.save(&c).unwrap();
+
+        let loaded = s.load_all().unwrap();
+        assert_eq!(loaded.len(), 1, "upsert must not create a duplicate row");
+        assert_eq!(loaded[0].id, id);
+        assert_eq!(loaded[0].name, "updated");
+    }
+
+    #[test]
+    fn delete_removes_connection_from_storage() {
+        let s = Storage::open_in_memory().unwrap();
+        let a = conn("to-delete");
+        let b = conn("keep");
+        let del_id = a.id.clone();
+        s.save(&a).unwrap();
+        s.save(&b).unwrap();
+        s.delete(&del_id).unwrap();
+
+        let loaded = s.load_all().unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].name, "keep");
+    }
+
+    #[test]
+    fn delete_nonexistent_id_is_ok() {
+        let s = Storage::open_in_memory().unwrap();
+        assert!(s.delete("ghost-id").is_ok());
+    }
+
+    #[test]
+    fn list_groups_returns_distinct_group_names() {
+        let s = Storage::open_in_memory().unwrap();
+        let mut a = conn("a"); a.group = "GroupA".into();
+        let mut b = conn("b"); b.group = "GroupB".into();
+        let mut c = conn("c"); c.group = "GroupA".into();
+        s.save(&a).unwrap();
+        s.save(&b).unwrap();
+        s.save(&c).unwrap();
+
+        let groups = s.list_groups().unwrap();
+        assert_eq!(groups.len(), 2);
+        assert!(groups.contains(&"GroupA".to_string()));
+        assert!(groups.contains(&"GroupB".to_string()));
+    }
+
+    #[test]
+    fn list_groups_empty_when_no_connections() {
+        let s = Storage::open_in_memory().unwrap();
+        assert!(s.list_groups().unwrap().is_empty());
+    }
+
+    #[test]
+    fn save_connection_with_key_file_ssh_roundtrip() {
+        use crate::core::ssh::model::{SshAuth, SshConfig};
+        let s = Storage::open_in_memory().unwrap();
+        let mut c = conn("with-ssh");
+        c.ssh = Some(SshConfig {
+            host: "bastion.example.com".into(),
+            port: 22,
+            username: "admin".into(),
+            auth: SshAuth::KeyFile("/home/user/.ssh/id_ed25519".into()),
+        });
+        s.save(&c).unwrap();
+
+        let loaded = s.load_all().unwrap();
+        let ssh = loaded[0].ssh.as_ref().expect("ssh should be present");
+        assert_eq!(ssh.host, "bastion.example.com");
+        assert_eq!(ssh.port, 22);
+        assert_eq!(ssh.username, "admin");
+        assert!(
+            matches!(&ssh.auth, SshAuth::KeyFile(p) if p == "/home/user/.ssh/id_ed25519"),
+            "key path should round-trip through JSON"
+        );
+    }
+
+    #[test]
+    fn save_connection_without_ssh_stores_null_json() {
+        let s = Storage::open_in_memory().unwrap();
+        let mut c = conn("no-ssh");
+        c.ssh = None;
+        s.save(&c).unwrap();
+
+        let loaded = s.load_all().unwrap();
+        assert!(loaded[0].ssh.is_none());
+    }
 }

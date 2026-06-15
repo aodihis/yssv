@@ -208,4 +208,59 @@ mod tests {
         let b = Connection::new_mysql();
         assert_ne!(a.id, b.id);
     }
+
+    #[test]
+    fn new_postgres_default_group_and_color() {
+        let c = Connection::new_postgres();
+        assert_eq!(c.group, "Local");
+        assert_eq!(c.color, ConnColor::Green);
+        assert!(!c.is_favorite);
+        assert!(c.ssh.is_none());
+    }
+
+    #[test]
+    fn new_mysql_default_group_and_color() {
+        let c = Connection::new_mysql();
+        assert_eq!(c.group, "Local");
+        assert_eq!(c.color, ConnColor::Blue);
+        assert!(!c.is_favorite);
+        assert!(c.ssh.is_none());
+    }
+
+    #[test]
+    fn conn_color_to_color32_all_distinct() {
+        use std::collections::HashSet;
+        let values: HashSet<[u8; 4]> = ConnColor::all()
+            .iter()
+            .map(|c| c.to_color32().to_array())
+            .collect();
+        assert_eq!(
+            values.len(),
+            ConnColor::all().len(),
+            "each ConnColor variant must map to a unique Color32"
+        );
+    }
+
+    #[test]
+    fn connection_with_ssh_serializes_and_deserializes() {
+        use crate::core::ssh::model::{SshAuth, SshConfig};
+        let mut c = Connection::new_postgres();
+        c.ssh = Some(SshConfig {
+            host: "bastion.io".into(),
+            port: 22,
+            username: "admin".into(),
+            auth: SshAuth::Password("pass".into()),
+        });
+        let json = serde_json::to_string(&c).unwrap();
+        let decoded: Connection = serde_json::from_str(&json).unwrap();
+        assert_eq!(c, decoded);
+    }
+
+    #[test]
+    fn display_host_uses_custom_port() {
+        let mut c = Connection::new_postgres();
+        c.host = "127.0.0.1".into();
+        c.port = 5432;
+        assert_eq!(c.display_host(), "127.0.0.1:5432");
+    }
 }

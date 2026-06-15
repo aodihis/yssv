@@ -338,3 +338,45 @@ fn last_visible_from(scroll: usize, widths: &[f32], avail: f32) -> usize {
     }
     last
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn last_visible_from_all_fit() {
+        let widths = vec![100.0, 100.0, 100.0];
+        assert_eq!(last_visible_from(0, &widths, 300.0), 2);
+    }
+
+    #[test]
+    fn last_visible_from_partial_fit() {
+        let widths = vec![100.0, 100.0, 100.0];
+        assert_eq!(last_visible_from(0, &widths, 250.0), 1);
+    }
+
+    #[test]
+    fn last_visible_from_with_scroll_offset() {
+        let widths = vec![100.0, 100.0, 100.0, 100.0];
+        assert_eq!(last_visible_from(2, &widths, 200.0), 3);
+    }
+
+    #[test]
+    fn last_visible_from_single_tab_too_wide() {
+        // Tab wider than avail — last stays at scroll (the starting index).
+        let widths = vec![500.0];
+        assert_eq!(last_visible_from(0, &widths, 200.0), 0);
+    }
+
+    #[test]
+    fn last_visible_from_empty() {
+        assert_eq!(last_visible_from(0, &[], 200.0), 0);
+    }
+
+    #[test]
+    fn tab_width_formula() {
+        // tab_width = 12 + text_w + 8 + CLOSE_W(10) + 12 = text_w + 42
+        assert_eq!(tab_width(0.0), 42.0);
+        assert_eq!(tab_width(50.0), 92.0);
+    }
+}
