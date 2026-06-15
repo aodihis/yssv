@@ -25,11 +25,11 @@ pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
     }
     cols.iter()
         .map(|c| {
-            let name = &c.name;
+            let q = quote_ident(&c.name);
             if is_temporal(&c.data_type) {
-                format!("CAST(`{name}` AS CHAR) AS `{name}`")
+                format!("CAST({} AS CHAR) AS {}", q, q)
             } else {
-                format!("`{name}`")
+                q
             }
         })
         .collect::<Vec<_>>()
@@ -73,6 +73,110 @@ impl ActiveConnection for MyConnection {
         Ok(db)
     }
 
+    async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+        let rows = sqlx::query_scalar::<_, String>("SHOW DATABASES")
+            .fetch_all(&self.pool)
+            .await?;
+        tracing::debug!(count = rows.len(), "mysql: list_databases");
+        Ok(rows)
+    }
+
+    async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
+        tracing::debug!(db, "mysql: list_schemas (db is schema)");
+        let tables = self.list_tables(db, db).await?;
+        Ok(vec![SchemaInfo {
+            name: db.to_string(),
+            tables,
+        }])
+    }
+
+    async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
+        tracing::debug!(schema, "mysql: list_tables");
+        let rows = sqlx::query_as::<_, (String, String, Option<u64>)>(
+            "SELECT table_name, table_type, table_rows
+             FROM information_schema.tables
+             WHERE table_schema = ?
+             ORDER BY table_name",
+        )
+        .bind(schema)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let tables: Vec<TableInfo> = rows
+            .into_iter()
+            .map(|(name, ttype, row_count)| TableInfo {
+                kind: table_type_to_kind(&ttype),
+                name,
+                row_count,
+            })
+            .collect();
+        tracing::debug!(schema, count = tables.len(), "mysql: list_tables done");
+        Ok(tables)
+    }
+
+    async fn fetch_rows(
+        &self,
+        db: &str,
+        schema: &str,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<QueryResult, DbError> {
+        tracing::debug!(schema, table, limit, offset, "mysql: fetch_rows");
+
+        let col_defs = self.describe_table(db, schema, table).await?;
+
+        let select_list = build_select_list(&col_defs);
+
+        let fetch_sql = format!(
+            "SELECT {} FROM {}.{} LIMIT ? OFFSET ?",
+            select_list,
+            quote_ident(schema),
+            quote_ident(table),
+        );
+        let rows = sqlx::query(sqlx::AssertSqlSafe(fetch_sql))
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?;
+
+        if rows.is_empty() {
+            return Ok(QueryResult {
+                columns: col_defs,
+                rows: vec![],
+                total_rows: Some(0),
+            });
+        }
+
+        let data_rows: Vec<Vec<Option<String>>> = rows
+            .iter()
+            .map(|row| {
+                (0..col_defs.len())
+                    .map(|i| decode_col_mysql(row, i))
+                    .collect()
+            })
+            .collect();
+
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {}.{}",
+            quote_ident(schema),
+            quote_ident(table),
+        );
+        let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(count_sql))
+            .fetch_one(&self.pool)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!(schema, table, error = %e, "mysql: COUNT(*) failed, using 0");
+                0
+            });
+
+        Ok(QueryResult {
+            columns: col_defs,
+            rows: data_rows,
+            total_rows: Some(total as u64),
+        })
+    }
+
     async fn describe_table(
         &self,
         _db: &str,
@@ -104,98 +208,6 @@ impl ActiveConnection for MyConnection {
         Ok(cols)
     }
 
-    async fn fetch_rows(
-        &self,
-        db: &str,
-        schema: &str,
-        table: &str,
-        limit: u32,
-        offset: u32,
-    ) -> Result<QueryResult, DbError> {
-        tracing::debug!(schema, table, limit, offset, "mysql: fetch_rows");
-
-        let col_defs = self.describe_table(db, schema, table).await?;
-
-        let select_list = build_select_list(&col_defs);
-
-        let query =
-            format!("SELECT {select_list} FROM `{schema}`.`{table}` LIMIT {limit} OFFSET {offset}");
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
-
-        if rows.is_empty() {
-            return Ok(QueryResult {
-                columns: col_defs,
-                rows: vec![],
-                total_rows: Some(0),
-            });
-        }
-
-        let data_rows: Vec<Vec<Option<String>>> = rows
-            .iter()
-            .map(|row| {
-                (0..col_defs.len())
-                    .map(|i| decode_col_mysql(row, i))
-                    .collect()
-            })
-            .collect();
-
-        let count_query = format!("SELECT COUNT(*) FROM `{schema}`.`{table}`");
-        let total: i64 = sqlx::query_scalar(&count_query)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(schema, table, error = %e, "mysql: COUNT(*) failed, using 0");
-                0
-            });
-
-        Ok(QueryResult {
-            columns: col_defs,
-            rows: data_rows,
-            total_rows: Some(total as u64),
-        })
-    }
-
-    async fn list_databases(&self) -> Result<Vec<String>, DbError> {
-        let rows = sqlx::query_scalar::<_, String>("SHOW DATABASES")
-            .fetch_all(&self.pool)
-            .await?;
-        tracing::debug!(count = rows.len(), "mysql: list_databases");
-        Ok(rows)
-    }
-
-    async fn list_schemas(&self, db: &str) -> Result<Vec<SchemaInfo>, DbError> {
-        tracing::debug!(db, "mysql: list_schemas (db is schema)");
-        let tables = self.list_tables(db, db).await?;
-        Ok(vec![SchemaInfo {
-            name: db.to_string(),
-            tables,
-        }])
-    }
-
-    async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
-        tracing::debug!(schema, "mysql: list_tables");
-        let rows = sqlx::query_as::<_, (String, String, Option<i64>)>(
-            "SELECT table_name, table_type, table_rows
-             FROM information_schema.tables
-             WHERE table_schema = ?
-             ORDER BY table_name",
-        )
-        .bind(schema)
-        .fetch_all(&self.pool)
-        .await?;
-
-        let tables: Vec<TableInfo> = rows
-            .into_iter()
-            .map(|(name, ttype, row_count)| TableInfo {
-                kind: table_type_to_kind(&ttype),
-                name,
-                row_count: row_count.map(|n| n as u64),
-            })
-            .collect();
-        tracing::debug!(schema, count = tables.len(), "mysql: list_tables done");
-        Ok(tables)
-    }
-
     async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError> {
         use sqlx::{Column, Row, TypeInfo};
         tracing::debug!(sql_len = sql.len(), "mysql: execute_single");
@@ -207,7 +219,9 @@ impl ActiveConnection for MyConnection {
             || trimmed.starts_with("EXPLAIN");
 
         if !is_fetch {
-            let result = sqlx::query(sql).execute(&self.pool).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+                .execute(&self.pool)
+                .await?;
             let affected = result.rows_affected();
             tracing::info!(rows_affected = affected, "mysql: execute_single (DML)");
             return Ok(QueryResult {
@@ -223,7 +237,9 @@ impl ActiveConnection for MyConnection {
             });
         }
 
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+            .fetch_all(&self.pool)
+            .await?;
         if rows.is_empty() {
             tracing::debug!("mysql: execute_single returned 0 rows");
             return Ok(QueryResult::empty());
@@ -259,6 +275,29 @@ impl ActiveConnection for MyConnection {
             total_rows: Some(row_count),
         })
     }
+
+    async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+        tracing::debug!(
+            count = statements.len(),
+            "mysql: execute_batch (transaction begin)"
+        );
+        let mut tx = self.pool.begin().await?;
+        let mut affected = 0u64;
+        for stmt in statements {
+            tracing::debug!(stmt = %stmt, "mysql: execute_batch statement");
+            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned()))
+                .execute(&mut *tx)
+                .await?;
+            affected += result.rows_affected();
+        }
+        tx.commit().await?;
+        tracing::info!(
+            count = statements.len(),
+            affected,
+            "mysql: execute_batch committed"
+        );
+        Ok(affected)
+    }
 }
 
 fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
@@ -287,6 +326,10 @@ fn decode_col_mysql(row: &sqlx::mysql::MySqlRow, i: usize) -> Option<String> {
     None
 }
 
+fn quote_ident(name: &str) -> String {
+    format!("`{}`", name.replace('`', "``"))
+}
+
 fn is_temporal(data_type: &str) -> bool {
     matches!(
         data_type.to_lowercase().as_str(),
@@ -298,6 +341,16 @@ fn is_temporal(data_type: &str) -> bool {
 mod tests {
     use super::*;
     use crate::core::{connections::model::Connection, results::model::ColumnDef};
+
+    #[test]
+    fn quote_ident_wraps_in_backticks() {
+        assert_eq!(quote_ident("table"), "`table`");
+    }
+
+    #[test]
+    fn quote_ident_escapes_embedded_backtick() {
+        assert_eq!(quote_ident("my`table"), "`my``table`");
+    }
 
     #[test]
     fn build_connection_url_format() {
@@ -319,8 +372,20 @@ mod tests {
     #[test]
     fn build_select_list_non_temporal_uses_backtick() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "name".into(), data_type: "varchar".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "name".into(),
+                data_type: "varchar".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, "`id`, `name`");
@@ -328,9 +393,13 @@ mod tests {
 
     #[test]
     fn build_select_list_temporal_uses_cast() {
-        let cols = vec![
-            ColumnDef { name: "created_at".into(), data_type: "datetime".into(), is_pk: false, is_fk: false, nullable: true },
-        ];
+        let cols = vec![ColumnDef {
+            name: "created_at".into(),
+            data_type: "datetime".into(),
+            is_pk: false,
+            is_fk: false,
+            nullable: true,
+        }];
         let list = build_select_list(&cols);
         assert_eq!(list, "CAST(`created_at` AS CHAR) AS `created_at`");
     }
@@ -338,8 +407,20 @@ mod tests {
     #[test]
     fn build_select_list_mixed_temporal_and_regular() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "ts".into(), data_type: "timestamp".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "ts".into(),
+                data_type: "timestamp".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, "`id`, CAST(`ts` AS CHAR) AS `ts`");
@@ -347,7 +428,15 @@ mod tests {
 
     #[test]
     fn is_temporal_matches_all_date_types() {
-        for t in &["datetime", "DATETIME", "timestamp", "TIMESTAMP", "date", "time", "year"] {
+        for t in &[
+            "datetime",
+            "DATETIME",
+            "timestamp",
+            "TIMESTAMP",
+            "date",
+            "time",
+            "year",
+        ] {
             assert!(is_temporal(t), "{t} should be temporal");
         }
     }
@@ -369,7 +458,12 @@ mod tests {
 
     #[test]
     fn map_column_mul_key_sets_is_fk() {
-        let col = map_column("user_id".into(), "int".into(), "NO".into(), Some("MUL".into()));
+        let col = map_column(
+            "user_id".into(),
+            "int".into(),
+            "NO".into(),
+            Some("MUL".into()),
+        );
         assert!(!col.is_pk);
         assert!(col.is_fk);
     }
@@ -393,5 +487,4 @@ mod tests {
         let col = map_column("email".into(), "varchar".into(), "NO".into(), None);
         assert!(!col.nullable);
     }
-
 }

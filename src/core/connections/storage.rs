@@ -60,23 +60,35 @@ impl Storage {
         tracing::debug!("storage: loading all connections");
         let rows = stmt.query_map([], |row| {
             Ok((
-                row.get::<_, String>(0)?,  // id
-                row.get::<_, String>(1)?,  // name
-                row.get::<_, String>(2)?,  // group_name
-                row.get::<_, String>(3)?,  // engine
-                row.get::<_, String>(4)?,  // color
-                row.get::<_, String>(5)?,  // host
-                row.get::<_, i64>(6)?,     // port
-                row.get::<_, String>(7)?,  // database
-                row.get::<_, String>(8)?,  // username
-                row.get::<_, Option<String>>(9)?,  // ssh_json
-                row.get::<_, i64>(10)?,    // is_favorite
+                row.get::<_, String>(0)?,         // id
+                row.get::<_, String>(1)?,         // name
+                row.get::<_, String>(2)?,         // group_name
+                row.get::<_, String>(3)?,         // engine
+                row.get::<_, String>(4)?,         // color
+                row.get::<_, String>(5)?,         // host
+                row.get::<_, i64>(6)?,            // port
+                row.get::<_, String>(7)?,         // database
+                row.get::<_, String>(8)?,         // username
+                row.get::<_, Option<String>>(9)?, // ssh_json
+                row.get::<_, i64>(10)?,           // is_favorite
             ))
         })?;
 
         let mut conns = Vec::new();
         for row in rows {
-            let (id, name, group, engine_str, color_str, host, port, database, username, ssh_json, is_fav) = row?;
+            let (
+                id,
+                name,
+                group,
+                engine_str,
+                color_str,
+                host,
+                port,
+                database,
+                username,
+                ssh_json,
+                is_fav,
+            ) = row?;
 
             let password = secrets::load_db_password(&id);
 
@@ -157,7 +169,10 @@ impl Storage {
     }
 
     pub fn save_order(&self, ordered_ids: &[String]) -> SqliteResult<()> {
-        tracing::debug!(count = ordered_ids.len(), "storage: persisting connection sort order");
+        tracing::debug!(
+            count = ordered_ids.len(),
+            "storage: persisting connection sort order"
+        );
         for (i, id) in ordered_ids.iter().enumerate() {
             self.conn.execute(
                 "UPDATE connections SET sort_order = ?1 WHERE id = ?2",
@@ -212,3 +227,72 @@ fn parse_color(s: &str) -> ConnColor {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn conn(name: &str) -> Connection {
+        let mut c = Connection::new_postgres();
+        c.name = name.into();
+        c
+    }
+
+    #[test]
+    fn engine_str_and_parse_engine_roundtrip() {
+        for e in [DbEngine::Postgres, DbEngine::MySQL] {
+            assert_eq!(parse_engine(engine_str(&e)), e);
+        }
+        // Unknown engine string falls back to Postgres.
+        assert_eq!(parse_engine("sqlite"), DbEngine::Postgres);
+    }
+
+    #[test]
+    fn color_str_and_parse_color_roundtrip_all_variants() {
+        for &c in ConnColor::all() {
+            assert_eq!(parse_color(color_str(&c)), c);
+        }
+        // Unknown color string falls back to Red.
+        assert_eq!(parse_color("chartreuse"), ConnColor::Red);
+    }
+
+    #[test]
+    fn save_order_reorders_load_all() {
+        let s = Storage::open_in_memory().unwrap();
+        let a = conn("a");
+        let b = conn("b");
+        let c = conn("c");
+        s.save(&a).unwrap();
+        s.save(&b).unwrap();
+        s.save(&c).unwrap();
+
+        // Force an explicit order: c, a, b
+        s.save_order(&[c.id.clone(), a.id.clone(), b.id.clone()])
+            .unwrap();
+        let loaded = s.load_all().unwrap();
+        let names: Vec<&str> = loaded.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, vec!["c", "a", "b"]);
+    }
+
+    #[test]
+    fn save_order_ignores_unknown_ids() {
+        let s = Storage::open_in_memory().unwrap();
+        let a = conn("a");
+        s.save(&a).unwrap();
+        // Unknown id is simply a no-op UPDATE — must not error.
+        assert!(s.save_order(&["ghost".into(), a.id.clone()]).is_ok());
+    }
+
+    #[test]
+    fn open_file_backed_storage_migrates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("conns.db");
+        let path_str = path.to_string_lossy().to_string();
+        {
+            let s = Storage::open(&path_str).unwrap();
+            s.save(&conn("persisted")).unwrap();
+        }
+        // Reopening the same file must find the migrated table + saved row.
+        let s2 = Storage::open(&path_str).unwrap();
+        assert_eq!(s2.load_all().unwrap().len(), 1);
+    }
+}

@@ -55,6 +55,14 @@ pub enum AppEvent {
         tab_id: String,
         message: String,
     },
+    CommitDone {
+        tab_id: String,
+        rows_affected: u64,
+    },
+    CommitFailed {
+        tab_id: String,
+        message: String,
+    },
 }
 
 pub enum Screen {

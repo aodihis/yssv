@@ -1,16 +1,6 @@
 use crate::theme::ThemeColors;
 use egui::{Button, Color32, Response, Ui, Vec2};
 
-/// Full-size primary button (32 px) — for main form CTAs like "Connect" or "Save".
-pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
-    let tc = ThemeColors::from_ui(ui);
-    ui.add(
-        Button::new(egui::RichText::new(label).color(Color32::WHITE))
-            .fill(tc.button_primary_bg)
-            .min_size(Vec2::new(0.0, 32.0)),
-    )
-}
-
 /// Compact primary button — matches text_input height for inline use next to inputs.
 /// Uses the same vertical rhythm as the input (7 px top/bottom padding, 13 px font).
 pub fn compact_button(ui: &mut Ui, label: &str) -> Response {
@@ -24,6 +14,32 @@ pub fn compact_button(ui: &mut Ui, label: &str) -> Response {
         ui.add(
             Button::new(egui::RichText::new(label).color(Color32::WHITE))
                 .fill(tc.button_primary_bg),
+        )
+    })
+    .inner
+}
+
+/// Full-size primary button (32 px) — for main form CTAs like "Connect" or "Save".
+pub fn primary_button(ui: &mut Ui, label: &str) -> Response {
+    let tc = ThemeColors::from_ui(ui);
+    ui.add(
+        Button::new(egui::RichText::new(label).color(Color32::WHITE))
+            .fill(tc.button_primary_bg)
+            .min_size(Vec2::new(0.0, 32.0)),
+    )
+}
+
+/// Compact secondary button — surface fill with a border, for inline toolbar
+/// actions that sit next to a primary CTA (e.g. "Revert" beside "Commit").
+pub fn secondary_button(ui: &mut Ui, label: &str) -> Response {
+    let tc = ThemeColors::from_ui(ui);
+    ui.scope(|ui| {
+        ui.spacing_mut().button_padding = egui::vec2(12.0, 6.0);
+        ui.spacing_mut().interact_size.y = 28.0;
+        ui.add(
+            Button::new(egui::RichText::new(label).size(12.5).color(tc.text_primary))
+                .fill(tc.background)
+                .stroke(egui::Stroke::new(1.0, tc.field_border)),
         )
     })
     .inner

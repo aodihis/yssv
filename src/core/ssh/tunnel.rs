@@ -45,7 +45,10 @@ pub struct SshTunnel {
 
 impl Drop for SshTunnel {
     fn drop(&mut self) {
-        tracing::debug!(local_port = self.local_port, "ssh tunnel: dropping, aborting accept loop");
+        tracing::debug!(
+            local_port = self.local_port,
+            "ssh tunnel: dropping, aborting accept loop"
+        );
         self.task.abort();
     }
 }
@@ -86,7 +89,15 @@ impl SshTunnel {
         let remote_host = remote_host.to_string();
         let task_status = status.clone();
         let task = tokio::spawn(async move {
-            run_accept_loop(listener, session, ssh_cfg, remote_host, remote_port, task_status).await;
+            run_accept_loop(
+                listener,
+                session,
+                ssh_cfg,
+                remote_host,
+                remote_port,
+                task_status,
+            )
+            .await;
         });
 
         Ok(SshTunnel {
@@ -126,7 +137,12 @@ async fn connect_ssh(ssh: &SshConfig) -> Result<Handle<ClientHandler>, DbError> 
                 .map_err(|e| DbError::new(format!("SSH key file load failed ({path}): {e}")))?;
             // RSA hash negotiation only matters for RSA keys; skip the round-trip otherwise.
             let hash = if key.algorithm().is_rsa() {
-                handle.best_supported_rsa_hash().await.ok().flatten().flatten()
+                handle
+                    .best_supported_rsa_hash()
+                    .await
+                    .ok()
+                    .flatten()
+                    .flatten()
             } else {
                 None
             };

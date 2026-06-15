@@ -4,30 +4,113 @@ use egui::{Margin, Response, Ui};
 use crate::theme::{ThemeColors, colors};
 
 const SQL_KEYWORDS: &[&str] = &[
-    "ADD", "ALL", "ALTER", "AND", "AS", "ASC", "AVG",
-    "BEGIN", "BETWEEN", "BY",
-    "CASE", "CAST", "COALESCE", "COLUMN", "COMMIT", "CONSTRAINT", "COUNT", "CREATE", "CROSS",
+    "ADD",
+    "ALL",
+    "ALTER",
+    "AND",
+    "AS",
+    "ASC",
+    "AVG",
+    "BEGIN",
+    "BETWEEN",
+    "BY",
+    "CASE",
+    "CAST",
+    "COALESCE",
+    "COLUMN",
+    "COMMIT",
+    "CONSTRAINT",
+    "COUNT",
+    "CREATE",
+    "CROSS",
     "CURRENT",
-    "DATABASE", "DEFAULT", "DELETE", "DESC", "DESCRIBE", "DISTINCT", "DROP",
-    "ELSE", "END", "EXCEPT", "EXISTS", "EXPLAIN",
-    "FALSE", "FILTER", "FOLLOWING", "FOREIGN", "FROM", "FULL",
-    "GRANT", "GROUP",
+    "DATABASE",
+    "DEFAULT",
+    "DELETE",
+    "DESC",
+    "DESCRIBE",
+    "DISTINCT",
+    "DROP",
+    "ELSE",
+    "END",
+    "EXCEPT",
+    "EXISTS",
+    "EXPLAIN",
+    "FALSE",
+    "FILTER",
+    "FOLLOWING",
+    "FOREIGN",
+    "FROM",
+    "FULL",
+    "GRANT",
+    "GROUP",
     "HAVING",
-    "IF", "ILIKE", "IN", "INDEX", "INNER", "INSERT", "INTERSECT", "INTO", "IS",
+    "IF",
+    "ILIKE",
+    "IN",
+    "INDEX",
+    "INNER",
+    "INSERT",
+    "INTERSECT",
+    "INTO",
+    "IS",
     "JOIN",
     "KEY",
-    "LATERAL", "LEFT", "LIKE", "LIMIT",
-    "MATERIALIZED", "MAX", "MIN",
-    "NATURAL", "NOT", "NULL", "NULLIF",
-    "OFFSET", "ON", "OR", "ORDER", "OUTER", "OVER",
-    "PARTITION", "PRECEDING", "PRIMARY",
-    "RANGE", "RECURSIVE", "REFERENCES", "RENAME", "REPLACE", "RETURNING", "REVOKE", "RIGHT",
-    "ROLLBACK", "ROW", "ROWS",
-    "SAVEPOINT", "SELECT", "SET", "SHOW", "SUM",
-    "TABLE", "TEMP", "TEMPORARY", "THEN", "TO", "TRANSACTION", "TRUE",
-    "UNBOUNDED", "UNION", "UNIQUE", "UPDATE", "USE", "USING",
-    "VALUES", "VIEW",
-    "WHEN", "WHERE", "WINDOW", "WITH",
+    "LATERAL",
+    "LEFT",
+    "LIKE",
+    "LIMIT",
+    "MATERIALIZED",
+    "MAX",
+    "MIN",
+    "NATURAL",
+    "NOT",
+    "NULL",
+    "NULLIF",
+    "OFFSET",
+    "ON",
+    "OR",
+    "ORDER",
+    "OUTER",
+    "OVER",
+    "PARTITION",
+    "PRECEDING",
+    "PRIMARY",
+    "RANGE",
+    "RECURSIVE",
+    "REFERENCES",
+    "RENAME",
+    "REPLACE",
+    "RETURNING",
+    "REVOKE",
+    "RIGHT",
+    "ROLLBACK",
+    "ROW",
+    "ROWS",
+    "SAVEPOINT",
+    "SELECT",
+    "SET",
+    "SHOW",
+    "SUM",
+    "TABLE",
+    "TEMP",
+    "TEMPORARY",
+    "THEN",
+    "TO",
+    "TRANSACTION",
+    "TRUE",
+    "UNBOUNDED",
+    "UNION",
+    "UNIQUE",
+    "UPDATE",
+    "USE",
+    "USING",
+    "VALUES",
+    "VIEW",
+    "WHEN",
+    "WHERE",
+    "WINDOW",
+    "WITH",
 ];
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -60,7 +143,11 @@ fn tokenize(text: &str) -> Vec<Span> {
             while i < n && bytes[i] != b'\n' {
                 i += 1;
             }
-            spans.push(Span { start, end: i, kind: TKind::Comment });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Comment,
+            });
 
         // Block comment: /* ... */
         } else if i + 1 < n && bytes[i] == b'/' && bytes[i + 1] == b'*' {
@@ -72,7 +159,11 @@ fn tokenize(text: &str) -> Vec<Span> {
             if i + 1 < n {
                 i += 2;
             }
-            spans.push(Span { start, end: i, kind: TKind::Comment });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Comment,
+            });
 
         // Single-quoted string literal
         } else if bytes[i] == b'\'' {
@@ -93,7 +184,11 @@ fn tokenize(text: &str) -> Vec<Span> {
                     i += 1;
                 }
             }
-            spans.push(Span { start, end: i, kind: TKind::StringLit });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::StringLit,
+            });
 
         // Double-quoted identifier
         } else if bytes[i] == b'"' {
@@ -105,7 +200,11 @@ fn tokenize(text: &str) -> Vec<Span> {
             if i < n {
                 i += 1;
             }
-            spans.push(Span { start, end: i, kind: TKind::Default });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Default,
+            });
 
         // Backtick identifier (MySQL)
         } else if bytes[i] == b'`' {
@@ -117,7 +216,11 @@ fn tokenize(text: &str) -> Vec<Span> {
             if i < n {
                 i += 1;
             }
-            spans.push(Span { start, end: i, kind: TKind::Default });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Default,
+            });
 
         // Numeric literal
         } else if bytes[i].is_ascii_digit() {
@@ -125,7 +228,11 @@ fn tokenize(text: &str) -> Vec<Span> {
             while i < n && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
                 i += 1;
             }
-            spans.push(Span { start, end: i, kind: TKind::Number });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Number,
+            });
 
         // Identifier or SQL keyword
         } else if bytes[i].is_ascii_alphabetic() || bytes[i] == b'_' {
@@ -139,16 +246,39 @@ fn tokenize(text: &str) -> Vec<Span> {
             } else {
                 TKind::Default
             };
-            spans.push(Span { start, end: i, kind });
+            spans.push(Span {
+                start,
+                end: i,
+                kind,
+            });
 
         // Operator / punctuation
         } else if matches!(
             bytes[i],
-            b'=' | b'<' | b'>' | b'!' | b'+' | b'*' | b'%'
-                | b',' | b'(' | b')' | b';' | b'[' | b']'
-                | b'|' | b'&' | b'^' | b'~' | b'/' | b'-'
+            b'=' | b'<'
+                | b'>'
+                | b'!'
+                | b'+'
+                | b'*'
+                | b'%'
+                | b','
+                | b'('
+                | b')'
+                | b';'
+                | b'['
+                | b']'
+                | b'|'
+                | b'&'
+                | b'^'
+                | b'~'
+                | b'/'
+                | b'-'
         ) {
-            spans.push(Span { start: i, end: i + 1, kind: TKind::Operator });
+            spans.push(Span {
+                start: i,
+                end: i + 1,
+                kind: TKind::Operator,
+            });
             i += 1;
 
         // Whitespace, '.', '@', '$', ':', '?', etc.
@@ -160,15 +290,37 @@ fn tokenize(text: &str) -> Vec<Span> {
                 && bytes[i] != b'_'
                 && !matches!(
                     bytes[i],
-                    b'\'' | b'"' | b'`' | b'-' | b'/'
-                        | b'=' | b'<' | b'>' | b'!' | b'+' | b'*' | b'%'
-                        | b',' | b'(' | b')' | b';' | b'[' | b']'
-                        | b'|' | b'&' | b'^' | b'~'
+                    b'\''
+                        | b'"'
+                        | b'`'
+                        | b'-'
+                        | b'/'
+                        | b'='
+                        | b'<'
+                        | b'>'
+                        | b'!'
+                        | b'+'
+                        | b'*'
+                        | b'%'
+                        | b','
+                        | b'('
+                        | b')'
+                        | b';'
+                        | b'['
+                        | b']'
+                        | b'|'
+                        | b'&'
+                        | b'^'
+                        | b'~'
                 )
             {
                 i += 1;
             }
-            spans.push(Span { start, end: i, kind: TKind::Default });
+            spans.push(Span {
+                start,
+                end: i,
+                kind: TKind::Default,
+            });
         }
     }
 
@@ -221,7 +373,12 @@ pub fn sql_area(ui: &mut Ui, value: &mut String, placeholder: &str, min_rows: us
             .hint_text(placeholder)
             .desired_width(f32::INFINITY)
             .desired_rows(min_rows)
-            .margin(Margin { left: 11, right: 11, top: 8, bottom: 8 })
+            .margin(Margin {
+                left: 11,
+                right: 11,
+                top: 8,
+                bottom: 8,
+            })
             .font(egui::TextStyle::Monospace)
             .layouter(&mut layouter),
     )

@@ -117,14 +117,21 @@ Each phase ships with **unit tests** (`#[cfg(test)]` in-module) and **integratio
 
 ---
 
-### Phase 6 — Data Editing (Future)
-**Goal**: Edit and insert rows directly in the grid.
+### Phase 6 — Data Editing ✅
+**Goal**: Edit and insert rows directly in the grid, DataGrip-style — changes
+accumulate locally and only reach the database on an explicit **Commit**.
 
-- [ ] Inline cell editing (click to edit)
-- [ ] Insert new row
-- [ ] Delete row (with confirmation)
-- [ ] Commit / rollback changes
-- [ ] Show pending changes diff before committing
+- [x] Inline cell editing (double-click to edit; modified cells tinted amber)
+- [x] Insert new row (`＋ Add Row`; insert rows tinted green, untouched cells → `DEFAULT`)
+- [x] Delete row (mark with `✕ Delete Row`; struck-through until committed)
+- [x] Commit / revert changes (transactional `execute_batch`; `Revert` discards)
+- [x] Show pending changes diff before committing (review modal lists every statement)
+
+> Implementation: `core::edit` builds engine-correct UPDATE/INSERT/DELETE SQL
+> (PK-based `WHERE`, or all-columns when no PK). Pending edits are keyed by the
+> loaded page's row indices, so pagination is disabled while edits are pending
+> and the edit set is cleared on every row reload. Inline edits write string
+> literals; explicit NULL-setting via inline edit is future work.
 
 ---
 

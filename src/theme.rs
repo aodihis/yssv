@@ -562,8 +562,12 @@ mod tests {
     fn all_six_conn_colors_are_distinct() {
         use std::collections::HashSet;
         let palette = [
-            colors::RED, colors::AMBER, colors::GREEN,
-            colors::BLUE, colors::PURPLE, colors::GRAY,
+            colors::RED,
+            colors::AMBER,
+            colors::GREEN,
+            colors::BLUE,
+            colors::PURPLE,
+            colors::GRAY,
         ];
         let set: HashSet<[u8; 4]> = palette.iter().map(|c| c.to_array()).collect();
         assert_eq!(set.len(), 6, "connection palette has duplicate colors");

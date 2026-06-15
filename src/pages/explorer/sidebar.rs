@@ -1,5 +1,5 @@
-use crate::events::Screen;
 use crate::core::schema::model::TableKind;
+use crate::events::Screen;
 use crate::theme::{self, ThemeColors, colors};
 use crate::ui::atoms::button::compact_button;
 use crate::ui::atoms::icon::Icon;
@@ -350,7 +350,11 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
                     TunnelStatus::Failed(_) => colors::RED,
                 };
                 ui.add_space(8.0);
-                ui.label(RichText::new(status.label()).size(11.0).color(tc.text_secondary));
+                ui.label(
+                    RichText::new(status.label())
+                        .size(11.0)
+                        .color(tc.text_secondary),
+                );
                 crate::ui::atoms::label_dot::colored_dot(ui, dot, 8.0);
             }
         });

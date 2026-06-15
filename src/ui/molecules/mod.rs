@@ -1,8 +1,10 @@
 pub mod alert_dialog;
 pub mod color_picker;
+pub mod commit_dialog;
 pub mod conn_item;
 pub mod data_cell;
 pub mod data_table;
+pub mod editable_data_table;
 pub mod status_bar;
 pub mod tab_bar;
 pub mod tree_row;

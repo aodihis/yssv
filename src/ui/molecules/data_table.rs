@@ -2,6 +2,30 @@ use crate::core::results::model::ColumnDef;
 use crate::ui::molecules::data_cell::render_cell;
 use egui::RichText;
 
+/// Shared results-grid header row: a `#` index column followed by one column
+/// per `ColumnDef` (PK marker, semibold name, weak type). Used by both the
+/// read-only `data_table` and the editable grid so the two never drift.
+pub(crate) fn results_header(header: &mut egui_extras::TableRow<'_, '_>, columns: &[ColumnDef]) {
+    header.col(|ui| {
+        ui.label(RichText::new("#").size(11.0).weak());
+    });
+    for col in columns {
+        header.col(|ui| {
+            ui.horizontal(|ui| {
+                if col.is_pk {
+                    ui.label(RichText::new("🔑").size(10.0));
+                }
+                ui.label(
+                    RichText::new(&col.name)
+                        .size(12.0)
+                        .family(egui::FontFamily::Name("SemiBold".into())),
+                );
+                ui.label(RichText::new(&col.data_type).size(10.0).weak());
+            });
+        });
+    }
+}
+
 pub fn data_table(
     ui: &mut egui::Ui,
     columns: &[ColumnDef],
@@ -14,6 +38,9 @@ pub fn data_table(
         egui_extras::TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
+            // Cells default to `Sense::hover()`; click sense is required for the
+            // per-cell `Response` to report `clicked()` (row selection / Ctrl+C).
+            .sense(egui::Sense::click())
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
             .column(egui_extras::Column::auto().at_least(36.0))
             .columns(
@@ -21,24 +48,7 @@ pub fn data_table(
                 columns.len(),
             )
             .header(row_height, |mut header| {
-                header.col(|ui| {
-                    ui.label(RichText::new("#").size(11.0).weak());
-                });
-                for col in columns {
-                    header.col(|ui| {
-                        ui.horizontal(|ui| {
-                            if col.is_pk {
-                                ui.label(RichText::new("🔑").size(10.0));
-                            }
-                            ui.label(
-                                RichText::new(&col.name)
-                                    .size(12.0)
-                                    .family(egui::FontFamily::Name("SemiBold".into())),
-                            );
-                            ui.label(RichText::new(&col.data_type).size(10.0).weak());
-                        });
-                    });
-                }
+                results_header(&mut header, columns);
             })
             .body(|body| {
                 body.rows(row_height, rows.len(), |mut row| {

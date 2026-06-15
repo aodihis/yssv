@@ -1,4 +1,5 @@
 use crate::core::{
+    edit::TableEdits,
     results::model::{ColumnDef, QueryResult},
     schema::model::DbInfo,
 };
@@ -9,6 +10,23 @@ pub enum TabView {
     #[default]
     Data,
     Structure,
+}
+
+/// Which logical row an edit targets: an existing row in the loaded page, or a
+/// not-yet-committed insert row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RowRef {
+    Original(usize),
+    Insert(usize),
+}
+
+/// Transient state for the cell currently being edited inline in the grid.
+#[derive(Debug, Clone)]
+pub struct EditingCell {
+    pub row: RowRef,
+    pub col: usize,
+    pub buffer: String,
+    pub request_focus: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +43,12 @@ pub struct TableTab {
     pub selected_row: Option<usize>,
     pub structure: Option<Vec<ColumnDef>>,
     pub structure_loading: bool,
+    // Boxed: pending edits are empty for the common read-only tab, so keeping
+    // them off the inline struct keeps `Tab::Table` from dwarfing `Tab::Query`.
+    pub edits: Box<TableEdits>,
+    pub editing: Option<EditingCell>,
+    pub committing: bool,
+    pub show_commit_dialog: bool,
 }
 
 impl TableTab {
@@ -42,7 +66,69 @@ impl TableTab {
             selected_row: None,
             structure: None,
             structure_loading: false,
+            edits: Box::new(TableEdits::default()),
+            editing: None,
+            committing: false,
+            show_commit_dialog: false,
         }
+    }
+
+    /// Number of columns in the currently loaded result, or 0 if none.
+    pub fn column_count(&self) -> usize {
+        self.result.as_ref().map(|r| r.columns.len()).unwrap_or(0)
+    }
+
+    /// Append a blank insert row, select it, and immediately begin editing its
+    /// first cell so the new row is obviously editable. Returns the insert index.
+    /// Insert rows render first, so the new row's display index equals its
+    /// insert index.
+    pub fn add_insert_row(&mut self) -> Option<usize> {
+        let cols = self.column_count();
+        if cols == 0 {
+            return None;
+        }
+        self.edits.inserts.push(vec![None; cols]);
+        let idx = self.edits.inserts.len() - 1;
+        self.selected_row = Some(idx);
+        self.editing = Some(EditingCell {
+            row: RowRef::Insert(idx),
+            col: 0,
+            buffer: String::new(),
+            request_focus: true,
+        });
+        Some(idx)
+    }
+
+    /// Maps the selected display row to an original (database) row index, or
+    /// `None` if the selection is a pending insert. Inserts render first, so
+    /// display indices below the insert count are inserts.
+    pub fn selected_original_index(&self) -> Option<usize> {
+        let sel = self.selected_row?;
+        let inserts = self.edits.inserts.len();
+        (sel >= inserts).then(|| sel - inserts)
+    }
+
+    /// Toggle deletion of an existing row, or drop an uncommitted insert row.
+    /// `display` is the index as shown in the grid (inserts first, then originals).
+    pub fn toggle_delete_display_row(&mut self, display: usize) {
+        let inserts = self.edits.inserts.len();
+        if display < inserts {
+            self.edits.inserts.remove(display);
+        } else {
+            let orig = display - inserts;
+            if !self.edits.deletes.insert(orig) {
+                self.edits.deletes.remove(&orig);
+            }
+        }
+        self.editing = None;
+        self.selected_row = None;
+    }
+
+    /// Discard all pending edits and any in-progress cell edit.
+    pub fn revert_edits(&mut self) {
+        self.edits.clear();
+        self.editing = None;
+        self.show_commit_dialog = false;
     }
 
     pub fn total_pages(&self) -> u64 {
@@ -166,7 +252,8 @@ impl TabState {
     /// Open a new query tab (always creates a fresh one).
     pub fn open_query(&mut self, database: &str) -> &mut QueryTab {
         self.next_query_counter += 1;
-        self.tabs.push(Tab::Query(QueryTab::new(database, self.next_query_counter)));
+        self.tabs
+            .push(Tab::Query(QueryTab::new(database, self.next_query_counter)));
         self.active = self.tabs.len() - 1;
         self.tabs[self.active].as_query_mut().unwrap()
     }
@@ -359,6 +446,97 @@ mod tests {
         tab.page = 2;
         assert!(!tab.can_go_next());
         assert!(tab.can_go_prev());
+    }
+
+    // --- TableTab editing helpers ---
+
+    fn tab_with_two_rows() -> TableTab {
+        let mut tab = TableTab::new("users", "public", "mydb");
+        tab.result = Some(QueryResult {
+            columns: vec![
+                ColumnDef {
+                    name: "id".into(),
+                    data_type: "int4".into(),
+                    is_pk: true,
+                    is_fk: false,
+                    nullable: false,
+                },
+                ColumnDef {
+                    name: "name".into(),
+                    data_type: "text".into(),
+                    is_pk: false,
+                    is_fk: false,
+                    nullable: true,
+                },
+            ],
+            rows: vec![
+                vec![Some("1".into()), Some("a".into())],
+                vec![Some("2".into()), Some("b".into())],
+            ],
+            total_rows: Some(2),
+        });
+        tab
+    }
+
+    #[test]
+    fn add_insert_row_appends_blank_row_sized_to_columns() {
+        let mut tab = tab_with_two_rows();
+        let idx = tab.add_insert_row();
+        assert_eq!(idx, Some(0));
+        assert_eq!(tab.edits.inserts.len(), 1);
+        assert_eq!(tab.edits.inserts[0], vec![None, None]);
+    }
+
+    #[test]
+    fn add_insert_row_without_result_is_none() {
+        let mut tab = TableTab::new("t", "s", "db");
+        assert_eq!(tab.add_insert_row(), None);
+    }
+
+    #[test]
+    fn toggle_delete_marks_and_unmarks_original_row() {
+        let mut tab = tab_with_two_rows();
+        tab.toggle_delete_display_row(1);
+        assert!(tab.edits.deletes.contains(&1));
+        tab.toggle_delete_display_row(1);
+        assert!(!tab.edits.deletes.contains(&1));
+    }
+
+    #[test]
+    fn toggle_delete_drops_insert_row() {
+        let mut tab = tab_with_two_rows();
+        tab.add_insert_row();
+        // Inserts render first, so the lone insert is at display index 0.
+        tab.toggle_delete_display_row(0);
+        assert!(tab.edits.inserts.is_empty());
+        assert!(tab.edits.deletes.is_empty());
+    }
+
+    #[test]
+    fn selected_original_index_skips_inserts() {
+        let mut tab = tab_with_two_rows();
+        tab.add_insert_row(); // 1 insert at display 0; originals at display 1,2
+        tab.selected_row = Some(0);
+        assert_eq!(
+            tab.selected_original_index(),
+            None,
+            "insert row is not an original"
+        );
+        tab.selected_row = Some(1);
+        assert_eq!(tab.selected_original_index(), Some(0), "first original row");
+        tab.selected_row = Some(2);
+        assert_eq!(tab.selected_original_index(), Some(1));
+    }
+
+    #[test]
+    fn revert_edits_clears_everything() {
+        let mut tab = tab_with_two_rows();
+        tab.edits.updates.insert((0, 1), Some("x".into()));
+        tab.add_insert_row();
+        tab.edits.deletes.insert(1);
+        tab.revert_edits();
+        assert!(tab.edits.is_empty());
+        assert!(tab.editing.is_none());
     }
 
     #[test]

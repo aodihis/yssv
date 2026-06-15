@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, mpsc};
 
-use crate::core::{connections::storage::Storage, drivers::ActiveConnection, schema::model::DbInfo};
+use crate::core::{
+    connections::storage::Storage, drivers::ActiveConnection, schema::model::DbInfo,
+};
 use crate::events::{AppEvent, Screen};
 use crate::pages::{
     connections::state::ConnectionsPageState, explorer::state::ExplorerState,
@@ -70,6 +72,12 @@ impl YssvApp {
         }
     }
 
+    /// Engine of the currently active connection, if any — used by the data
+    /// grid to build engine-correct SQL for the commit preview.
+    pub fn current_engine(&self) -> Option<crate::core::connections::model::DbEngine> {
+        self.conn_config.as_ref().map(|c| c.engine)
+    }
+
     pub fn drain_events(&mut self, ctx: &egui::Context) {
         while let Ok(event) = self.event_rx.try_recv() {
             self.apply_event(event, ctx);
@@ -99,6 +107,7 @@ impl YssvApp {
                 let load_db = explorer.active_db.clone();
                 self.explorer = Some(explorer);
                 self.screen = Screen::Explorer;
+                self.conn_page.connecting = false;
                 tracing::debug!(db = %load_db, "auto-loading schemas for connected database");
                 self.load_schemas(ctx.clone(), load_db);
             }
@@ -107,6 +116,7 @@ impl YssvApp {
                 self.db_conns.clear();
                 self.conn_config = None;
                 self.error_modal = Some(message);
+                self.conn_page.connecting = false;
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
             }
             AppEvent::TestOk {
@@ -125,9 +135,14 @@ impl YssvApp {
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
+                    // Fresh rows invalidate any pending edits keyed by the old
+                    // page's row indices.
+                    tab.edits.clear();
+                    tab.editing = None;
                     tab.result = Some(result);
                     tab.loading = false;
                 }
@@ -135,7 +150,8 @@ impl YssvApp {
             AppEvent::RowLoadError { tab_id, message } => {
                 tracing::warn!(tab_id = %tab_id, error = %message, "row load failed");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
                     tab.loading = false;
@@ -162,7 +178,8 @@ impl YssvApp {
             AppEvent::StructureLoaded { tab_id, columns } => {
                 tracing::debug!(tab_id = %tab_id, columns = columns.len(), "structure loaded");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
                 {
                     tab.structure = Some(columns);
@@ -176,7 +193,8 @@ impl YssvApp {
             AppEvent::QueryExecuted { tab_id, result } => {
                 tracing::info!(tab_id = %tab_id, rows = result.rows.len(), "query executed");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Query(tab) = tab_entry
                 {
                     tab.result = Some(result);
@@ -187,7 +205,8 @@ impl YssvApp {
             AppEvent::QueryError { tab_id, message } => {
                 tracing::warn!(tab_id = %tab_id, error = %message, "query error");
                 if let Some(explorer) = &mut self.explorer
-                    && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
                     && let crate::pages::explorer::state::Tab::Query(tab) = tab_entry
                 {
                     tab.error = Some(message);
@@ -195,16 +214,62 @@ impl YssvApp {
                     tab.loading = false;
                 }
             }
+            AppEvent::CommitDone {
+                tab_id,
+                rows_affected,
+            } => {
+                tracing::info!(tab_id = %tab_id, rows_affected, "commit applied, reloading page");
+                let reload = if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+                {
+                    tab.edits.clear();
+                    tab.editing = None;
+                    tab.committing = false;
+                    tab.show_commit_dialog = false;
+                    tab.selected_row = None;
+                    tab.loading = true;
+                    tab.result = None;
+                    Some((
+                        tab.id.clone(),
+                        tab.database.clone(),
+                        tab.schema.clone(),
+                        tab.table.clone(),
+                        tab.page_size,
+                        tab.offset(),
+                    ))
+                } else {
+                    tracing::warn!(tab_id = %tab_id, "CommitDone: no matching table tab");
+                    None
+                };
+                if let Some((tid, db, schema, table, limit, offset)) = reload {
+                    self.load_rows(ctx.clone(), tid, db, schema, table, limit, offset);
+                }
+            }
+            AppEvent::CommitFailed { tab_id, message } => {
+                tracing::warn!(tab_id = %tab_id, error = %message, "commit failed");
+                if let Some(explorer) = &mut self.explorer
+                    && let Some(tab_entry) =
+                        explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+                    && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+                {
+                    tab.committing = false;
+                    tab.show_commit_dialog = false;
+                }
+                self.error_modal = Some(message);
+            }
         }
     }
 
-    pub fn connect(&self, ctx: egui::Context) {
+    pub fn connect(&mut self, ctx: egui::Context) {
         let conn = self.conn_page.form.to_connection();
         tracing::debug!(
             conn_id = %conn.id, name = %conn.name,
             host = %conn.host, port = conn.port,
             engine = ?conn.engine, "initiating connection"
         );
+        self.conn_page.connecting = true;
         let tx = self.event_tx.clone();
         self.rt.spawn(async move {
             let conn_id = conn.id.clone();
@@ -484,6 +549,92 @@ impl YssvApp {
         });
     }
 
+    pub fn commit_changes(&mut self, ctx: egui::Context, tab_id: String) {
+        let Some(engine) = self.conn_config.as_ref().map(|c| c.engine) else {
+            tracing::warn!(tab_id = %tab_id, "commit_changes: no connection config");
+            return;
+        };
+        let prepared = self.explorer.as_ref().and_then(|e| {
+            e.tabs
+                .tabs
+                .iter()
+                .find(|t| t.id() == tab_id)
+                .and_then(|t| t.as_table())
+                .map(|tab| {
+                    let statements = tab
+                        .result
+                        .as_ref()
+                        .map(|r| {
+                            crate::core::edit::build_statements(
+                                engine,
+                                &tab.schema,
+                                &tab.table,
+                                &r.columns,
+                                &r.rows,
+                                &tab.edits,
+                            )
+                        })
+                        .unwrap_or_default();
+                    (tab.database.clone(), statements)
+                })
+        });
+        let Some((db, statements)) = prepared else {
+            tracing::warn!(tab_id = %tab_id, "commit_changes: table tab not found");
+            return;
+        };
+        if statements.is_empty() {
+            tracing::debug!(tab_id = %tab_id, "commit_changes: nothing to commit");
+            return;
+        }
+        tracing::info!(
+            tab_id = %tab_id, db = %db, count = statements.len(),
+            "commit_changes: dispatching transaction"
+        );
+        if let Some(explorer) = &mut self.explorer
+            && let Some(tab_entry) = explorer.tabs.tabs.iter_mut().find(|t| t.id() == tab_id)
+            && let crate::pages::explorer::state::Tab::Table(tab) = tab_entry
+        {
+            tab.committing = true;
+            tab.show_commit_dialog = false;
+        }
+        let conn = self.db_conns.get(&db).cloned();
+        let base_config = self.conn_config.clone();
+        let tx = self.event_tx.clone();
+        self.rt.spawn(async move {
+            let conn = match conn {
+                Some(c) => c,
+                None => match Self::open_db_conn(base_config, &db, &tx).await {
+                    Some(c) => c,
+                    None => {
+                        let _ = tx.send(AppEvent::CommitFailed {
+                            tab_id,
+                            message: format!("no connection available for database '{db}'"),
+                        });
+                        ctx.request_repaint();
+                        return;
+                    }
+                },
+            };
+            match conn.execute_batch(&statements).await {
+                Ok(n) => {
+                    tracing::info!(rows_affected = n, "commit_changes: success");
+                    let _ = tx.send(AppEvent::CommitDone {
+                        tab_id,
+                        rows_affected: n,
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e.message, "commit_changes: failed");
+                    let _ = tx.send(AppEvent::CommitFailed {
+                        tab_id,
+                        message: e.message,
+                    });
+                }
+            }
+            ctx.request_repaint();
+        });
+    }
+
     async fn open_db_conn(
         base_config: Option<crate::core::connections::model::Connection>,
         db: &str,
@@ -547,12 +698,22 @@ impl YssvApp {
         tracing::debug!(count = to_save.len(), "group rename persisted");
     }
 
-    pub fn reorder_connections(&mut self, dragged_id: &str, new_group: &str, before_id: Option<&str>) {
+    pub fn reorder_connections(
+        &mut self,
+        dragged_id: &str,
+        new_group: &str,
+        before_id: Option<&str>,
+    ) {
         tracing::debug!(
             conn_id = %dragged_id, new_group = %new_group,
             before = ?before_id, "reorder_connections"
         );
-        let Some(from_pos) = self.conn_page.connections.iter().position(|c| c.id == dragged_id) else {
+        let Some(from_pos) = self
+            .conn_page
+            .connections
+            .iter()
+            .position(|c| c.id == dragged_id)
+        else {
             tracing::warn!(conn_id = %dragged_id, "reorder_connections: dragged conn not found");
             return;
         };
@@ -568,18 +729,30 @@ impl YssvApp {
         }
 
         let insert_pos = match before_id {
-            Some(bid) => self.conn_page.connections.iter().position(|c| c.id == bid)
+            Some(bid) => self
+                .conn_page
+                .connections
+                .iter()
+                .position(|c| c.id == bid)
                 .unwrap_or(self.conn_page.connections.len()),
             None => {
                 // Append after the last item in target group
-                self.conn_page.connections.iter().rposition(|c| c.group == new_group)
+                self.conn_page
+                    .connections
+                    .iter()
+                    .rposition(|c| c.group == new_group)
                     .map(|p| p + 1)
                     .unwrap_or(self.conn_page.connections.len())
             }
         };
         self.conn_page.connections.insert(insert_pos, conn);
 
-        let ids: Vec<String> = self.conn_page.connections.iter().map(|c| c.id.clone()).collect();
+        let ids: Vec<String> = self
+            .conn_page
+            .connections
+            .iter()
+            .map(|c| c.id.clone())
+            .collect();
         if let Err(e) = self.storage.save_order(&ids) {
             tracing::warn!(error = %e, "reorder_connections: save_order failed");
         } else {
@@ -608,10 +781,12 @@ impl YssvApp {
     }
 }
 
-
-#[cfg(test)]
+/// Test-only constructors/helpers. Public + `#[doc(hidden)]` so the
+/// `tests/integration` and `tests/e2e` crates (separate compilation units that
+/// can't see `#[cfg(test)]` items) can build an app without real storage.
+#[doc(hidden)]
 impl YssvApp {
-    fn new_for_test() -> Self {
+    pub fn new_for_test() -> Self {
         let storage = crate::core::connections::storage::Storage::open_in_memory().unwrap();
         let connections = storage.load_all().unwrap_or_default();
         let conn_page = crate::pages::connections::state::ConnectionsPageState::new(connections);
@@ -632,6 +807,13 @@ impl YssvApp {
         }
     }
 
+    pub fn set_conn_config_for_test(&mut self, conn: crate::core::connections::model::Connection) {
+        self.conn_config = Some(conn);
+    }
+}
+
+#[cfg(test)]
+impl YssvApp {
     fn send_and_drain(&mut self, event: AppEvent) {
         let _ = self.event_tx.send(event);
         self.drain_events(&egui::Context::default());
@@ -668,26 +850,43 @@ mod tests {
             Ok(vec![])
         }
         async fn fetch_rows(
-            &self, _db: &str, _schema: &str, _table: &str, _limit: u32, _offset: u32,
+            &self,
+            _db: &str,
+            _schema: &str,
+            _table: &str,
+            _limit: u32,
+            _offset: u32,
         ) -> Result<QueryResult, DbError> {
             Ok(QueryResult::empty())
         }
         async fn describe_table(
-            &self, _db: &str, _schema: &str, _table: &str,
+            &self,
+            _db: &str,
+            _schema: &str,
+            _table: &str,
         ) -> Result<Vec<ColumnDef>, DbError> {
             Ok(vec![])
         }
         async fn execute_single(&self, _sql: &str) -> Result<QueryResult, DbError> {
             Ok(QueryResult::empty())
         }
+        async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+            Ok(statements.len() as u64)
+        }
     }
 
     fn make_app_with_explorer() -> (YssvApp, String) {
         let mut app = YssvApp::new_for_test();
         let db = "testdb".to_string();
-        let databases = vec![DbInfo { name: db.clone(), schemas: vec![] }];
+        let databases = vec![DbInfo {
+            name: db.clone(),
+            schemas: vec![],
+        }];
         app.explorer = Some(crate::pages::explorer::state::ExplorerState::new(
-            "conn1".into(), "Test".into(), &db, databases,
+            "conn1".into(),
+            "Test".into(),
+            &db,
+            databases,
         ));
         (app, db)
     }
@@ -708,7 +907,10 @@ mod tests {
     #[test]
     fn test_ok_sets_status() {
         let mut app = YssvApp::new_for_test();
-        app.send_and_drain(AppEvent::TestOk { conn_id: "c1".into(), latency_ms: 42 });
+        app.send_and_drain(AppEvent::TestOk {
+            conn_id: "c1".into(),
+            latency_ms: 42,
+        });
         assert!(matches!(app.conn_page.test_status, TestStatus::Ok(42)));
     }
 
@@ -733,7 +935,10 @@ mod tests {
             conn_id: "c1".into(),
             conn_name: "Local".into(),
             default_db: "testdb".into(),
-            databases: vec![DbInfo { name: "testdb".into(), schemas: vec![] }],
+            databases: vec![DbInfo {
+                name: "testdb".into(),
+                schemas: vec![],
+            }],
             connection: conn,
             conn_config: Box::new(Connection::new_postgres()),
         });
@@ -747,17 +952,31 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("users", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
 
         let result = QueryResult {
             columns: vec![],
             rows: vec![vec![Some("1".into())]],
             total_rows: Some(1),
         };
-        app.send_and_drain(AppEvent::RowsLoaded { tab_id: tab_id.clone(), result });
+        app.send_and_drain(AppEvent::RowsLoaded {
+            tab_id: tab_id.clone(),
+            result,
+        });
 
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let tt = tab.as_table().unwrap();
         assert!(tt.result.is_some());
         assert!(!tt.loading);
@@ -768,7 +987,12 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("users", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
 
         app.send_and_drain(AppEvent::RowLoadError {
             tab_id: tab_id.clone(),
@@ -776,8 +1000,14 @@ mod tests {
         });
 
         assert_eq!(app.error_modal.as_deref(), Some("query failed"));
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let tt = tab.as_table().unwrap();
         assert!(!tt.loading);
         assert!(tt.result.is_none());
@@ -786,8 +1016,14 @@ mod tests {
     #[test]
     fn schemas_loaded_updates_explorer_database() {
         let (mut app, db) = make_app_with_explorer();
-        let schemas = vec![SchemaInfo { name: "public".into(), tables: vec![] }];
-        app.send_and_drain(AppEvent::SchemasLoaded { db: db.clone(), schemas });
+        let schemas = vec![SchemaInfo {
+            name: "public".into(),
+            tables: vec![],
+        }];
+        app.send_and_drain(AppEvent::SchemasLoaded {
+            db: db.clone(),
+            schemas,
+        });
 
         let explorer = app.explorer.unwrap();
         let db_info = explorer.databases.iter().find(|d| d.name == db).unwrap();
@@ -810,7 +1046,12 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("orders", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
 
         let columns = vec![ColumnDef {
             name: "id".into(),
@@ -819,10 +1060,19 @@ mod tests {
             is_fk: false,
             nullable: false,
         }];
-        app.send_and_drain(AppEvent::StructureLoaded { tab_id: tab_id.clone(), columns });
+        app.send_and_drain(AppEvent::StructureLoaded {
+            tab_id: tab_id.clone(),
+            columns,
+        });
 
-        let tab = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let tt = tab.as_table().unwrap();
         assert!(!tt.structure_loading);
         assert_eq!(tt.structure.as_ref().unwrap().len(), 1);
@@ -832,7 +1082,10 @@ mod tests {
     fn db_connected_caches_connection() {
         let mut app = YssvApp::new_for_test();
         let conn: Arc<dyn ActiveConnection> = Arc::new(MockConn);
-        app.send_and_drain(AppEvent::DbConnected { db: "analytics".into(), conn });
+        app.send_and_drain(AppEvent::DbConnected {
+            db: "analytics".into(),
+            conn,
+        });
         assert!(app.db_conns.contains_key("analytics"));
     }
 
@@ -867,7 +1120,12 @@ mod tests {
         app.conn_page.selected_id = Some(original_id.clone());
         app.duplicate_connection();
         assert_eq!(app.conn_page.connections.len(), 2);
-        let copy = app.conn_page.connections.iter().find(|c| c.id != original_id).unwrap();
+        let copy = app
+            .conn_page
+            .connections
+            .iter()
+            .find(|c| c.id != original_id)
+            .unwrap();
         assert!(copy.name.contains("copy"));
         assert_ne!(copy.id, original_id);
     }
@@ -901,9 +1159,22 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("users", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
         // db_conns is empty AND conn_config is None → open_db_conn returns None
-        app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
+        app.load_rows(
+            egui::Context::default(),
+            tab_id.clone(),
+            db,
+            "public".into(),
+            "users".into(),
+            100,
+            0,
+        );
         drain_after_spawn(&mut app);
         assert!(app.error_modal.is_some());
     }
@@ -913,12 +1184,31 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("users", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
         app.db_conns.insert(db.clone(), Arc::new(MockConn));
-        app.load_rows(egui::Context::default(), tab_id.clone(), db, "public".into(), "users".into(), 100, 0);
+        app.load_rows(
+            egui::Context::default(),
+            tab_id.clone(),
+            db,
+            "public".into(),
+            "users".into(),
+            100,
+            0,
+        );
         drain_after_spawn(&mut app);
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let tt = tab_entry.as_table().unwrap();
         assert!(tt.result.is_some());
         assert!(!tt.loading);
@@ -929,12 +1219,29 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("orders", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
         app.db_conns.insert(db.clone(), Arc::new(MockConn));
-        app.load_structure(egui::Context::default(), tab_id.clone(), db, "public".into(), "orders".into());
+        app.load_structure(
+            egui::Context::default(),
+            tab_id.clone(),
+            db,
+            "public".into(),
+            "orders".into(),
+        );
         drain_after_spawn(&mut app);
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let tt = tab_entry.as_table().unwrap();
         assert!(!tt.structure_loading);
         assert!(tt.structure.is_some());
@@ -945,9 +1252,20 @@ mod tests {
         let (mut app, db) = make_app_with_explorer();
         let inner = TableTab::new("orders", "public", &db);
         let tab_id = inner.id.clone();
-        app.explorer.as_mut().unwrap().tabs.tabs.push(Tab::Table(inner));
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
         // db_conns empty, conn_config None → open_db_conn returns None, task exits silently
-        app.load_structure(egui::Context::default(), tab_id, db, "public".into(), "orders".into());
+        app.load_structure(
+            egui::Context::default(),
+            tab_id,
+            db,
+            "public".into(),
+            "orders".into(),
+        );
         drain_after_spawn(&mut app);
         assert!(app.error_modal.is_none());
     }
@@ -963,10 +1281,19 @@ mod tests {
             rows: vec![vec![Some("hello".into())]],
             total_rows: Some(1),
         };
-        app.send_and_drain(AppEvent::QueryExecuted { tab_id: tab_id.clone(), result });
+        app.send_and_drain(AppEvent::QueryExecuted {
+            tab_id: tab_id.clone(),
+            result,
+        });
 
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let qt = tab_entry.as_query().unwrap();
         assert!(qt.result.is_some());
         assert!(qt.error.is_none());
@@ -984,12 +1311,96 @@ mod tests {
             message: "syntax error".into(),
         });
 
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let qt = tab_entry.as_query().unwrap();
         assert_eq!(qt.error.as_deref(), Some("syntax error"));
         assert!(qt.result.is_none());
         assert!(!qt.loading);
+    }
+
+    #[test]
+    fn commit_done_clears_edits_on_tab() {
+        let (mut app, db) = make_app_with_explorer();
+        let mut inner = TableTab::new("users", "public", &db);
+        inner.edits.deletes.insert(0);
+        inner.committing = true;
+        let tab_id = inner.id.clone();
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
+        app.db_conns.insert(db.clone(), Arc::new(MockConn));
+
+        app.send_and_drain(AppEvent::CommitDone {
+            tab_id: tab_id.clone(),
+            rows_affected: 1,
+        });
+
+        let explorer = app.explorer.as_ref().unwrap();
+        let tab = explorer
+            .tabs
+            .tabs
+            .iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
+        let tt = tab.as_table().unwrap();
+        assert!(tt.edits.is_empty());
+        assert!(!tt.committing);
+    }
+
+    #[test]
+    fn commit_failed_sets_modal_and_clears_committing() {
+        let (mut app, db) = make_app_with_explorer();
+        let mut inner = TableTab::new("users", "public", &db);
+        inner.committing = true;
+        let tab_id = inner.id.clone();
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
+
+        app.send_and_drain(AppEvent::CommitFailed {
+            tab_id: tab_id.clone(),
+            message: "constraint violation".into(),
+        });
+
+        assert_eq!(app.error_modal.as_deref(), Some("constraint violation"));
+        let tab = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
+        assert!(!tab.as_table().unwrap().committing);
+    }
+
+    #[test]
+    fn commit_changes_without_config_is_noop() {
+        let (mut app, db) = make_app_with_explorer();
+        let inner = TableTab::new("users", "public", &db);
+        let tab_id = inner.id.clone();
+        app.explorer
+            .as_mut()
+            .unwrap()
+            .tabs
+            .tabs
+            .push(Tab::Table(inner));
+        // conn_config is None → returns early before spawning anything
+        app.commit_changes(egui::Context::default(), tab_id);
+        assert!(app.event_rx.try_recv().is_err());
     }
 }
 

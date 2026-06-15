@@ -24,7 +24,10 @@ pub(crate) fn build_select_list(cols: &[ColumnDef]) -> String {
         return "*".to_string();
     }
     cols.iter()
-        .map(|c| format!("\"{}\"::text AS \"{}\"", c.name, c.name))
+        .map(|c| {
+            let q = quote_ident(&c.name);
+            format!("{}::text AS {}", q, q)
+        })
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -98,7 +101,9 @@ impl ActiveConnection for PgConnection {
 
         let cols: Vec<ColumnDef> = rows
             .into_iter()
-            .map(|(name, data_type, nullable, pk_flag)| map_column(name, data_type, nullable, pk_flag))
+            .map(|(name, data_type, nullable, pk_flag)| {
+                map_column(name, data_type, nullable, pk_flag)
+            })
             .collect();
         tracing::debug!(
             schema,
@@ -123,10 +128,17 @@ impl ActiveConnection for PgConnection {
 
         let select_list = build_select_list(&col_defs);
 
-        let query = format!(
-            "SELECT {select_list} FROM \"{schema}\".\"{table}\" LIMIT {limit} OFFSET {offset}"
+        let fetch_sql = format!(
+            "SELECT {} FROM {}.{} LIMIT $1 OFFSET $2",
+            select_list,
+            quote_ident(schema),
+            quote_ident(table),
         );
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(fetch_sql))
+            .bind(limit as i64)
+            .bind(offset as i64)
+            .fetch_all(&self.pool)
+            .await?;
 
         if rows.is_empty() {
             return Ok(QueryResult {
@@ -146,8 +158,12 @@ impl ActiveConnection for PgConnection {
             })
             .collect();
 
-        let count_query = format!("SELECT COUNT(*) FROM \"{schema}\".\"{table}\"");
-        let total: i64 = sqlx::query_scalar(&count_query)
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {}.{}",
+            quote_ident(schema),
+            quote_ident(table),
+        );
+        let total: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(count_sql))
             .fetch_one(&self.pool)
             .await
             .unwrap_or_else(|e| {
@@ -224,6 +240,29 @@ impl ActiveConnection for PgConnection {
         Ok(tables)
     }
 
+    async fn execute_batch(&self, statements: &[String]) -> Result<u64, DbError> {
+        tracing::debug!(
+            count = statements.len(),
+            "postgres: execute_batch (transaction begin)"
+        );
+        let mut tx = self.pool.begin().await?;
+        let mut affected = 0u64;
+        for stmt in statements {
+            tracing::debug!(stmt = %stmt, "postgres: execute_batch statement");
+            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned()))
+                .execute(&mut *tx)
+                .await?;
+            affected += result.rows_affected();
+        }
+        tx.commit().await?;
+        tracing::info!(
+            count = statements.len(),
+            affected,
+            "postgres: execute_batch committed"
+        );
+        Ok(affected)
+    }
+
     async fn execute_single(&self, sql: &str) -> Result<QueryResult, DbError> {
         use sqlx::{Column, Row, TypeInfo};
         tracing::debug!(sql_len = sql.len(), "postgres: execute_single");
@@ -236,7 +275,9 @@ impl ActiveConnection for PgConnection {
             || trimmed.starts_with("TABLE");
 
         if !is_fetch {
-            let result = sqlx::query(sql).execute(&self.pool).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+                .execute(&self.pool)
+                .await?;
             let affected = result.rows_affected();
             tracing::info!(rows_affected = affected, "postgres: execute_single (DML)");
             return Ok(QueryResult {
@@ -252,7 +293,9 @@ impl ActiveConnection for PgConnection {
             });
         }
 
-        let rows = sqlx::query(sql).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+            .fetch_all(&self.pool)
+            .await?;
         if rows.is_empty() {
             tracing::debug!("postgres: execute_single returned 0 rows");
             return Ok(QueryResult::empty());
@@ -272,11 +315,7 @@ impl ActiveConnection for PgConnection {
 
         let data_rows: Vec<Vec<Option<String>>> = rows
             .iter()
-            .map(|row| {
-                (0..columns.len())
-                    .map(|i| decode_col_pg(row, i))
-                    .collect()
-            })
+            .map(|row| (0..columns.len()).map(|i| decode_col_pg(row, i)).collect())
             .collect();
 
         let row_count = data_rows.len() as u64;
@@ -288,6 +327,10 @@ impl ActiveConnection for PgConnection {
             total_rows: Some(row_count),
         })
     }
+}
+
+fn quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
 }
 
 fn decode_col_pg(row: &sqlx::postgres::PgRow, i: usize) -> Option<String> {
@@ -322,6 +365,16 @@ mod tests {
     use crate::core::{connections::model::Connection, results::model::ColumnDef};
 
     #[test]
+    fn quote_ident_wraps_in_double_quotes() {
+        assert_eq!(quote_ident("table"), "\"table\"");
+    }
+
+    #[test]
+    fn quote_ident_escapes_embedded_double_quote() {
+        assert_eq!(quote_ident("my\"table"), "\"my\"\"table\"");
+    }
+
+    #[test]
     fn build_connection_url_format() {
         let mut conn = Connection::new_postgres();
         conn.username = "alice".into();
@@ -341,8 +394,20 @@ mod tests {
     #[test]
     fn build_select_list_casts_each_column_to_text() {
         let cols = vec![
-            ColumnDef { name: "id".into(), data_type: "int4".into(), is_pk: true, is_fk: false, nullable: false },
-            ColumnDef { name: "name".into(), data_type: "text".into(), is_pk: false, is_fk: false, nullable: true },
+            ColumnDef {
+                name: "id".into(),
+                data_type: "int4".into(),
+                is_pk: true,
+                is_fk: false,
+                nullable: false,
+            },
+            ColumnDef {
+                name: "name".into(),
+                data_type: "text".into(),
+                is_pk: false,
+                is_fk: false,
+                nullable: true,
+            },
         ];
         let list = build_select_list(&cols);
         assert_eq!(list, r#""id"::text AS "id", "name"::text AS "name""#);
@@ -374,5 +439,4 @@ mod tests {
         let col = map_column("code".into(), "text".into(), "NO".into(), None);
         assert!(!col.nullable);
     }
-
 }
