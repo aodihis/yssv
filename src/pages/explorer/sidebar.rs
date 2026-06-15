@@ -322,13 +322,6 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         .min_size(egui::vec2(0.0, 28.0));
 
         let back_resp = ui.add(back_btn);
-        if back_resp.hovered() {
-            ui.painter().rect_filled(
-                back_resp.rect.expand2(egui::vec2(4.0, 2.0)),
-                egui::CornerRadius::same(4u8),
-                tc.surface_secondary,
-            );
-        }
         if back_resp.clicked() {
             app.screen = Screen::Connections;
         }
