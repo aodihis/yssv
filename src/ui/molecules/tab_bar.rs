@@ -46,7 +46,11 @@ pub fn tab_bar(
         .iter()
         .enumerate()
         .map(|(i, tab)| {
-            let font = if i == active { active_font.clone() } else { label_font.clone() };
+            let font = if i == active {
+                active_font.clone()
+            } else {
+                label_font.clone()
+            };
             ui.painter()
                 .layout_no_wrap(tab.label(), font, Color32::WHITE)
                 .size()
@@ -158,12 +162,19 @@ pub fn tab_bar(
         // Clip the hit-test rect to the visible area so interactions don't
         // register in the portion hidden behind the arrow buttons.
         let visible_tab_rect = tab_rect.intersect(tabs_clip);
-        let tab_resp =
-            ui.interact(visible_tab_rect, ui.id().with(("tab", i)), egui::Sense::click());
+        let tab_resp = ui.interact(
+            visible_tab_rect,
+            ui.id().with(("tab", i)),
+            egui::Sense::click(),
+        );
         // Close button: only interactive when fully visible.
         let close_visible = close_rect.max.x <= tabs_clip.right();
         let close_resp = ui.interact(
-            if close_visible { close_rect } else { egui::Rect::NOTHING },
+            if close_visible {
+                close_rect
+            } else {
+                egui::Rect::NOTHING
+            },
             ui.id().with(("tab_close", i)),
             egui::Sense::click(),
         );
@@ -205,7 +216,11 @@ pub fn tab_bar(
         } else {
             tc.text_secondary
         };
-        let draw_font = if is_active { active_font.clone() } else { label_font.clone() };
+        let draw_font = if is_active {
+            active_font.clone()
+        } else {
+            label_font.clone()
+        };
         painter.text(
             egui::pos2(label_x, center_y),
             egui::Align2::LEFT_CENTER,
@@ -239,8 +254,7 @@ pub fn tab_bar(
                 *action_ref = Some(TabContextAction::CloseAll);
                 ui.close();
             }
-            let others_resp =
-                ui.add_enabled(tab_count > 1, egui::Button::new("Close Others"));
+            let others_resp = ui.add_enabled(tab_count > 1, egui::Button::new("Close Others"));
             if others_resp.clicked() {
                 *action_ref = Some(TabContextAction::CloseOthers(i));
                 ui.close();
@@ -284,14 +298,22 @@ pub fn tab_bar(
         p.rect_filled(
             left_rect,
             egui::CornerRadius::ZERO,
-            if can_left && left_resp.hovered() { tc.surface_secondary } else { tc.surface },
+            if can_left && left_resp.hovered() {
+                tc.surface_secondary
+            } else {
+                tc.surface
+            },
         );
         p.text(
             left_rect.center(),
             egui::Align2::CENTER_CENTER,
             "‹",
             FontId::proportional(16.0),
-            if can_left { tc.text_secondary } else { tc.text_disabled },
+            if can_left {
+                tc.text_secondary
+            } else {
+                tc.text_disabled
+            },
         );
 
         // Separator between arrows
@@ -305,14 +327,22 @@ pub fn tab_bar(
         p.rect_filled(
             right_rect,
             egui::CornerRadius::ZERO,
-            if can_right && right_resp.hovered() { tc.surface_secondary } else { tc.surface },
+            if can_right && right_resp.hovered() {
+                tc.surface_secondary
+            } else {
+                tc.surface
+            },
         );
         p.text(
             right_rect.center(),
             egui::Align2::CENTER_CENTER,
             "›",
             FontId::proportional(16.0),
-            if can_right { tc.text_secondary } else { tc.text_disabled },
+            if can_right {
+                tc.text_secondary
+            } else {
+                tc.text_disabled
+            },
         );
     }
 

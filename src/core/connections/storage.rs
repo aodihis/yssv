@@ -370,9 +370,12 @@ mod tests {
     #[test]
     fn list_groups_returns_distinct_group_names() {
         let s = Storage::open_in_memory().unwrap();
-        let mut a = conn("a"); a.group = "GroupA".into();
-        let mut b = conn("b"); b.group = "GroupB".into();
-        let mut c = conn("c"); c.group = "GroupA".into();
+        let mut a = conn("a");
+        a.group = "GroupA".into();
+        let mut b = conn("b");
+        b.group = "GroupB".into();
+        let mut c = conn("c");
+        c.group = "GroupA".into();
         s.save(&a).unwrap();
         s.save(&b).unwrap();
         s.save(&c).unwrap();

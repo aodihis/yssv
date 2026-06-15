@@ -308,14 +308,18 @@ pub fn render_sidebar(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
         footer_rect.top(),
         egui::Stroke::new(1.0, tc.border_muted),
     );
-    footer_ui.painter().rect_filled(footer_rect, egui::CornerRadius::ZERO, tc.surface);
+    footer_ui
+        .painter()
+        .rect_filled(footer_rect, egui::CornerRadius::ZERO, tc.surface);
 
     footer_ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
         ui.add_space(8.0);
 
         let back_btn = egui::Button::image_and_text(
             icon_image(Icon::ChevronLeft, 13.0, tc.text_secondary),
-            RichText::new("Connections").size(12.0).color(tc.text_secondary),
+            RichText::new("Connections")
+                .size(12.0)
+                .color(tc.text_secondary),
         )
         .fill(egui::Color32::TRANSPARENT)
         .stroke(egui::Stroke::NONE)

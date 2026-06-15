@@ -262,60 +262,86 @@ mod tests {
     // --- pick_renderer ---
 
     fn settings_wgpu() -> SettingsState {
-        SettingsState { renderer: RendererPreference::Wgpu, ..Default::default() }
+        SettingsState {
+            renderer: RendererPreference::Wgpu,
+            ..Default::default()
+        }
     }
 
     fn settings_glow() -> SettingsState {
-        SettingsState { renderer: RendererPreference::Glow, ..Default::default() }
+        SettingsState {
+            renderer: RendererPreference::Glow,
+            ..Default::default()
+        }
     }
 
     #[test]
     fn pick_renderer_falls_back_to_settings_wgpu() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(pick_renderer(&settings_wgpu()), eframe::Renderer::Wgpu);
     }
 
     #[test]
     fn pick_renderer_falls_back_to_settings_glow() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(pick_renderer(&settings_glow()), eframe::Renderer::Glow);
     }
 
     #[test]
     fn pick_renderer_env_glow_overrides_settings() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::set_var("YSSV_RENDERER", "glow"); }
+        unsafe {
+            std::env::set_var("YSSV_RENDERER", "glow");
+        }
         let r = pick_renderer(&settings_wgpu());
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(r, eframe::Renderer::Glow);
     }
 
     #[test]
     fn pick_renderer_env_wgpu_overrides_settings() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::set_var("YSSV_RENDERER", "wgpu"); }
+        unsafe {
+            std::env::set_var("YSSV_RENDERER", "wgpu");
+        }
         let r = pick_renderer(&settings_glow());
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(r, eframe::Renderer::Wgpu);
     }
 
     #[test]
     fn pick_renderer_unknown_env_falls_back_to_settings_glow() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::set_var("YSSV_RENDERER", "vulkan"); }
+        unsafe {
+            std::env::set_var("YSSV_RENDERER", "vulkan");
+        }
         let r = pick_renderer(&settings_glow());
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(r, eframe::Renderer::Glow);
     }
 
     #[test]
     fn pick_renderer_unknown_env_falls_back_to_settings_wgpu() {
         let _g = RENDERER_ENV_LOCK.lock().unwrap();
-        unsafe { std::env::set_var("YSSV_RENDERER", "vulkan"); }
+        unsafe {
+            std::env::set_var("YSSV_RENDERER", "vulkan");
+        }
         let r = pick_renderer(&settings_wgpu());
-        unsafe { std::env::remove_var("YSSV_RENDERER"); }
+        unsafe {
+            std::env::remove_var("YSSV_RENDERER");
+        }
         assert_eq!(r, eframe::Renderer::Wgpu);
     }
 

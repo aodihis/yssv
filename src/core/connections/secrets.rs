@@ -176,7 +176,10 @@ mod tests {
             assert_eq!(ssh_pw, "ssh-secret");
         }
         if !db_pw.is_empty() && !ssh_pw.is_empty() {
-            assert_ne!(db_pw, ssh_pw, "db and ssh passwords use distinct keyring accounts");
+            assert_ne!(
+                db_pw, ssh_pw,
+                "db and ssh passwords use distinct keyring accounts"
+            );
         }
     }
 }

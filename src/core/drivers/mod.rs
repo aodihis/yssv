@@ -380,7 +380,10 @@ mod tests {
         fn new(result: QueryResult) -> (Self, Arc<AtomicUsize>) {
             let counter = Arc::new(AtomicUsize::new(0));
             (
-                Self { call_count: counter.clone(), fixed_result: Ok(result) },
+                Self {
+                    call_count: counter.clone(),
+                    fixed_result: Ok(result),
+                },
                 counter,
             )
         }
@@ -395,17 +398,43 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ActiveConnection for MockConn {
-        async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-        async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-        async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-        async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-        async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-        async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
+        async fn current_database(&self) -> Result<String, DbError> {
+            unimplemented!()
+        }
+        async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+            unimplemented!()
+        }
+        async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+            unimplemented!()
+        }
+        async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+            unimplemented!()
+        }
+        async fn fetch_rows(
+            &self,
+            _: &str,
+            _: &str,
+            _: &str,
+            _: u32,
+            _: u32,
+        ) -> Result<QueryResult, DbError> {
+            unimplemented!()
+        }
+        async fn describe_table(
+            &self,
+            _: &str,
+            _: &str,
+            _: &str,
+        ) -> Result<Vec<ColumnDef>, DbError> {
+            unimplemented!()
+        }
         async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
             self.call_count.fetch_add(1, Ordering::SeqCst);
             self.fixed_result.clone().map_err(DbError::new)
         }
-        async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+        async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+            unimplemented!()
+        }
     }
 
     #[tokio::test]
@@ -446,7 +475,10 @@ mod tests {
     #[tokio::test]
     async fn execute_query_multi_statement_calls_execute_single_per_stmt() {
         let (conn, count) = MockConn::new(QueryResult::empty());
-        let _ = conn.execute_query("SELECT 1; SELECT 2; SELECT 3").await.unwrap();
+        let _ = conn
+            .execute_query("SELECT 1; SELECT 2; SELECT 3")
+            .await
+            .unwrap();
         assert_eq!(count.load(Ordering::SeqCst), 3);
     }
 
@@ -487,14 +519,42 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { Ok("mydb".into()) }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn current_database(&self) -> Result<String, DbError> {
+                Ok("mydb".into())
+            }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9001).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -514,14 +574,42 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { Ok(vec!["a".into(), "b".into()]) }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
+            }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                Ok(vec!["a".into(), "b".into()])
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9003).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -533,16 +621,45 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
-                Ok(vec![SchemaInfo { name: "public".into(), tables: vec![] }])
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
             }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                Ok(vec![SchemaInfo {
+                    name: "public".into(),
+                    tables: vec![],
+                }])
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9004).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -555,16 +672,46 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
-                Ok(vec![TableInfo { name: "users".into(), kind: TableKind::Table, row_count: Some(10) }])
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
             }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                Ok(vec![TableInfo {
+                    name: "users".into(),
+                    kind: TableKind::Table,
+                    row_count: Some(10),
+                }])
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9005).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -577,16 +724,48 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> {
-                Ok(vec![ColumnDef { name: "id".into(), data_type: "int".into(), is_pk: true, is_fk: false, nullable: false }])
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
             }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                Ok(vec![ColumnDef {
+                    name: "id".into(),
+                    data_type: "int".into(),
+                    is_pk: true,
+                    is_fk: false,
+                    nullable: false,
+                }])
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9006).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -599,20 +778,49 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> {
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
+            }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
                 Ok(simple_result())
             }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9007).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
-        let result = tc.fetch_rows("mydb", "public", "users", 10, 0).await.unwrap();
+        let result = tc
+            .fetch_rows("mydb", "public", "users", 10, 0)
+            .await
+            .unwrap();
         assert_eq!(result.total_rows, Some(1));
     }
 
@@ -621,14 +829,42 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { Ok(simple_result()) }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { unimplemented!() }
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
+            }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                Ok(simple_result())
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                unimplemented!()
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9008).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
@@ -641,18 +877,51 @@ mod tests {
         struct DbMock;
         #[async_trait::async_trait]
         impl ActiveConnection for DbMock {
-            async fn current_database(&self) -> Result<String, DbError> { unimplemented!() }
-            async fn list_databases(&self) -> Result<Vec<String>, DbError> { unimplemented!() }
-            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> { unimplemented!() }
-            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> { unimplemented!() }
-            async fn fetch_rows(&self, _: &str, _: &str, _: &str, _: u32, _: u32) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn describe_table(&self, _: &str, _: &str, _: &str) -> Result<Vec<ColumnDef>, DbError> { unimplemented!() }
-            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> { unimplemented!() }
-            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> { Ok(3) }
+            async fn current_database(&self) -> Result<String, DbError> {
+                unimplemented!()
+            }
+            async fn list_databases(&self) -> Result<Vec<String>, DbError> {
+                unimplemented!()
+            }
+            async fn list_schemas(&self, _: &str) -> Result<Vec<SchemaInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn list_tables(&self, _: &str, _: &str) -> Result<Vec<TableInfo>, DbError> {
+                unimplemented!()
+            }
+            async fn fetch_rows(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+                _: u32,
+                _: u32,
+            ) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn describe_table(
+                &self,
+                _: &str,
+                _: &str,
+                _: &str,
+            ) -> Result<Vec<ColumnDef>, DbError> {
+                unimplemented!()
+            }
+            async fn execute_single(&self, _: &str) -> Result<QueryResult, DbError> {
+                unimplemented!()
+            }
+            async fn execute_batch(&self, _: &[String]) -> Result<u64, DbError> {
+                Ok(3)
+            }
         }
         let tunnel = crate::core::ssh::SshTunnel::new_for_test(9009).await;
         let tc = TunneledConnection::new(Box::new(DbMock), tunnel);
-        assert_eq!(tc.execute_batch(&["UPDATE t SET x=1".into()]).await.unwrap(), 3);
+        assert_eq!(
+            tc.execute_batch(&["UPDATE t SET x=1".into()])
+                .await
+                .unwrap(),
+            3
+        );
     }
 
     // --- split_statements edge cases: uncovered branches ---

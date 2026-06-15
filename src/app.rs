@@ -1426,14 +1426,25 @@ mod tests {
     #[test]
     fn rename_group_updates_all_matching_connections() {
         let mut app = YssvApp::new_for_test();
-        let mut a = Connection::new_postgres(); a.name = "A".into(); a.group = "Old".into();
-        let mut b = Connection::new_postgres(); b.name = "B".into(); b.group = "Old".into();
-        let mut c = Connection::new_postgres(); c.name = "C".into(); c.group = "Other".into();
+        let mut a = Connection::new_postgres();
+        a.name = "A".into();
+        a.group = "Old".into();
+        let mut b = Connection::new_postgres();
+        b.name = "B".into();
+        b.group = "Old".into();
+        let mut c = Connection::new_postgres();
+        c.name = "C".into();
+        c.group = "Other".into();
         app.conn_page.connections.extend([a, b, c]);
 
         app.rename_group("Old", "New");
 
-        let groups: Vec<&str> = app.conn_page.connections.iter().map(|c| c.group.as_str()).collect();
+        let groups: Vec<&str> = app
+            .conn_page
+            .connections
+            .iter()
+            .map(|c| c.group.as_str())
+            .collect();
         assert_eq!(groups[0], "New");
         assert_eq!(groups[1], "New");
         assert_eq!(groups[2], "Other");
@@ -1443,7 +1454,8 @@ mod tests {
     #[test]
     fn rename_group_updates_collapsed_groups_tracking() {
         let mut app = YssvApp::new_for_test();
-        let mut c = Connection::new_postgres(); c.group = "Staging".into();
+        let mut c = Connection::new_postgres();
+        c.group = "Staging".into();
         app.conn_page.connections.push(c);
         app.conn_page.collapsed_groups.insert("Staging".into());
 
@@ -1482,7 +1494,12 @@ mod tests {
         // Move C before A → expected order: C, A, B
         app.reorder_connections(&c_id, "G", Some(&a_id));
 
-        let names: Vec<&str> = app.conn_page.connections.iter().map(|c| c.name.as_str()).collect();
+        let names: Vec<&str> = app
+            .conn_page
+            .connections
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
         assert_eq!(names, ["C", "A", "B"]);
     }
 
@@ -1496,7 +1513,12 @@ mod tests {
         // Move A to end of G → expected: B, C, A
         app.reorder_connections(&a_id, "G", None);
 
-        let names: Vec<&str> = app.conn_page.connections.iter().map(|c| c.name.as_str()).collect();
+        let names: Vec<&str> = app
+            .conn_page
+            .connections
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
         assert_eq!(names, ["B", "C", "A"]);
     }
 
@@ -1530,11 +1552,22 @@ mod tests {
         let tab_id = e.tabs.open_query(&db).id.clone();
         app.db_conns.insert(db.clone(), Arc::new(MockConn));
 
-        app.run_query(egui::Context::default(), tab_id.clone(), "SELECT 1".into(), db);
+        app.run_query(
+            egui::Context::default(),
+            tab_id.clone(),
+            "SELECT 1".into(),
+            db,
+        );
         drain_after_spawn(&mut app);
 
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let qt = tab_entry.as_query().unwrap();
         assert!(qt.result.is_some());
         assert!(qt.error.is_none());
@@ -1548,11 +1581,22 @@ mod tests {
         let tab_id = e.tabs.open_query(&db).id.clone();
         // db_conns is empty and conn_config is None
 
-        app.run_query(egui::Context::default(), tab_id.clone(), "SELECT 1".into(), db);
+        app.run_query(
+            egui::Context::default(),
+            tab_id.clone(),
+            "SELECT 1".into(),
+            db,
+        );
         drain_after_spawn(&mut app);
 
-        let tab_entry = app.explorer.unwrap().tabs.tabs.into_iter()
-            .find(|t| t.id() == tab_id).unwrap();
+        let tab_entry = app
+            .explorer
+            .unwrap()
+            .tabs
+            .tabs
+            .into_iter()
+            .find(|t| t.id() == tab_id)
+            .unwrap();
         let qt = tab_entry.as_query().unwrap();
         assert!(qt.error.is_some());
         assert!(qt.result.is_none());

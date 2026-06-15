@@ -285,7 +285,11 @@ impl SshTunnel {
     pub(crate) async fn new_for_test(local_port: u16) -> Self {
         let status = Arc::new(Mutex::new(TunnelStatus::Connected));
         let task = tokio::spawn(std::future::ready(()));
-        Self { local_port, status, task }
+        Self {
+            local_port,
+            status,
+            task,
+        }
     }
 }
 
@@ -304,8 +308,14 @@ mod tests {
 
     #[test]
     fn tunnel_status_failed_equality_checks_inner_message() {
-        assert_eq!(TunnelStatus::Failed("a".into()), TunnelStatus::Failed("a".into()));
-        assert_ne!(TunnelStatus::Failed("a".into()), TunnelStatus::Failed("b".into()));
+        assert_eq!(
+            TunnelStatus::Failed("a".into()),
+            TunnelStatus::Failed("a".into())
+        );
+        assert_ne!(
+            TunnelStatus::Failed("a".into()),
+            TunnelStatus::Failed("b".into())
+        );
         assert_ne!(TunnelStatus::Failed("x".into()), TunnelStatus::Connected);
     }
 
@@ -365,7 +375,11 @@ mod tests {
         let task = tokio::spawn(async {
             tokio::time::sleep(Duration::from_secs(3600)).await;
         });
-        let tunnel = SshTunnel { local_port: 9999, status, task };
+        let tunnel = SshTunnel {
+            local_port: 9999,
+            status,
+            task,
+        };
         assert_eq!(tunnel.local_port(), 9999);
         let handle = tunnel.status_handle();
         assert_eq!(*handle.lock().unwrap(), TunnelStatus::Connecting);

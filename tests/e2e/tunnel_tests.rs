@@ -1,9 +1,7 @@
-use testcontainers::{ContainerAsync, GenericImage, ImageExt, runners::AsyncRunner};
 use testcontainers::core::{IntoContainerPort, WaitFor};
+use testcontainers::{ContainerAsync, GenericImage, ImageExt, runners::AsyncRunner};
 use tokio::io::AsyncReadExt;
-use yssv::core::ssh::{
-    SshAuth, SshConfig, SshTunnel, TunnelStatus,
-};
+use yssv::core::ssh::{SshAuth, SshConfig, SshTunnel, TunnelStatus};
 
 async fn start_ssh_container() -> (ContainerAsync<GenericImage>, u16) {
     let container = GenericImage::new("linuxserver/openssh-server", "latest")
@@ -43,7 +41,10 @@ async fn ssh_tunnel_local_port_is_nonzero() {
     let tunnel = SshTunnel::open(&ssh_config(port), "127.0.0.1", 2222)
         .await
         .unwrap();
-    assert!(tunnel.local_port() > 0, "local_port should be assigned a non-zero OS port");
+    assert!(
+        tunnel.local_port() > 0,
+        "local_port should be assigned a non-zero OS port"
+    );
 }
 
 #[tokio::test]
@@ -108,5 +109,8 @@ async fn ssh_tunnel_forwards_tcp_connection() {
     .expect("read should not time out")
     .expect("read should succeed");
 
-    assert_eq!(&buf, b"SSH-", "expected SSH banner through the forwarded tunnel");
+    assert_eq!(
+        &buf, b"SSH-",
+        "expected SSH banner through the forwarded tunnel"
+    );
 }

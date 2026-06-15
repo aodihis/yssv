@@ -374,9 +374,7 @@ async fn mysql_fetch_rows_returns_inserted_data() {
         .await
         .unwrap();
     active
-        .execute_single(
-            "INSERT INTO mysql.yssv_fetch_my VALUES (1, 'hello'), (2, 'world')",
-        )
+        .execute_single("INSERT INTO mysql.yssv_fetch_my VALUES (1, 'hello'), (2, 'world')")
         .await
         .unwrap();
 

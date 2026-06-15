@@ -329,7 +329,10 @@ mod tests {
     fn effective_value_original_no_edit() {
         let rows = base_rows();
         let edits = empty_edits();
-        assert_eq!(effective_value(&rows, &edits, RowRef::Original(0), 1), Some("alice".into()));
+        assert_eq!(
+            effective_value(&rows, &edits, RowRef::Original(0), 1),
+            Some("alice".into())
+        );
     }
 
     #[test]
@@ -344,7 +347,10 @@ mod tests {
         let rows = base_rows();
         let mut edits = empty_edits();
         edits.updates.insert((0, 1), Some("bob".into()));
-        assert_eq!(effective_value(&rows, &edits, RowRef::Original(0), 1), Some("bob".into()));
+        assert_eq!(
+            effective_value(&rows, &edits, RowRef::Original(0), 1),
+            Some("bob".into())
+        );
     }
 
     #[test]
@@ -360,7 +366,10 @@ mod tests {
         let rows = base_rows();
         let mut edits = empty_edits();
         edits.inserts.push(vec![Some("99".into()), None]);
-        assert_eq!(effective_value(&rows, &edits, RowRef::Insert(0), 0), Some("99".into()));
+        assert_eq!(
+            effective_value(&rows, &edits, RowRef::Insert(0), 0),
+            Some("99".into())
+        );
         assert_eq!(effective_value(&rows, &edits, RowRef::Insert(0), 1), None);
     }
 
