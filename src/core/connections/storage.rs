@@ -226,3 +226,73 @@ fn parse_color(s: &str) -> ConnColor {
         _ => ConnColor::Red,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn conn(name: &str) -> Connection {
+        let mut c = Connection::new_postgres();
+        c.name = name.into();
+        c
+    }
+
+    #[test]
+    fn engine_str_and_parse_engine_roundtrip() {
+        for e in [DbEngine::Postgres, DbEngine::MySQL] {
+            assert_eq!(parse_engine(engine_str(&e)), e);
+        }
+        // Unknown engine string falls back to Postgres.
+        assert_eq!(parse_engine("sqlite"), DbEngine::Postgres);
+    }
+
+    #[test]
+    fn color_str_and_parse_color_roundtrip_all_variants() {
+        for &c in ConnColor::all() {
+            assert_eq!(parse_color(color_str(&c)), c);
+        }
+        // Unknown color string falls back to Red.
+        assert_eq!(parse_color("chartreuse"), ConnColor::Red);
+    }
+
+    #[test]
+    fn save_order_reorders_load_all() {
+        let s = Storage::open_in_memory().unwrap();
+        let a = conn("a");
+        let b = conn("b");
+        let c = conn("c");
+        s.save(&a).unwrap();
+        s.save(&b).unwrap();
+        s.save(&c).unwrap();
+
+        // Force an explicit order: c, a, b
+        s.save_order(&[c.id.clone(), a.id.clone(), b.id.clone()])
+            .unwrap();
+        let loaded = s.load_all().unwrap();
+        let names: Vec<&str> = loaded.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, vec!["c", "a", "b"]);
+    }
+
+    #[test]
+    fn save_order_ignores_unknown_ids() {
+        let s = Storage::open_in_memory().unwrap();
+        let a = conn("a");
+        s.save(&a).unwrap();
+        // Unknown id is simply a no-op UPDATE — must not error.
+        assert!(s.save_order(&["ghost".into(), a.id.clone()]).is_ok());
+    }
+
+    #[test]
+    fn open_file_backed_storage_migrates() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("conns.db");
+        let path_str = path.to_string_lossy().to_string();
+        {
+            let s = Storage::open(&path_str).unwrap();
+            s.save(&conn("persisted")).unwrap();
+        }
+        // Reopening the same file must find the migrated table + saved row.
+        let s2 = Storage::open(&path_str).unwrap();
+        assert_eq!(s2.load_all().unwrap().len(), 1);
+    }
+}

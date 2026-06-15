@@ -28,6 +28,8 @@ russh = { version = "0.61.2", default-features = false, features = ["flate2", "r
 [dev-dependencies]
 tokio                  = { version = "1", features = ["full", "test-util"] }
 tempfile               = "3"
+egui                   = "0.34.3"
+egui_extras            = { version = "0.34.3", features = ["svg"] }
 egui_kittest           = "0.34.3"
 testcontainers         = "0.27"
 testcontainers-modules = { version = "0.15", features = ["postgres", "mysql"] }

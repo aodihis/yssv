@@ -781,9 +781,12 @@ impl YssvApp {
     }
 }
 
-#[cfg(test)]
+/// Test-only constructors/helpers. Public + `#[doc(hidden)]` so the
+/// `tests/integration` and `tests/e2e` crates (separate compilation units that
+/// can't see `#[cfg(test)]` items) can build an app without real storage.
+#[doc(hidden)]
 impl YssvApp {
-    fn new_for_test() -> Self {
+    pub fn new_for_test() -> Self {
         let storage = crate::core::connections::storage::Storage::open_in_memory().unwrap();
         let connections = storage.load_all().unwrap_or_default();
         let conn_page = crate::pages::connections::state::ConnectionsPageState::new(connections);
@@ -804,6 +807,13 @@ impl YssvApp {
         }
     }
 
+    pub fn set_conn_config_for_test(&mut self, conn: crate::core::connections::model::Connection) {
+        self.conn_config = Some(conn);
+    }
+}
+
+#[cfg(test)]
+impl YssvApp {
     fn send_and_drain(&mut self, event: AppEvent) {
         let _ = self.event_tx.send(event);
         self.drain_events(&egui::Context::default());
