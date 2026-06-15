@@ -1,7 +1,5 @@
 // E2E driver tests using testcontainers — requires Docker.
 // Each test spins up a real database container, runs assertions, then tears it down.
-
-use testcontainers::ImageExt;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::{mysql::Mysql, postgres::Postgres};
 use yssv::core::{connections::model::Connection, drivers};
@@ -78,7 +76,7 @@ async fn pg_fetch_rows_from_information_schema() {
 
 #[tokio::test]
 async fn mysql_list_databases_contains_mysql() {
-    let container = Mysql::default().with_tag("8.0.34").start().await.unwrap();
+    let container = Mysql::default().start().await.unwrap();
     let port = container.get_host_port_ipv4(3306).await.unwrap();
 
     let mut conn = Connection::new_mysql();

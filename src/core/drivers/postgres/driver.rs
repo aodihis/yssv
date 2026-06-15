@@ -249,7 +249,9 @@ impl ActiveConnection for PgConnection {
         let mut affected = 0u64;
         for stmt in statements {
             tracing::debug!(stmt = %stmt, "postgres: execute_batch statement");
-            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned())).execute(&mut *tx).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned()))
+                .execute(&mut *tx)
+                .await?;
             affected += result.rows_affected();
         }
         tx.commit().await?;
@@ -273,7 +275,9 @@ impl ActiveConnection for PgConnection {
             || trimmed.starts_with("TABLE");
 
         if !is_fetch {
-            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).execute(&self.pool).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+                .execute(&self.pool)
+                .await?;
             let affected = result.rows_affected();
             tracing::info!(rows_affected = affected, "postgres: execute_single (DML)");
             return Ok(QueryResult {
@@ -289,7 +293,9 @@ impl ActiveConnection for PgConnection {
             });
         }
 
-        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+            .fetch_all(&self.pool)
+            .await?;
         if rows.is_empty() {
             tracing::debug!("postgres: execute_single returned 0 rows");
             return Ok(QueryResult::empty());

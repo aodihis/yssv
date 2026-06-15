@@ -92,7 +92,7 @@ impl ActiveConnection for MyConnection {
 
     async fn list_tables(&self, _db: &str, schema: &str) -> Result<Vec<TableInfo>, DbError> {
         tracing::debug!(schema, "mysql: list_tables");
-        let rows = sqlx::query_as::<_, (String, String, Option<i64>)>(
+        let rows = sqlx::query_as::<_, (String, String, Option<u64>)>(
             "SELECT table_name, table_type, table_rows
              FROM information_schema.tables
              WHERE table_schema = ?
@@ -107,7 +107,7 @@ impl ActiveConnection for MyConnection {
             .map(|(name, ttype, row_count)| TableInfo {
                 kind: table_type_to_kind(&ttype),
                 name,
-                row_count: row_count.map(|n| n as u64),
+                row_count,
             })
             .collect();
         tracing::debug!(schema, count = tables.len(), "mysql: list_tables done");
@@ -219,7 +219,9 @@ impl ActiveConnection for MyConnection {
             || trimmed.starts_with("EXPLAIN");
 
         if !is_fetch {
-            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).execute(&self.pool).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+                .execute(&self.pool)
+                .await?;
             let affected = result.rows_affected();
             tracing::info!(rows_affected = affected, "mysql: execute_single (DML)");
             return Ok(QueryResult {
@@ -235,7 +237,9 @@ impl ActiveConnection for MyConnection {
             });
         }
 
-        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned())).fetch_all(&self.pool).await?;
+        let rows = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
+            .fetch_all(&self.pool)
+            .await?;
         if rows.is_empty() {
             tracing::debug!("mysql: execute_single returned 0 rows");
             return Ok(QueryResult::empty());
@@ -281,7 +285,9 @@ impl ActiveConnection for MyConnection {
         let mut affected = 0u64;
         for stmt in statements {
             tracing::debug!(stmt = %stmt, "mysql: execute_batch statement");
-            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned())).execute(&mut *tx).await?;
+            let result = sqlx::query(sqlx::AssertSqlSafe(stmt.to_owned()))
+                .execute(&mut *tx)
+                .await?;
             affected += result.rows_affected();
         }
         tx.commit().await?;
