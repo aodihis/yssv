@@ -175,7 +175,9 @@ pub fn tab_bar(
     let mut tab_x = strip_rect.left();
     for i in scroll..tab_count {
         let tw = tab_widths[i];
-        if tab_x + tw > tabs_clip.right() {
+        // Stop only when the tab starts beyond the clip (fully off-screen).
+        // Partially visible tabs still render — the clip rect handles the cutoff.
+        if tab_x >= tabs_clip.right() {
             break;
         }
 
@@ -189,9 +191,15 @@ pub fn tab_bar(
         let close_center = egui::pos2(label_x + text_w + 8.0 + CLOSE_W / 2.0, center_y);
         let close_rect = egui::Rect::from_center_size(close_center, egui::vec2(20.0, 20.0));
 
-        let tab_resp = ui.interact(tab_rect, ui.id().with(("tab", i)), egui::Sense::click());
+        // Clip the hit-test rect to the visible area so interactions don't
+        // register in the portion hidden behind the arrow buttons.
+        let visible_tab_rect = tab_rect.intersect(tabs_clip);
+        let tab_resp =
+            ui.interact(visible_tab_rect, ui.id().with(("tab", i)), egui::Sense::click());
+        // Close button: only interactive when fully visible.
+        let close_visible = close_rect.max.x <= tabs_clip.right();
         let close_resp = ui.interact(
-            close_rect,
+            if close_visible { close_rect } else { egui::Rect::NOTHING },
             ui.id().with(("tab_close", i)),
             egui::Sense::click(),
         );
