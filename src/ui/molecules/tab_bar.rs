@@ -35,7 +35,13 @@ pub fn tab_bar(
 
     // Pre-compute per-tab label widths; full tab width = padding + label + close icon
     let label_font = FontId::proportional(12.5);
-    let active_font = FontId::new(12.5, egui::FontFamily::Name("SemiBold".into()));
+    let semibold_family = egui::FontFamily::Name("SemiBold".into());
+    let has_semibold = ui.fonts(|f| f.families().contains(&semibold_family));
+    let active_font = if has_semibold {
+        FontId::new(12.5, semibold_family)
+    } else {
+        label_font.clone()
+    };
     let text_widths: Vec<f32> = tabs
         .iter()
         .enumerate()
