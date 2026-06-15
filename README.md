@@ -1,25 +1,15 @@
 # YSSV — Your Stupid SQL Viewer
 
-A simple native desktop app to browse and query your **MySQL** and **PostgreSQL** databases. No Electron, no browser, no nonsense — just a fast native UI built with Rust and [egui](https://github.com/emilk/egui).
+A simple native desktop app to browse and query your **MySQL** and **PostgreSQL** databases. 
+Built with Rust and  [egui](https://github.com/emilk/egui) for a fast, responsive, and lightweight experience.
 
 ---
 
 ## Download
 
-Grab the latest pre-built binary for your platform from the [Releases](https://github.com/aodihis/yssv/releases) page.
+Grab the latest pre-built binary from the [Releases](https://github.com/aodihis/yssv/releases) page. No installer needed — just download and run.
 
-| Platform | File |
-|----------|------|
-| Windows  | `yssv-windows-x86_64.exe` |
-| macOS (Intel) | `yssv-macos-x86_64` |
-| macOS (Apple Silicon) | `yssv-macos-aarch64` |
-| Linux    | `yssv-linux-x86_64` |
-
-No installer needed — just download and run.
-
-> **macOS note:** On first launch you may need to right-click → Open to bypass Gatekeeper.
->
-> **Linux note:** Make the binary executable first: `chmod +x yssv-linux-x86_64`
+> **Note:** Currently only tested on Windows. Other platforms may work but are untested — if you run into issues please [open an issue](https://github.com/aodihis/yssv/issues).
 
 ---
 
