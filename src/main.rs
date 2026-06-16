@@ -1,3 +1,5 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 fn log_dir() -> String {
@@ -136,12 +138,18 @@ fn pick_renderer(settings: &yssv::pages::settings::SettingsState) -> eframe::Ren
     }
 }
 
+fn app_icon() -> egui::IconData {
+    eframe::icon_data::from_png_bytes(include_bytes!("../assets/images/icon.png"))
+        .expect("app icon should be a valid PNG")
+}
+
 fn native_options(renderer: eframe::Renderer) -> eframe::NativeOptions {
     eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("YSSV")
             .with_inner_size([1320.0, 840.0])
-            .with_min_inner_size([900.0, 600.0]),
+            .with_min_inner_size([900.0, 600.0])
+            .with_icon(app_icon()),
         renderer,
         ..Default::default()
     }
