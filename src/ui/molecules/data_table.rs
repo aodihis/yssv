@@ -1,16 +1,31 @@
 use crate::core::results::model::ColumnDef;
+use crate::theme::ThemeColors;
 use crate::ui::molecules::data_cell::render_cell;
 use egui::RichText;
+
+/// Paints the divider line under a header cell. Shared by every header cell
+/// so the line stays contiguous across columns.
+fn header_cell_decoration(ui: &egui::Ui, tc: &ThemeColors) {
+    let rect = ui.max_rect();
+    ui.painter()
+        .hline(rect.x_range(), rect.bottom(), egui::Stroke::new(1.0, tc.border));
+}
 
 /// Shared results-grid header row: a `#` index column followed by one column
 /// per `ColumnDef` (PK marker, semibold name, weak type). Used by both the
 /// read-only `data_table` and the editable grid so the two never drift.
-pub(crate) fn results_header(header: &mut egui_extras::TableRow<'_, '_>, columns: &[ColumnDef]) {
+pub(crate) fn results_header(
+    header: &mut egui_extras::TableRow<'_, '_>,
+    columns: &[ColumnDef],
+    tc: &ThemeColors,
+) {
     header.col(|ui| {
+        header_cell_decoration(ui, tc);
         ui.label(RichText::new("#").size(11.0).weak());
     });
     for col in columns {
         header.col(|ui| {
+            header_cell_decoration(ui, tc);
             ui.horizontal(|ui| {
                 if col.is_pk {
                     ui.label(RichText::new("🔑").size(10.0));
@@ -32,6 +47,7 @@ pub fn data_table(
     row_height: f32,
     selected: Option<usize>,
 ) -> Option<usize> {
+    let tc = ThemeColors::from_ui(ui);
     let mut new_selected = selected;
     egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
         egui_extras::TableBuilder::new(ui)
@@ -47,7 +63,7 @@ pub fn data_table(
                 columns.len(),
             )
             .header(row_height, |mut header| {
-                results_header(&mut header, columns);
+                results_header(&mut header, columns, &tc);
             })
             .body(|body| {
                 body.rows(row_height, rows.len(), |mut row| {

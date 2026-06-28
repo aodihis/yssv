@@ -58,7 +58,7 @@ pub fn editable_data_table(
                 columns.len(),
             )
             .header(row_height, |mut header| {
-                results_header(&mut header, columns);
+                results_header(&mut header, columns, &tc);
             })
             .body(|body| {
                 body.rows(row_height, total, |mut row| {
