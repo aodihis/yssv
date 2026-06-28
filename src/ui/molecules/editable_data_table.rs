@@ -43,7 +43,7 @@ pub fn editable_data_table(
     let inserted_bg = tint(tc.success, 26);
     let deleted_bg = tint(tc.error, 26);
 
-    egui::ScrollArea::both().show(ui, |ui| {
+    egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
         egui_extras::TableBuilder::new(ui)
             .striped(false)
             .resizable(true)

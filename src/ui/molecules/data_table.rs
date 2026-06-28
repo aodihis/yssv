@@ -33,7 +33,7 @@ pub fn data_table(
     selected: Option<usize>,
 ) -> Option<usize> {
     let mut new_selected = selected;
-    egui::ScrollArea::both().show(ui, |ui| {
+    egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
         egui_extras::TableBuilder::new(ui)
             .striped(false)
             .resizable(true)
