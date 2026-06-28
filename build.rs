@@ -29,8 +29,23 @@ fn main() {
         let ico_path = std::path::Path::new(&out_dir).join("icon.ico");
         std::fs::write(&ico_path, &ico).expect("write generated icon.ico");
 
+        // System (not Per-Monitor-V2) DPI awareness: winit's PMv2 handling has a
+        // WM_DPICHANGED feedback bug on Windows that shrinks the window each time
+        // it crosses monitors with different scaling. System-aware trades crisp
+        // rescaling (the window bitmap-scales until restarted) for not shrinking.
+        let manifest = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">System</dpiAwareness>
+    </windowsSettings>
+  </application>
+</assembly>"#;
+
         winresource::WindowsResource::new()
             .set_icon(ico_path.to_str().expect("OUT_DIR is valid UTF-8"))
+            .set_manifest(manifest)
             .compile()
             .expect("failed to embed Windows icon resource");
     }
