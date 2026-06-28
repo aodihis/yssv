@@ -118,6 +118,7 @@ impl YssvApp {
                 self.error_modal = Some(message);
                 self.conn_page.connecting = false;
                 self.conn_page.test_status = crate::pages::connections::state::TestStatus::Idle;
+                self.conn_page.status_shown_at = None;
             }
             AppEvent::TestOk {
                 conn_id,
@@ -126,11 +127,13 @@ impl YssvApp {
                 tracing::debug!(conn_id = %conn_id, latency_ms, "test connection ok");
                 self.conn_page.test_status =
                     crate::pages::connections::state::TestStatus::Ok(latency_ms);
+                self.conn_page.mark_notification_shown();
             }
             AppEvent::TestError { conn_id, message } => {
                 tracing::warn!(conn_id = %conn_id, error = %message, "test connection failed");
                 self.conn_page.test_status =
                     crate::pages::connections::state::TestStatus::Failed(message);
+                self.conn_page.mark_notification_shown();
             }
             AppEvent::RowsLoaded { tab_id, result } => {
                 tracing::debug!(tab_id = %tab_id, rows = result.rows.len(), "rows loaded");
@@ -361,6 +364,7 @@ impl YssvApp {
     pub fn test_connection(&mut self, ctx: egui::Context) {
         use crate::pages::connections::state::TestStatus;
         self.conn_page.test_status = TestStatus::Testing;
+        self.conn_page.status_shown_at = None;
         let conn = self.conn_page.form.to_connection();
         tracing::debug!(conn_id = %conn.id, host = %conn.host, "testing connection");
         let conn_id = conn.id.clone();
@@ -666,6 +670,7 @@ impl YssvApp {
         let _ = self.storage.save(&c);
         self.conn_page.apply_saved(c);
         self.conn_page.save_status = SaveStatus::Saved;
+        self.conn_page.mark_notification_shown();
     }
 
     pub fn delete_connection(&mut self, id: &str) {

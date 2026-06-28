@@ -6,6 +6,7 @@ pub use state::ConnectionsPageState;
 
 pub fn render(ui: &mut egui::Ui, app: &mut crate::app::YssvApp) {
     let tc = crate::theme::ThemeColors::for_theme(app.settings.theme);
+    app.conn_page.tick_notifications(ui.ctx());
 
     egui::Panel::left("conn_list_panel")
         .exact_size(307.0)

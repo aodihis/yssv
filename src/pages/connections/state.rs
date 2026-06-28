@@ -25,6 +25,9 @@ pub enum SaveStatus {
     Saved,
 }
 
+/// How long the inline "Saved" / "Connected" / error notifications stay visible.
+pub const NOTIFICATION_DURATION: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Mirrors `Connection` with owned `String` fields for the form.
 #[derive(Debug, Clone)]
 pub struct ConnectionForm {
@@ -164,6 +167,8 @@ pub struct ConnectionsPageState {
     pub form: ConnectionForm,
     pub test_status: TestStatus,
     pub save_status: SaveStatus,
+    /// When the current test/save notification was raised; cleared once it expires.
+    pub status_shown_at: Option<std::time::Instant>,
     /// True while a Connect attempt is in flight (drives the disabled/loading UI).
     pub connecting: bool,
     pub search_query: String,
@@ -190,6 +195,7 @@ impl ConnectionsPageState {
             form,
             test_status: TestStatus::Idle,
             save_status: SaveStatus::Idle,
+            status_shown_at: None,
             connecting: false,
             search_query: String::new(),
             collapsed_groups: Default::default(),
@@ -204,6 +210,26 @@ impl ConnectionsPageState {
         self.connecting || self.test_status == TestStatus::Testing
     }
 
+    /// Records that a test/save result was just raised, starting its 5s visibility window.
+    pub fn mark_notification_shown(&mut self) {
+        self.status_shown_at = Some(std::time::Instant::now());
+    }
+
+    /// Clears an expired test/save notification, or schedules a repaint for when it expires.
+    pub fn tick_notifications(&mut self, ctx: &egui::Context) {
+        let Some(shown_at) = self.status_shown_at else {
+            return;
+        };
+        let elapsed = shown_at.elapsed();
+        if elapsed >= NOTIFICATION_DURATION {
+            self.test_status = TestStatus::Idle;
+            self.save_status = SaveStatus::Idle;
+            self.status_shown_at = None;
+        } else {
+            ctx.request_repaint_after(NOTIFICATION_DURATION - elapsed);
+        }
+    }
+
     pub fn select(&mut self, id: &str) {
         self.selected_id = Some(id.to_string());
         if let Some(c) = self.connections.iter().find(|c| c.id == id) {
@@ -211,6 +237,7 @@ impl ConnectionsPageState {
         }
         self.test_status = TestStatus::Idle;
         self.save_status = SaveStatus::Idle;
+        self.status_shown_at = None;
         self.connecting = false;
         self.is_new = false;
     }
@@ -221,6 +248,7 @@ impl ConnectionsPageState {
         self.form = ConnectionForm::from_connection(&c);
         self.test_status = TestStatus::Idle;
         self.save_status = SaveStatus::Idle;
+        self.status_shown_at = None;
         self.connecting = false;
         self.is_new = true;
     }
@@ -231,6 +259,7 @@ impl ConnectionsPageState {
         {
             self.form = ConnectionForm::from_connection(c);
             self.test_status = TestStatus::Idle;
+            self.status_shown_at = None;
         }
     }
 
